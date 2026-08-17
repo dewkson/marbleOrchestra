@@ -14,11 +14,13 @@ namespace MarbleOrchestra.Grid
     {
         public readonly HashSet<Vector2Int> ConnectedCells;
         public readonly bool GoalReached;
+        public readonly IReadOnlyList<Vector2Int> OrderedPath;
 
-        public PathValidationResult(HashSet<Vector2Int> connectedCells, bool goalReached)
+        public PathValidationResult(HashSet<Vector2Int> connectedCells, bool goalReached, IReadOnlyList<Vector2Int> orderedPath)
         {
             ConnectedCells = connectedCells;
             GoalReached = goalReached;
+            OrderedPath = orderedPath;
         }
     }
 
@@ -31,13 +33,15 @@ namespace MarbleOrchestra.Grid
         public static PathValidationResult Evaluate(PathGrid grid)
         {
             HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
+            List<Vector2Int> orderedPath = new List<Vector2Int>();
 
             PathCard start = grid.FindCardByRole(CardRole.Start);
             if (start == null)
             {
-                return new PathValidationResult(visited, false);
+                return new PathValidationResult(visited, false, orderedPath);
             }
 
+            Dictionary<Vector2Int, Vector2Int> cameFrom = new Dictionary<Vector2Int, Vector2Int>();
             Queue<Vector2Int> frontier = new Queue<Vector2Int>();
             frontier.Enqueue(start.Coord);
             visited.Add(start.Coord);
@@ -63,6 +67,7 @@ namespace MarbleOrchestra.Grid
                     if ((neighborConnections & dir.Opposite()) == 0) continue;
 
                     visited.Add(neighborCoord);
+                    cameFrom[neighborCoord] = coord;
                     frontier.Enqueue(neighborCoord);
                 }
             }
@@ -70,7 +75,19 @@ namespace MarbleOrchestra.Grid
             PathCard goal = grid.FindCardByRole(CardRole.Goal);
             bool goalReached = goal != null && visited.Contains(goal.Coord);
 
-            return new PathValidationResult(visited, goalReached);
+            if (goalReached)
+            {
+                Vector2Int step = goal.Coord;
+                orderedPath.Add(step);
+                while (cameFrom.TryGetValue(step, out Vector2Int previous))
+                {
+                    orderedPath.Add(previous);
+                    step = previous;
+                }
+                orderedPath.Reverse();
+            }
+
+            return new PathValidationResult(visited, goalReached, orderedPath);
         }
     }
 }

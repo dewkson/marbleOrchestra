@@ -16,6 +16,7 @@ namespace MarbleOrchestra.Grid
 
         public int Width { get; private set; }
         public int Height { get; private set; }
+        public PathValidationResult LastValidation { get; private set; }
 
         private void Awake()
         {
@@ -95,6 +96,7 @@ namespace MarbleOrchestra.Grid
         public PathValidationResult Revalidate()
         {
             PathValidationResult result = PathValidator.Evaluate(this);
+            LastValidation = result;
 
             foreach (PathCard card in cells)
             {
@@ -112,7 +114,7 @@ namespace MarbleOrchestra.Grid
             return result;
         }
 
-        private Vector3 CellToLocalPosition(Vector2Int coord)
+        public Vector3 CellToLocalPosition(Vector2Int coord)
         {
             return new Vector3(coord.x * cellSize, coord.y * cellSize, 0f);
         }
