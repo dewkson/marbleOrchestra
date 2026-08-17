@@ -12,6 +12,7 @@ namespace MarbleOrchestra.Grid
     /// testable without any UI; the public methods are ready for UI buttons later.
     /// </summary>
     [RequireComponent(typeof(PathGrid))]
+    [RequireComponent(typeof(AudioSource))]
     public class MarbleController : MonoBehaviour
     {
         [SerializeField] private float cellsPerSecond = 3f;
@@ -19,6 +20,7 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private Color marbleColor = new Color(0.1f, 0.1f, 0.1f);
 
         private PathGrid grid;
+        private AudioSource audioSource;
         private Marble marble;
         private Coroutine runRoutine;
 
@@ -28,6 +30,10 @@ namespace MarbleOrchestra.Grid
         private void Awake()
         {
             grid = GetComponent<PathGrid>();
+
+            audioSource = GetComponent<AudioSource>();
+            audioSource.playOnAwake = false;
+
             marble = Marble.Create(transform, marbleRadius, marbleColor);
             marble.gameObject.SetActive(false);
         }
@@ -72,6 +78,7 @@ namespace MarbleOrchestra.Grid
         {
             marble.gameObject.SetActive(true);
             marble.transform.localPosition = grid.CellToLocalPosition(path[0]);
+            PlayCellSound(path[0]);
 
             float duration = 1f / Mathf.Max(cellsPerSecond, 0.01f);
 
@@ -89,9 +96,19 @@ namespace MarbleOrchestra.Grid
                 }
 
                 marble.transform.localPosition = to;
+                PlayCellSound(path[i]);
             }
 
             runRoutine = null;
+        }
+
+        private void PlayCellSound(Vector2Int coord)
+        {
+            AudioClip clip = grid.GetCard(coord)?.Definition?.Sound;
+            if (clip != null)
+            {
+                audioSource.PlayOneShot(clip);
+            }
         }
     }
 }

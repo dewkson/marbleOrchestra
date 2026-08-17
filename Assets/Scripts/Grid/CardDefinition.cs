@@ -22,6 +22,7 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private Color backgroundColor = new Color(0.15f, 0.15f, 0.15f);
         [SerializeField] private CardRole role = CardRole.Normal;
         [SerializeField] private bool locked;
+        [SerializeField] private AudioClip sound;
 
         public string CardId => cardId;
         public Direction Connections => connections;
@@ -29,5 +30,6 @@ namespace MarbleOrchestra.Grid
         public Color BackgroundColor => backgroundColor;
         public CardRole Role => role;
         public bool Locked => locked;
+        public AudioClip Sound => sound;
     }
 }

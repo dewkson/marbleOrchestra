@@ -15,3 +15,7 @@ MonoBehaviour:
   cardId: StraightV
   connections: 5
   color: {r: 0, g: 0.1394583, b: 1, a: 1}
+  backgroundColor: {r: 0.15, g: 0.15, b: 0.15, a: 1}
+  role: 0
+  locked: 0
+  sound: {fileID: 8300000, guid: c7d2fed16d1934d459d92c19b4a5a0d6, type: 3}
