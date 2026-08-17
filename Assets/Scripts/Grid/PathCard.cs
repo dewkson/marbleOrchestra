@@ -37,5 +37,10 @@ namespace MarbleOrchestra.Grid
         {
             visual.SetHighlighted(selected);
         }
+
+        public void SetConnectivity(CellConnectivity connectivity)
+        {
+            visual.SetConnectivity(connectivity);
+        }
     }
 }

@@ -41,6 +41,8 @@ namespace MarbleOrchestra.Grid
                     cells[x, y] = CreateCard(new Vector2Int(x, y), definition);
                 }
             }
+
+            Revalidate();
         }
 
         public PathCard GetCard(Vector2Int coord)
@@ -86,6 +88,28 @@ namespace MarbleOrchestra.Grid
                 cardB.SetCoord(a);
                 cardB.transform.localPosition = CellToLocalPosition(a);
             }
+
+            Revalidate();
+        }
+
+        public PathValidationResult Revalidate()
+        {
+            PathValidationResult result = PathValidator.Evaluate(this);
+
+            foreach (PathCard card in cells)
+            {
+                if (card == null) continue;
+
+                CellConnectivity connectivity = CellConnectivity.Disconnected;
+                if (result.ConnectedCells.Contains(card.Coord))
+                {
+                    connectivity = result.GoalReached ? CellConnectivity.PathComplete : CellConnectivity.Connected;
+                }
+
+                card.SetConnectivity(connectivity);
+            }
+
+            return result;
         }
 
         private Vector3 CellToLocalPosition(Vector2Int coord)

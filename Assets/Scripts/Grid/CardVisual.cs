@@ -11,6 +11,8 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private float armThickness = 0.15f;
         [SerializeField] private float hubSize = 0.2f;
         [SerializeField] private Color highlightColor = Color.yellow;
+        [SerializeField] private Color connectedTint = new Color(0.35f, 0.65f, 1f);
+        [SerializeField] private Color pathCompleteTint = new Color(0.35f, 0.9f, 0.45f);
 
         private static Sprite pixelSprite;
 
@@ -18,6 +20,7 @@ namespace MarbleOrchestra.Grid
         private SpriteRenderer hubRenderer;
         private readonly SpriteRenderer[] armRenderers = new SpriteRenderer[4];
         private Color baseColor = Color.white;
+        private Color baseBackgroundColor = Color.gray;
 
         public void Refresh(CardDefinition definition)
         {
@@ -25,7 +28,8 @@ namespace MarbleOrchestra.Grid
 
             Direction connections = definition != null ? definition.Connections : Direction.None;
             baseColor = definition != null ? definition.Color : Color.white;
-            backgroundRenderer.color = definition != null ? definition.BackgroundColor : Color.gray;
+            baseBackgroundColor = definition != null ? definition.BackgroundColor : Color.gray;
+            backgroundRenderer.color = baseBackgroundColor;
 
             hubRenderer.color = baseColor;
             hubRenderer.enabled = connections != Direction.None;
@@ -42,6 +46,24 @@ namespace MarbleOrchestra.Grid
         {
             if (hubRenderer == null) return;
             hubRenderer.color = highlighted ? highlightColor : baseColor;
+        }
+
+        public void SetConnectivity(CellConnectivity connectivity)
+        {
+            if (backgroundRenderer == null) return;
+
+            switch (connectivity)
+            {
+                case CellConnectivity.PathComplete:
+                    backgroundRenderer.color = pathCompleteTint;
+                    break;
+                case CellConnectivity.Connected:
+                    backgroundRenderer.color = connectedTint;
+                    break;
+                default:
+                    backgroundRenderer.color = baseBackgroundColor;
+                    break;
+            }
         }
 
         private void EnsureBuilt()
