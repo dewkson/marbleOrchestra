@@ -475,7 +475,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0506b7ce37689243b46c7b5f4d8145b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.PathGrid
-  level: {fileID: 11400000, guid: 7bb7ce776b7627b439a67505ed476b36, type: 2}
+  level: {fileID: 11400000, guid: a735286efe61161449d2a5bfe0a5fe27, type: 2}
   cellSize: 1.2
   cardScale: 1
 --- !u!4 &1612605611
