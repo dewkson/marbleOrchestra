@@ -25,6 +25,25 @@ namespace MarbleOrchestra.Grid
             {
                 Debug.LogWarning($"{name}: expected {required} cards for a {width}x{height} grid, but has {cards.Count}.", this);
             }
+
+            int startCount = 0;
+            int goalCount = 0;
+            foreach (CardDefinition card in cards)
+            {
+                if (card == null) continue;
+                if (card.Role == CardRole.Start) startCount++;
+                if (card.Role == CardRole.Goal) goalCount++;
+            }
+
+            if (startCount != 1)
+            {
+                Debug.LogWarning($"{name}: expected exactly 1 Start card, found {startCount}.", this);
+            }
+
+            if (goalCount != 1)
+            {
+                Debug.LogWarning($"{name}: expected exactly 1 Goal card, found {goalCount}.", this);
+            }
         }
     }
 }

@@ -53,6 +53,18 @@ namespace MarbleOrchestra.Grid
             return coord.x >= 0 && coord.x < Width && coord.y >= 0 && coord.y < Height;
         }
 
+        public PathCard FindCardByRole(CardRole role)
+        {
+            if (cells == null) return null;
+
+            foreach (PathCard card in cells)
+            {
+                if (card != null && card.Role == role) return card;
+            }
+
+            return null;
+        }
+
         public void SwapCards(Vector2Int a, Vector2Int b)
         {
             if (!IsInBounds(a) || !IsInBounds(b) || a == b) return;

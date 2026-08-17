@@ -26,7 +26,7 @@ namespace MarbleOrchestra.Grid
             if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame) return;
 
             PathCard clicked = RaycastCard();
-            if (clicked == null) return;
+            if (clicked == null || clicked.IsLocked) return;
 
             if (selectedCard == null)
             {

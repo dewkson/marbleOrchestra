@@ -11,6 +11,8 @@ namespace MarbleOrchestra.Grid
     {
         public Vector2Int Coord { get; private set; }
         public CardDefinition Definition { get; private set; }
+        public CardRole Role => Definition != null ? Definition.Role : CardRole.Normal;
+        public bool IsLocked => Definition != null && Definition.Locked;
 
         private CardVisual visual;
 

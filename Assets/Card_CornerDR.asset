@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 484ee74e25dbd36488e9f13ed662c351, type: 3}
   m_Name: Card_CornerDR
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.CardDefinition
-  cardId: Straight
-  connections: 10
-  color: {r: 1, g: 1, b: 1, a: 1}
+  cardId: CornerDR
+  connections: 6
+  color: {r: 0.6051662, g: 0, b: 1, a: 1}

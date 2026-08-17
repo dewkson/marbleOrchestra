@@ -14,6 +14,7 @@ namespace MarbleOrchestra.Grid
 
         private static Sprite pixelSprite;
 
+        private SpriteRenderer backgroundRenderer;
         private SpriteRenderer hubRenderer;
         private readonly SpriteRenderer[] armRenderers = new SpriteRenderer[4];
         private Color baseColor = Color.white;
@@ -24,6 +25,7 @@ namespace MarbleOrchestra.Grid
 
             Direction connections = definition != null ? definition.Connections : Direction.None;
             baseColor = definition != null ? definition.Color : Color.white;
+            backgroundRenderer.color = definition != null ? definition.BackgroundColor : Color.gray;
 
             hubRenderer.color = baseColor;
             hubRenderer.enabled = connections != Direction.None;
@@ -48,10 +50,18 @@ namespace MarbleOrchestra.Grid
 
             Sprite sprite = GetPixelSprite();
 
+            GameObject background = new GameObject("Background");
+            background.transform.SetParent(transform, false);
+            backgroundRenderer = background.AddComponent<SpriteRenderer>();
+            backgroundRenderer.sprite = sprite;
+            backgroundRenderer.sortingOrder = 0;
+            background.transform.localScale = Vector3.one;
+
             GameObject hub = new GameObject("Hub");
             hub.transform.SetParent(transform, false);
             hubRenderer = hub.AddComponent<SpriteRenderer>();
             hubRenderer.sprite = sprite;
+            hubRenderer.sortingOrder = 2;
             hub.transform.localScale = new Vector3(hubSize, hubSize, 1f);
 
             for (int i = 0; i < DirectionExtensions.All.Length; i++)
@@ -62,6 +72,7 @@ namespace MarbleOrchestra.Grid
 
                 SpriteRenderer renderer = arm.AddComponent<SpriteRenderer>();
                 renderer.sprite = sprite;
+                renderer.sortingOrder = 1;
 
                 Vector2 offset = (Vector2)dir.ToGridOffset() * 0.25f;
                 arm.transform.localPosition = offset;
