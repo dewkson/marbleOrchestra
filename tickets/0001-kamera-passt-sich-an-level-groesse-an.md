@@ -3,7 +3,7 @@ id: 0001
 title: Kamera passt sich an Level-Grid-Größe an
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Gameplay
 created: 2026-08-25
 ---
@@ -35,3 +35,9 @@ die Kamera fix auf ein 4x3 Grid eingestellt.
     kleiner/größer).
 
 ## Notizen
+
+Umgesetzt mit neuem `CameraFitter`-Script (`Assets/Scripts/Grid/CameraFitter.cs`),
+das an die MainCamera in `Prototyp_Phase1.unity` gehängt wurde und beim Start
+über `PathGrid.Width`/`Height` (davon abgeleitet aus `LevelData`) sowie
+`PathGrid.CellToLocalPosition` die orthographische Größe und Position der
+Kamera passend zum Grid und zum aktuellen Bildschirm-Seitenverhältnis berechnet.

@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 86fba31e07eb15b0d1e8090c333c8634, type: 3}
   m_Name: Sound_Snare
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.SoundTriggerContent
-  contentId: Hit3
-  clip: {fileID: 8300000, guid: e2a9b8c281debd14b902a0aaa3878890, type: 2}
+  contentId: Snare
+  clip: {fileID: 8300000, guid: dd0e23e674e326e40831be6923c1a6ca, type: 3}
