@@ -1,35 +1,35 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace MarbleOrchestra.Grid
 {
     /// <summary>
-    /// Gameplay data for a card type. Deliberately holds no visual/prefab
+    /// Gameplay data for a pipe type. Deliberately holds no visual/prefab
     /// reference so the same definition can drive different renderers later.
     /// </summary>
-    public enum CardRole
+    public enum PipeRole
     {
         Normal,
         Start,
         Goal
     }
 
-    [CreateAssetMenu(fileName = "Card_", menuName = "MarbleOrchestra/Card Definition")]
-    public class CardDefinition : ScriptableObject
+    [CreateAssetMenu(fileName = "Pipe_", menuName = "MarbleOrchestra/Pipe Definition")]
+    public class PipeDefinition : ScriptableObject
     {
-        [SerializeField] private string cardId = "Straight";
+        [FormerlySerializedAs("cardId")]
+        [SerializeField] private string pipeId = "Straight";
         [SerializeField] private Direction connections = Direction.Left | Direction.Right;
         [SerializeField] private Color color = Color.white;
         [SerializeField] private Color backgroundColor = new Color(0.15f, 0.15f, 0.15f);
-        [SerializeField] private CardRole role = CardRole.Normal;
+        [SerializeField] private PipeRole role = PipeRole.Normal;
         [SerializeField] private bool locked;
-        [SerializeField] private AudioClip sound;
 
-        public string CardId => cardId;
+        public string PipeId => pipeId;
         public Direction Connections => connections;
         public Color Color => color;
         public Color BackgroundColor => backgroundColor;
-        public CardRole Role => role;
+        public PipeRole Role => role;
         public bool Locked => locked;
-        public AudioClip Sound => sound;
     }
 }

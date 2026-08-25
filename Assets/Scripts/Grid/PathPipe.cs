@@ -3,25 +3,25 @@ using UnityEngine;
 namespace MarbleOrchestra.Grid
 {
     /// <summary>
-    /// Runtime instance of a card placed in a grid cell. Holds gameplay data
-    /// (which CardDefinition, which coordinate) and forwards rendering to CardVisual.
+    /// Runtime instance of a pipe placed in a grid cell. Holds gameplay data
+    /// (which PipeDefinition, which coordinate) and forwards rendering to PipeVisual.
     /// </summary>
-    [RequireComponent(typeof(CardVisual))]
-    public class PathCard : MonoBehaviour
+    [RequireComponent(typeof(PipeVisual))]
+    public class PathPipe : MonoBehaviour
     {
         public Vector2Int Coord { get; private set; }
-        public CardDefinition Definition { get; private set; }
-        public CardRole Role => Definition != null ? Definition.Role : CardRole.Normal;
+        public PipeDefinition Definition { get; private set; }
+        public PipeRole Role => Definition != null ? Definition.Role : PipeRole.Normal;
         public bool IsLocked => Definition != null && Definition.Locked;
 
-        private CardVisual visual;
+        private PipeVisual visual;
 
         private void Awake()
         {
-            visual = GetComponent<CardVisual>();
+            visual = GetComponent<PipeVisual>();
         }
 
-        public void Initialize(CardDefinition definition, Vector2Int coord)
+        public void Initialize(PipeDefinition definition, Vector2Int coord)
         {
             Definition = definition;
             Coord = coord;

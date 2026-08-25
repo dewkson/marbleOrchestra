@@ -4,7 +4,7 @@ using UnityEngine.InputSystem;
 namespace MarbleOrchestra.Grid
 {
     /// <summary>
-    /// Click card A, then click card B, to swap them. Purely translates
+    /// Click pipe A, then click pipe B, to swap them. Purely translates
     /// clicks into PathGrid.SwapCards calls; no gameplay logic lives here.
     /// </summary>
     [RequireComponent(typeof(PathGrid))]
@@ -13,7 +13,7 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private Camera targetCamera;
 
         private PathGrid grid;
-        private PathCard selectedCard;
+        private PathPipe selectedPipe;
 
         private void Awake()
         {
@@ -25,35 +25,35 @@ namespace MarbleOrchestra.Grid
         {
             if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame) return;
 
-            PathCard clicked = RaycastCard();
+            PathPipe clicked = RaycastPipe();
             if (clicked == null || clicked.IsLocked) return;
 
-            if (selectedCard == null)
+            if (selectedPipe == null)
             {
-                selectedCard = clicked;
-                selectedCard.SetSelected(true);
+                selectedPipe = clicked;
+                selectedPipe.SetSelected(true);
                 return;
             }
 
-            if (selectedCard == clicked)
+            if (selectedPipe == clicked)
             {
-                selectedCard.SetSelected(false);
-                selectedCard = null;
+                selectedPipe.SetSelected(false);
+                selectedPipe = null;
                 return;
             }
 
-            grid.SwapCards(selectedCard.Coord, clicked.Coord);
-            selectedCard.SetSelected(false);
-            selectedCard = null;
+            grid.SwapCards(selectedPipe.Coord, clicked.Coord);
+            selectedPipe.SetSelected(false);
+            selectedPipe = null;
         }
 
-        private PathCard RaycastCard()
+        private PathPipe RaycastPipe()
         {
             Vector2 screenPos = Mouse.current.position.ReadValue();
             Vector2 worldPos = targetCamera.ScreenToWorldPoint(screenPos);
 
             RaycastHit2D hit = Physics2D.Raycast(worldPos, Vector2.zero);
-            return hit.collider != null ? hit.collider.GetComponent<PathCard>() : null;
+            return hit.collider != null ? hit.collider.GetComponent<PathPipe>() : null;
         }
     }
 }

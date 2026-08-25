@@ -25,8 +25,8 @@ namespace MarbleOrchestra.Grid
     }
 
     /// <summary>
-    /// Pure logic: walks reciprocal card connections outward from the Start
-    /// card and checks whether the Goal card is reachable. No rendering here.
+    /// Pure logic: walks reciprocal pipe connections outward from the Start
+    /// pipe and checks whether the Goal pipe is reachable. No rendering here.
     /// </summary>
     public static class PathValidator
     {
@@ -35,7 +35,7 @@ namespace MarbleOrchestra.Grid
             HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
             List<Vector2Int> orderedPath = new List<Vector2Int>();
 
-            PathCard start = grid.FindCardByRole(CardRole.Start);
+            PathPipe start = grid.FindPipeByRole(PipeRole.Start);
             if (start == null)
             {
                 return new PathValidationResult(visited, false, orderedPath);
@@ -49,10 +49,10 @@ namespace MarbleOrchestra.Grid
             while (frontier.Count > 0)
             {
                 Vector2Int coord = frontier.Dequeue();
-                PathCard card = grid.GetCard(coord);
-                if (card == null || card.Definition == null) continue;
+                PathPipe pipe = grid.GetPipe(coord);
+                if (pipe == null || pipe.Definition == null) continue;
 
-                Direction connections = card.Definition.Connections;
+                Direction connections = pipe.Definition.Connections;
                 foreach (Direction dir in DirectionExtensions.All)
                 {
                     if ((connections & dir) == 0) continue;
@@ -60,7 +60,7 @@ namespace MarbleOrchestra.Grid
                     Vector2Int neighborCoord = coord + dir.ToGridOffset();
                     if (!grid.IsInBounds(neighborCoord) || visited.Contains(neighborCoord)) continue;
 
-                    PathCard neighbor = grid.GetCard(neighborCoord);
+                    PathPipe neighbor = grid.GetPipe(neighborCoord);
                     if (neighbor == null || neighbor.Definition == null) continue;
 
                     Direction neighborConnections = neighbor.Definition.Connections;
@@ -72,7 +72,7 @@ namespace MarbleOrchestra.Grid
                 }
             }
 
-            PathCard goal = grid.FindCardByRole(CardRole.Goal);
+            PathPipe goal = grid.FindPipeByRole(PipeRole.Goal);
             bool goalReached = goal != null && visited.Contains(goal.Coord);
 
             if (goalReached)

@@ -78,7 +78,7 @@ namespace MarbleOrchestra.Grid
         {
             marble.gameObject.SetActive(true);
             marble.transform.localPosition = grid.CellToLocalPosition(path[0]);
-            PlayCellSound(path[0]);
+            TriggerCellContent(path[0]);
 
             float duration = 1f / Mathf.Max(cellsPerSecond, 0.01f);
 
@@ -96,19 +96,16 @@ namespace MarbleOrchestra.Grid
                 }
 
                 marble.transform.localPosition = to;
-                PlayCellSound(path[i]);
+                TriggerCellContent(path[i]);
             }
 
             runRoutine = null;
         }
 
-        private void PlayCellSound(Vector2Int coord)
+        private void TriggerCellContent(Vector2Int coord)
         {
-            AudioClip clip = grid.GetCard(coord)?.Definition?.Sound;
-            if (clip != null)
-            {
-                audioSource.PlayOneShot(clip);
-            }
+            CellContentDefinition content = grid.GetContent(coord);
+            content?.Activate(new CellContentContext(grid, coord, audioSource, marble));
         }
     }
 }

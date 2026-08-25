@@ -3,10 +3,10 @@ using UnityEngine;
 namespace MarbleOrchestra.Grid
 {
     /// <summary>
-    /// Draws a card purely from its Direction flags (a "+" of arms towards
-    /// each connected side). No hand-authored art needed per card type.
+    /// Draws a pipe purely from its Direction flags (a "+" of arms towards
+    /// each connected side). No hand-authored art needed per pipe type.
     /// </summary>
-    public class CardVisual : MonoBehaviour
+    public class PipeVisual : MonoBehaviour
     {
         [SerializeField] private float armThickness = 0.15f;
         [SerializeField] private float hubSize = 0.2f;
@@ -22,7 +22,7 @@ namespace MarbleOrchestra.Grid
         private Color baseColor = Color.white;
         private Color baseBackgroundColor = Color.gray;
 
-        public void Refresh(CardDefinition definition)
+        public void Refresh(PipeDefinition definition)
         {
             EnsureBuilt();
 
