@@ -7,8 +7,10 @@ namespace MarbleOrchestra.Grid
 {
     /// <summary>
     /// Drives one Marble per completed Start-to-Goal track of PathGrid's
-    /// last validation, all running concurrently. Play is refused whenever
-    /// no track is currently complete.
+    /// last validation, all running concurrently. Each track loops: on
+    /// reaching Goal, its marble is replaced by a fresh one starting at
+    /// Start again, instantly and with no gap between laps. Play is
+    /// refused whenever no track is currently complete.
     /// Keyboard-driven for now (Space = Play, S = Stop, R = Reset) so it is
     /// testable without any UI; the public methods are ready for UI buttons later.
     /// </summary>
@@ -67,7 +69,7 @@ namespace MarbleOrchestra.Grid
                 Marble marble = Marble.Create(transform, marbleRadius, marbleColor);
                 marbles.Add(marble);
                 activeRunCount++;
-                runRoutines.Add(StartCoroutine(RunTrack(marble, result.OrderedPath)));
+                runRoutines.Add(StartCoroutine(RunTrack(marble, result.OrderedPath[0])));
             }
 
             return true;
@@ -110,10 +112,44 @@ namespace MarbleOrchestra.Grid
             marbles.Clear();
         }
 
-        private IEnumerator RunTrack(Marble marble, IReadOnlyList<Vector2Int> path)
+        /// Loops one marble around the track from startCoord for as long as
+        /// that track stays completely validated. Re-resolves the current
+        /// path from grid.LastValidations before every lap, so a pipe swap
+        /// that breaks the track stops the loop at the next lap boundary.
+        /// The old marble is destroyed and a fresh one spawned at Start in
+        /// the same synchronous step (no yield in between), so the swap at
+        /// Goal reads as instant rather than a teleport of one instance.
+        private IEnumerator RunTrack(Marble marble, Vector2Int startCoord)
         {
-            yield return RunAlongPath(marble, path);
+            IReadOnlyList<Vector2Int> path = FindCurrentPath(startCoord);
+
+            while (path != null)
+            {
+                yield return RunAlongPath(marble, path);
+
+                marble.gameObject.SetActive(false);
+                Destroy(marble.gameObject);
+                marbles.Remove(marble);
+
+                path = FindCurrentPath(startCoord);
+                if (path == null) break;
+
+                marble = Marble.Create(transform, marbleRadius, marbleColor);
+                marbles.Add(marble);
+            }
+
             activeRunCount--;
+        }
+
+        private IReadOnlyList<Vector2Int> FindCurrentPath(Vector2Int startCoord)
+        {
+            foreach (PathValidationResult result in grid.LastValidations)
+            {
+                if (!result.GoalReached) continue;
+                if (result.OrderedPath.Count == 0 || result.OrderedPath[0] != startCoord) continue;
+                return result.OrderedPath;
+            }
+            return null;
         }
 
         private IEnumerator RunAlongPath(Marble marble, IReadOnlyList<Vector2Int> path)
