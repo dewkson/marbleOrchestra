@@ -25,21 +25,27 @@ namespace MarbleOrchestra.Grid
     }
 
     /// <summary>
-    /// Pure logic: walks reciprocal pipe connections outward from the Start
-    /// pipe and checks whether the Goal pipe is reachable. No rendering here.
+    /// Pure logic: for every Start pipe, walks reciprocal pipe connections
+    /// outward and checks whether any Goal pipe is reachable - one result
+    /// per Start pipe, so a level can have several independent tracks.
+    /// No rendering here.
     /// </summary>
     public static class PathValidator
     {
-        public static PathValidationResult Evaluate(PathGrid grid)
+        public static IReadOnlyList<PathValidationResult> EvaluateAll(PathGrid grid)
+        {
+            List<PathValidationResult> results = new List<PathValidationResult>();
+            foreach (PathPipe start in grid.FindPipesByRole(PipeRole.Start))
+            {
+                results.Add(EvaluateFrom(grid, start));
+            }
+            return results;
+        }
+
+        private static PathValidationResult EvaluateFrom(PathGrid grid, PathPipe start)
         {
             HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
             List<Vector2Int> orderedPath = new List<Vector2Int>();
-
-            PathPipe start = grid.FindPipeByRole(PipeRole.Start);
-            if (start == null)
-            {
-                return new PathValidationResult(visited, false, orderedPath);
-            }
 
             Dictionary<Vector2Int, Vector2Int> cameFrom = new Dictionary<Vector2Int, Vector2Int>();
             Queue<Vector2Int> frontier = new Queue<Vector2Int>();
@@ -72,8 +78,8 @@ namespace MarbleOrchestra.Grid
                 }
             }
 
-            PathPipe goal = grid.FindPipeByRole(PipeRole.Goal);
-            bool goalReached = goal != null && visited.Contains(goal.Coord);
+            PathPipe goal = FindReachedGoal(grid, visited);
+            bool goalReached = goal != null;
 
             if (goalReached)
             {
@@ -88,6 +94,15 @@ namespace MarbleOrchestra.Grid
             }
 
             return new PathValidationResult(visited, goalReached, orderedPath);
+        }
+
+        private static PathPipe FindReachedGoal(PathGrid grid, HashSet<Vector2Int> visited)
+        {
+            foreach (PathPipe goal in grid.FindPipesByRole(PipeRole.Goal))
+            {
+                if (visited.Contains(goal.Coord)) return goal;
+            }
+            return null;
         }
     }
 }

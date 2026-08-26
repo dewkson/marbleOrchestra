@@ -7,7 +7,6 @@ Priorität (Critical → High → Medium → Low) sortiert.
 
 | ID | Titel | Typ | Priorität | Status | Area | Erstellt |
 |----|-------|-----|-----------|--------|------|----------|
-| 0010 | Mehrere Start/Goal-Paare und gleichzeitige Murmeln pro Level | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-26 |
 | 0004 | Pipe-Swap per Drag & Drop mit Visualisierung | Feature | 🔵 Low | ⚪ Open | Gameplay | 2026-08-25 |
 
 ## Alle Tickets
@@ -23,7 +22,7 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0007 | Zelltrennlinien im Level Grid Editor | Feature | 🔵 Low | ✅ Done | Level Editor | 2026-08-26 |
 | 0008 | Locked-Status von Pipes im Level Grid Editor anzeigen | Feature | 🟡 Medium | ✅ Done | Level Editor | 2026-08-26 |
 | 0009 | Pipe-Rolle (Normal/Start/Goal) im Level Grid Editor unterscheiden | Feature | 🟡 Medium | ✅ Done | Level Editor | 2026-08-26 |
-| 0010 | Mehrere Start/Goal-Paare und gleichzeitige Murmeln pro Level | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-26 |
+| 0010 | Mehrere Start/Goal-Paare und gleichzeitige Murmeln pro Level | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-08-26 |
 
 ## Legende
 

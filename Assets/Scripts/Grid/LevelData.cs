@@ -116,14 +116,14 @@ namespace MarbleOrchestra.Grid
                 if (pipe.Role == PipeRole.Goal) goalCount++;
             }
 
-            if (startCount != 1)
+            if (startCount < 1)
             {
-                Debug.LogWarning($"{name}: expected exactly 1 Start pipe, found {startCount}.", this);
+                Debug.LogWarning($"{name}: expected at least 1 Start pipe, found {startCount}.", this);
             }
 
-            if (goalCount != 1)
+            if (startCount != goalCount)
             {
-                Debug.LogWarning($"{name}: expected exactly 1 Goal pipe, found {goalCount}.", this);
+                Debug.LogWarning($"{name}: expected the same number of Start and Goal pipes, found {startCount} Start and {goalCount} Goal.", this);
             }
         }
     }

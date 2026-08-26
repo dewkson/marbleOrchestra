@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace MarbleOrchestra.Grid
@@ -19,7 +20,7 @@ namespace MarbleOrchestra.Grid
 
         public int Width { get; private set; }
         public int Height { get; private set; }
-        public PathValidationResult LastValidation { get; private set; }
+        public IReadOnlyList<PathValidationResult> LastValidations { get; private set; } = new List<PathValidationResult>();
 
         private void Awake()
         {
@@ -66,16 +67,17 @@ namespace MarbleOrchestra.Grid
             return coord.x >= 0 && coord.x < Width && coord.y >= 0 && coord.y < Height;
         }
 
-        public PathPipe FindPipeByRole(PipeRole role)
+        public IReadOnlyList<PathPipe> FindPipesByRole(PipeRole role)
         {
-            if (pipes == null) return null;
+            List<PathPipe> result = new List<PathPipe>();
+            if (pipes == null) return result;
 
             foreach (PathPipe pipe in pipes)
             {
-                if (pipe != null && pipe.Role == role) return pipe;
+                if (pipe != null && pipe.Role == role) result.Add(pipe);
             }
 
-            return null;
+            return result;
         }
 
         public void SwapCards(Vector2Int a, Vector2Int b)
@@ -105,25 +107,27 @@ namespace MarbleOrchestra.Grid
             Revalidate();
         }
 
-        public PathValidationResult Revalidate()
+        public IReadOnlyList<PathValidationResult> Revalidate()
         {
-            PathValidationResult result = PathValidator.Evaluate(this);
-            LastValidation = result;
+            IReadOnlyList<PathValidationResult> results = PathValidator.EvaluateAll(this);
+            LastValidations = results;
 
             foreach (PathPipe pipe in pipes)
             {
                 if (pipe == null) continue;
 
                 CellConnectivity connectivity = CellConnectivity.Disconnected;
-                if (result.ConnectedCells.Contains(pipe.Coord))
+                foreach (PathValidationResult result in results)
                 {
+                    if (!result.ConnectedCells.Contains(pipe.Coord)) continue;
                     connectivity = result.GoalReached ? CellConnectivity.PathComplete : CellConnectivity.Connected;
+                    break;
                 }
 
                 pipe.SetConnectivity(connectivity);
             }
 
-            return result;
+            return results;
         }
 
         public Vector3 CellToLocalPosition(Vector2Int coord)

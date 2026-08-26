@@ -3,7 +3,7 @@ id: 0010
 title: Mehrere Start/Goal-Paare und gleichzeitige Murmeln pro Level
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Gameplay
 created: 2026-08-26
 ---
@@ -54,3 +54,30 @@ Beim Starten der Murmel, sollten dann auch mehrere Murmeln loslaufen können
     wie es valide Start/Goal-Paare gibt.
 
 ## Notizen
+
+Umgesetzt:
+
+- `Assets/Scripts/Grid/PathValidator.cs`: `Evaluate` → `EvaluateAll`, läuft
+  jetzt für jede gefundene Start-Pipe eine eigene BFS und liefert eine
+  Liste von `PathValidationResult` (ein Eintrag pro Start-Pipe). Ein Track
+  gilt als komplett, wenn *irgendeine* Goal-Pipe innerhalb seiner
+  besuchten Zellen liegt.
+- `Assets/Scripts/Grid/PathGrid.cs`: `FindPipeByRole` → `FindPipesByRole`
+  (liefert alle Pipes einer Rolle statt nur die erste). `LastValidation`
+  (einzelnes Result) → `LastValidations` (Liste). `Revalidate` markiert die
+  Connectivity jeder Pipe anhand des Tracks, zu dem ihre Zelle gehört.
+- `Assets/Scripts/Grid/LevelData.cs`: `OnValidate` verlangt jetzt
+  mindestens 1 Start-Pipe und eine gleiche Anzahl Start-/Goal-Pipes, statt
+  exakt 1 von jeder.
+- `Assets/Scripts/Grid/MarbleController.cs`: hält jetzt eine Liste von
+  Murmeln statt einer einzelnen. `Play()` erzeugt für jeden Track mit
+  `GoalReached == true` eine eigene Murmel und startet sie parallel als
+  eigene Coroutine; nicht-vollständige Tracks werden ignoriert (Play ist
+  schon möglich, wenn mindestens ein Track komplett ist). `Stop`/`Reset`
+  räumen alle Murmeln/Coroutinen auf.
+
+Design-Entscheidung zur offenen Frage im Ticket: Start-/Goal-Zuordnung
+erfolgt implizit über Erreichbarkeit (welche Goal-Pipe von welcher
+Start-Pipe aus verbunden ist), keine explizite Paarung nötig, solange sich
+die Bahnen nicht überschneiden. Play startet nur für die Tracks, die
+gerade vollständig sind, nicht erst wenn alle Tracks komplett sind.
