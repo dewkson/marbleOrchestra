@@ -10,12 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 484ee74e25dbd36488e9f13ed662c351, type: 3}
-  m_Name: Card_StraightH
-  m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.CardDefinition
-  cardId: StraightH
+  m_Name: Pipe_RightLeft
+  m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.PipeDefinition
+  pipeId: RightLeft
   connections: 10
   color: {r: 0.16812223, g: 1, b: 0, a: 1}
   backgroundColor: {r: 0.15, g: 0.15, b: 0.15, a: 1}
   role: 0
   locked: 0
-  sound: {fileID: 8300000, guid: c7d2fed16d1934d459d92c19b4a5a0d6, type: 3}

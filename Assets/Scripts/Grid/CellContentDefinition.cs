@@ -31,7 +31,9 @@ namespace MarbleOrchestra.Grid
     public abstract class CellContentDefinition : ScriptableObject
     {
         [SerializeField] private string contentId = "Content";
+        [SerializeField] private string label = "?";
         public string ContentId => contentId;
+        public string Label => label;
 
         /// Called when the marble arrives at (or spawns on) this cell.
         public abstract void Activate(CellContentContext context);

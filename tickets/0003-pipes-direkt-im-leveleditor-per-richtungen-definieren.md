@@ -3,7 +3,7 @@ id: 0003
 title: Pipes direkt im Level-Editor per Richtungen definieren
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Level Editor
 created: 2026-08-25
 ---
@@ -48,3 +48,16 @@ und `Locked` müssen dabei ebenfalls direkt im Editor einstellbar sein.
     weiterhin unverändert (keine Breaking Changes für existierende Level).
 
 ## Notizen
+
+Umgesetzt in `Assets/Scripts/Grid/Editor/LevelGridEditorWindow.cs`. Im
+Pipe-Bereich der Palette gibt es jetzt einen "Custom Pipe"-Baustein mit
+4 Richtungs-Toggles (U/R/D/L, kreuzförmig angeordnet), einem
+BackgroundColor-Feld, einem Role-Dropdown und einem Locked-Toggle. "Use
+Custom" aktiviert diesen als Pinsel; beim Malen einer Zelle sucht
+`GetOrCreateCustomPipe` unter den vorhandenen `PipeDefinition`-Assets nach
+einer Übereinstimmung in Connections+BackgroundColor+Role+Locked und
+verwendet sie wieder, oder legt über `CreateCustomPipeAsset` (per
+`SerializedObject`, da die Felder sonst privat sind) automatisch ein neues
+Asset unter `Assets/Levels/Pipes/` an. Bestehende, manuell angelegte
+Pipe-Assets bleiben unverändert nutzbar und tauchen weiterhin in der
+normalen Palette auf.

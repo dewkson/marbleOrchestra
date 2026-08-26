@@ -13,4 +13,5 @@ MonoBehaviour:
   m_Name: Sound_Hat
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.SoundTriggerContent
   contentId: Hit
+  label: H
   clip: {fileID: 8300000, guid: 010d85243a74e454d9b2f64ca89b00a0, type: 3}

@@ -3,7 +3,7 @@ id: 0002
 title: Randomize-Funktion für Pipes im Level-Editor
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Level Editor
 created: 2026-08-25
 ---
@@ -36,3 +36,17 @@ Wichtig ist dabei, dass fixierte Pipes nicht randomisiert werden.
   - Änderung markiert das Level-Asset als dirty, damit sie gespeichert wird.
 
 ## Notizen
+
+Umgesetzt in `Assets/Scripts/Grid/Editor/LevelGridEditorWindow.cs`: Button
+"Randomize" neben dem Pipe/Content-Toolbar (nur sichtbar im Pipe-Layer). Die
+Methode `RandomizePipes()` sammelt alle nicht-fixierten Zellen (mit Pipe
+*oder* leer) als Zielslots und die darin enthaltenen nicht-fixierten Pipes
+als zu verteilende Werte, mischt die Zielslots per Fisher-Yates und schreibt
+die Pipes über `SetPipeAt` zurück - überzählige Slots werden geleert. Zellen
+mit `Locked == true`-Pipe bleiben unangetastet. Änderung wird per
+`Undo.RecordObject` erfasst und das Asset über `EditorUtility.SetDirty` als
+dirty markiert.
+
+Korrektur: Erste Version hat nur belegte Zellen untereinander getauscht,
+freie Zellen wurden nicht als Ziel berücksichtigt - jetzt werden die Pipes
+über alle nicht-fixierten Zellen (belegt + leer) verteilt.

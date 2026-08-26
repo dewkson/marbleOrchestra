@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 484ee74e25dbd36488e9f13ed662c351, type: 3}
-  m_Name: Card_StartR
-  m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.CardDefinition
-  cardId: StartR
+  m_Name: Pipe_Right_Start
+  m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.PipeDefinition
+  pipeId: Right_Start
   connections: 2
   color: {r: 1, g: 1, b: 1, a: 1}
   backgroundColor: {r: 0.15, g: 0.15, b: 0.15, a: 1}

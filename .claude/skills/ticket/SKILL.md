@@ -50,7 +50,10 @@ wurde, frage kurz danach.
    - Abschnitt "Notizen": leer lassen (Platz für spätere Updates).
 
 5. **Index aktualisieren**: Neue Zeile in der Tabelle von `tickets/INDEX.md`
-   ergänzen (ID, Titel, Typ, Priorität, Status, Area, Erstellt-Datum).
+   ergänzen (ID, Titel, Typ, Priorität, Status, Area, Erstellt-Datum). In den
+   Spalten Priorität und Status jeweils das passende Icon aus der Legende am
+   Ende von `INDEX.md` voranstellen (z.B. `🟡 Medium`, `⚪ Open`) - im
+   Frontmatter der Ticket-Datei selbst bleiben beide Werte reiner Text.
 
 6. **Kurz bestätigen**: Antworte dem User knapp mit Ticket-ID, Titel und
    Pfad der angelegten Datei. Keine langen Zusammenfassungen.

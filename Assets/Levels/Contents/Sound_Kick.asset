@@ -13,4 +13,5 @@ MonoBehaviour:
   m_Name: Sound_Kick
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.SoundTriggerContent
   contentId: Kick
+  label: K
   clip: {fileID: 8300000, guid: f5b2d849798f40d428819359bd37b7aa, type: 3}

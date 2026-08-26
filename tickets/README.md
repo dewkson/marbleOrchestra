@@ -24,14 +24,22 @@ Der Skill vergibt automatisch die nächste ID, legt die Ticket-Datei aus
 
 ## Status-Werte
 
-- `Open` - noch nicht begonnen
-- `In Progress` - in Arbeit
-- `Done` - erledigt
-- `Wontfix` - bewusst nicht umgesetzt
+- `Open` (⚪) - noch nicht begonnen
+- `In Progress` (🟡) - in Arbeit
+- `Done` (✅) - erledigt
+- `Wontfix` (🚫) - bewusst nicht umgesetzt
+
+## Prioritäts-Werte
+
+- `Low` (🔵), `Medium` (🟡), `High` (🟠), `Critical` (🔴)
 
 ## Typ-Werte
 
 - `Bug`, `Feature`, `Task`, `Idea`
+
+Im Frontmatter der einzelnen Ticket-Dateien bleiben Status und Priorität
+reiner Text (maschinenlesbar). Nur in der Tabelle von `INDEX.md` werden sie
+zusätzlich mit dem jeweiligen Icon vorangestellt (z.B. `✅ Done`, `🔴 Critical`).
 
 Tickets manuell zu bearbeiten (z.B. Status auf `Done` setzen) ist jederzeit
 erlaubt - einfach das Frontmatter und `INDEX.md` konsistent halten.

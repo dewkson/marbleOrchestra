@@ -10,12 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 484ee74e25dbd36488e9f13ed662c351, type: 3}
-  m_Name: Card_CornerUL
-  m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.CardDefinition
-  cardId: CornerUL
+  m_Name: Pipe_UpLeft
+  m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.PipeDefinition
+  pipeId: UpLeft
   connections: 9
   color: {r: 1, g: 0.66165113, b: 0, a: 1}
   backgroundColor: {r: 0.15, g: 0.15, b: 0.15, a: 1}
   role: 0
   locked: 0
-  sound: {fileID: 8300000, guid: 38721392acda50e4c940be4079c9c35b, type: 3}
