@@ -49,11 +49,18 @@ wurde, frage kurz danach.
      zu füllen.
    - Abschnitt "Notizen": leer lassen (Platz für spätere Updates).
 
-5. **Index aktualisieren**: Neue Zeile in der Tabelle von `tickets/INDEX.md`
-   ergänzen (ID, Titel, Typ, Priorität, Status, Area, Erstellt-Datum). In den
-   Spalten Priorität und Status jeweils das passende Icon aus der Legende am
-   Ende von `INDEX.md` voranstellen (z.B. `🟡 Medium`, `⚪ Open`) - im
-   Frontmatter der Ticket-Datei selbst bleiben beide Werte reiner Text.
+5. **Index aktualisieren**: `tickets/INDEX.md` enthält zwei Tabellen -
+   beide pflegen:
+   - **"Alle Tickets"**: neue Zeile ergänzen (ID, Titel, Typ, Priorität,
+     Status, Area, Erstellt-Datum), sortiert nach ID.
+   - **"Offene Tickets (nach Priorität)"**: da neue Tickets immer mit
+     `status: Open` angelegt werden, hier ebenfalls eine Zeile ergänzen -
+     einsortiert nach Priorität absteigend (Critical → High → Medium →
+     Low), bei gleicher Priorität nach ID.
+   In den Spalten Priorität und Status jeweils das passende Icon aus der
+   Legende am Ende von `INDEX.md` voranstellen (z.B. `🟡 Medium`,
+   `⚪ Open`) - im Frontmatter der Ticket-Datei selbst bleiben beide Werte
+   reiner Text.
 
 6. **Kurz bestätigen**: Antworte dem User knapp mit Ticket-ID, Titel und
    Pfad der angelegten Datei. Keine langen Zusammenfassungen.

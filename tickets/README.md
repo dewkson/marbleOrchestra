@@ -6,7 +6,9 @@ versioniert wird.
 
 ## Struktur
 
-- `INDEX.md` - Tabellarische Übersicht aller Tickets (Status, Priorität, Typ).
+- `INDEX.md` - Enthält zwei Tabellen: "Offene Tickets (nach Priorität)"
+  (nur `Open`/`In Progress`, absteigend nach Priorität sortiert) und "Alle
+  Tickets" (Longlist, sortiert nach ID).
 - `TEMPLATE.md` - Vorlage für neue Tickets.
 - `NNNN-slug.md` - Ein Ticket pro Datei, fortlaufend nummeriert (`0001`, `0002`, ...).
 
@@ -42,4 +44,7 @@ reiner Text (maschinenlesbar). Nur in der Tabelle von `INDEX.md` werden sie
 zusätzlich mit dem jeweiligen Icon vorangestellt (z.B. `✅ Done`, `🔴 Critical`).
 
 Tickets manuell zu bearbeiten (z.B. Status auf `Done` setzen) ist jederzeit
-erlaubt - einfach das Frontmatter und `INDEX.md` konsistent halten.
+erlaubt - einfach das Frontmatter und beide Tabellen in `INDEX.md`
+konsistent halten: Zeile in "Alle Tickets" aktualisieren, und in "Offene
+Tickets (nach Priorität)" ergänzen/entfernen bzw. neu einsortieren, je
+nachdem ob das Ticket danach noch `Open`/`In Progress` ist.
