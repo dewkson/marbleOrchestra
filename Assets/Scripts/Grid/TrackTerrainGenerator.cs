@@ -11,14 +11,17 @@ namespace MarbleOrchestra.Grid
     /// along it) and a flat, definable-width shoulder extruded out to each
     /// side (side view: ---u---). Regenerates whenever the set of completed
     /// paths changes (pipe swap, level rebuild).
-    /// Purely geometric/visual - marble movement itself still runs on the
-    /// 2D grid (see MarbleController); this does not drive physics.
-    /// Lives on its own GameObject (with its own MeshFilter/MeshRenderer);
-    /// grid and marbleController are wired in the Inspector or auto-found
-    /// at Awake.
+    /// Purely geometric - marble movement is driven externally
+    /// (MarbleController), either by sampling SampleGroovePosition
+    /// (kinematic) or via Unity physics colliding against this object's
+    /// MeshCollider (physics-based), see 0014.
+    /// Lives on its own GameObject (with its own MeshFilter/MeshRenderer/
+    /// MeshCollider); grid and marbleController are wired in the Inspector
+    /// or auto-found at Awake.
     /// </summary>
     [RequireComponent(typeof(MeshFilter))]
     [RequireComponent(typeof(MeshRenderer))]
+    [RequireComponent(typeof(MeshCollider))]
     public class TrackTerrainGenerator : MonoBehaviour
     {
         [SerializeField] private PathGrid grid;
@@ -29,7 +32,10 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private float heightDropPerCell = 0.25f;
         [SerializeField] private Color terrainColor = new Color(0.45f, 0.32f, 0.22f);
 
+        public float GrooveRadius => grooveRadius;
+
         private MeshFilter meshFilter;
+        private MeshCollider meshCollider;
         private Vector2[] profile;
         private List<IReadOnlyList<Vector2Int>> lastPaths = new List<IReadOnlyList<Vector2Int>>();
 
@@ -38,6 +44,7 @@ namespace MarbleOrchestra.Grid
             if (grid == null) grid = FindFirstObjectByType<PathGrid>();
             if (marbleController == null) marbleController = FindFirstObjectByType<MarbleController>();
             meshFilter = GetComponent<MeshFilter>();
+            meshCollider = GetComponent<MeshCollider>();
 
             if (grooveRadius <= 0f)
             {
@@ -55,7 +62,44 @@ namespace MarbleOrchestra.Grid
             if (PathListsEqual(paths, lastPaths)) return;
 
             lastPaths = paths;
-            meshFilter.mesh = paths.Count > 0 ? BuildMesh(paths) : null;
+            Mesh mesh = paths.Count > 0 ? BuildMesh(paths) : null;
+            meshFilter.mesh = mesh;
+            meshCollider.sharedMesh = mesh;
+        }
+
+        /// World-space point on the groove's floor (where a marble of the
+        /// given radius rests) at a fractional position along the path -
+        /// e.g. 2.3 means 30% of the way from path[2] to path[3]. Used for
+        /// kinematic 3D movement so the marble follows this exact geometry.
+        public Vector3 SampleGroovePosition(IReadOnlyList<Vector2Int> path, float pathPosition, float marbleRadius)
+        {
+            int count = path.Count;
+            float floorOffset = marbleRadius - grooveRadius;
+
+            if (count < 2)
+            {
+                RingTransform(path, 0, out Vector3 onlyCenter, out _, out _);
+                return transform.TransformPoint(onlyCenter + Vector3.up * floorOffset);
+            }
+
+            float clamped = Mathf.Clamp(pathPosition, 0f, count - 1);
+            int index = Mathf.Min(Mathf.FloorToInt(clamped), count - 2);
+            float t = clamped - index;
+
+            RingTransform(path, index, out Vector3 centerA, out _, out _);
+            RingTransform(path, index + 1, out Vector3 centerB, out _, out _);
+
+            Vector3 local = Vector3.Lerp(centerA, centerB, t) + Vector3.up * floorOffset;
+            return transform.TransformPoint(local);
+        }
+
+        /// World-space point at shoulder height (y offset 0) at one path
+        /// index - used to place a physics marble right above the Start
+        /// hole so it visibly drops in.
+        public Vector3 GetShoulderWorldPosition(IReadOnlyList<Vector2Int> path, int index)
+        {
+            RingTransform(path, index, out Vector3 center, out _, out _);
+            return transform.TransformPoint(center);
         }
 
         private List<IReadOnlyList<Vector2Int>> FindCompletedPaths()
@@ -76,6 +120,13 @@ namespace MarbleOrchestra.Grid
             foreach (IReadOnlyList<Vector2Int> path in paths)
             {
                 AppendRibbon(path, vertices, triangles);
+
+                RingTransform(path, 0, out Vector3 startCenter, out Vector3 startRight, out Vector3 startForward);
+                AppendEndCap(startCenter, startRight, -startForward, vertices, triangles);
+
+                int lastIndex = path.Count - 1;
+                RingTransform(path, lastIndex, out Vector3 goalCenter, out Vector3 goalRight, out Vector3 goalForward);
+                AppendEndCap(goalCenter, goalRight, goalForward, vertices, triangles);
             }
 
             Mesh mesh = new Mesh { name = "TrackTerrain" };
@@ -97,12 +148,7 @@ namespace MarbleOrchestra.Grid
 
             for (int i = 0; i < rings; i++)
             {
-                Vector3 cellPos = grid.CellToLocalPosition(path[i]);
-                Vector3 center = new Vector3(cellPos.x, -heightDropPerCell * i, cellPos.y);
-
-                Vector3 forward = ComputeForward(path, i);
-                Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
-                if (right == Vector3.zero) right = Vector3.right;
+                RingTransform(path, i, out Vector3 center, out Vector3 right, out _);
 
                 for (int j = 0; j < profile.Length; j++)
                 {
@@ -125,6 +171,58 @@ namespace MarbleOrchestra.Grid
                     triangles.Add(a); triangles.Add(c); triangles.Add(b);
                     triangles.Add(b); triangles.Add(c); triangles.Add(d);
                 }
+            }
+        }
+
+        private void RingTransform(IReadOnlyList<Vector2Int> path, int index, out Vector3 center, out Vector3 right, out Vector3 forward)
+        {
+            Vector3 cellPos = grid.CellToLocalPosition(path[index]);
+            center = new Vector3(cellPos.x, -heightDropPerCell * index, cellPos.y);
+
+            forward = ComputeForward(path, index);
+            right = Vector3.Cross(Vector3.up, forward).normalized;
+            if (right == Vector3.zero) right = Vector3.right;
+        }
+
+        /// Closes off the end of a track where it has no neighbor (Start's
+        /// approach side, Goal's departure side): a flat plate at shoulder
+        /// height around a round hole (radius = grooveRadius, same as the
+        /// groove) - the hole's near half is simply the ribbon's own end
+        /// ring (already open there), this only builds the far half plus
+        /// the flat plate out to the shoulder width, so that side reads as
+        /// solid/closed instead of an open channel.
+        /// "outward" points away from the track, into the closed side.
+        private void AppendEndCap(Vector3 center, Vector3 right, Vector3 outward, List<Vector3> vertices, List<int> triangles)
+        {
+            int segments = grooveArcSegments;
+            float platformHalfSize = grooveRadius + sideWidth;
+            int baseIndex = vertices.Count;
+
+            for (int k = 0; k <= segments; k++)
+            {
+                float t = (float)k / segments;
+                float angle = Mathf.PI + t * Mathf.PI;
+                float dRight = Mathf.Cos(angle);
+                float dOutward = -Mathf.Sin(angle);
+
+                Vector3 inner = center + right * (dRight * grooveRadius) + outward * (dOutward * grooveRadius);
+
+                float scale = platformHalfSize / Mathf.Max(Mathf.Abs(dRight), Mathf.Abs(dOutward));
+                Vector3 outer = center + right * (dRight * scale) + outward * (dOutward * scale);
+
+                vertices.Add(inner);
+                vertices.Add(outer);
+            }
+
+            for (int k = 0; k < segments; k++)
+            {
+                int a = baseIndex + k * 2;
+                int b = baseIndex + k * 2 + 1;
+                int c = baseIndex + (k + 1) * 2;
+                int d = baseIndex + (k + 1) * 2 + 1;
+
+                triangles.Add(a); triangles.Add(c); triangles.Add(b);
+                triangles.Add(b); triangles.Add(c); triangles.Add(d);
             }
         }
 

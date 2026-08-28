@@ -21,10 +21,22 @@ namespace MarbleOrchestra.Grid
     [RequireComponent(typeof(AudioSource))]
     public class MarbleController : MonoBehaviour
     {
+        /// See 0014: three ways to try the marble's movement.
+        /// Kinematic2D is the original, flat 2D grid movement (unchanged).
+        /// Kinematic3D samples TrackTerrainGenerator's groove directly, no
+        /// physics engine involved. Physics3D drops a Rigidbody marble onto
+        /// the terrain's MeshCollider and lets gravity/collision roll it.
+        public enum MovementMode { Kinematic2D, Kinematic3D, Physics3D }
+
         [SerializeField] private PathGrid grid;
+        [SerializeField] private TrackTerrainGenerator terrain;
+        [SerializeField] private MovementMode movementMode = MovementMode.Kinematic2D;
         [SerializeField] private float cellsPerSecond = 3f;
         [SerializeField] private float marbleRadius = 0.15f;
         [SerializeField] private Color marbleColor = new Color(0.1f, 0.1f, 0.1f);
+        [SerializeField] private float physicsDropHeight = 0.05f; // extra height above the Start hole the physics marble drops from
+        [SerializeField] private float physicsGoalRadius = 0.25f; // horizontal distance to Goal at which a physics marble counts as arrived
+        [SerializeField] private float physicsTimeoutMultiplier = 4f; // safety margin over the kinematic duration before a stuck physics marble is force-ended
 
         private AudioSource audioSource;
         private readonly List<Marble> marbles = new List<Marble>();
@@ -38,6 +50,7 @@ namespace MarbleOrchestra.Grid
         private void Awake()
         {
             if (grid == null) grid = FindFirstObjectByType<PathGrid>();
+            if (terrain == null) terrain = FindFirstObjectByType<TrackTerrainGenerator>();
 
             audioSource = GetComponent<AudioSource>();
             audioSource.playOnAwake = false;
@@ -84,7 +97,7 @@ namespace MarbleOrchestra.Grid
             {
                 if (!result.GoalReached) continue;
 
-                Marble marble = Marble.Create(transform, marbleRadius, marbleColor);
+                Marble marble = CreateMarbleForMode();
                 marbles.Add(marble);
                 activeRunCount++;
                 runRoutines.Add(StartCoroutine(RunTrack(marble, result.OrderedPath[0])));
@@ -143,7 +156,18 @@ namespace MarbleOrchestra.Grid
 
             while (path != null)
             {
-                yield return RunAlongPath(marble, path);
+                switch (movementMode)
+                {
+                    case MovementMode.Kinematic3D:
+                        yield return RunAlongPath3D(marble, path);
+                        break;
+                    case MovementMode.Physics3D:
+                        yield return RunAlongPathPhysics(marble, path);
+                        break;
+                    default:
+                        yield return RunAlongPath(marble, path);
+                        break;
+                }
 
                 marble.gameObject.SetActive(false);
                 Destroy(marble.gameObject);
@@ -152,11 +176,24 @@ namespace MarbleOrchestra.Grid
                 path = FindCurrentPath(startCoord);
                 if (path == null) break;
 
-                marble = Marble.Create(transform, marbleRadius, marbleColor);
+                marble = CreateMarbleForMode();
                 marbles.Add(marble);
             }
 
             activeRunCount--;
+        }
+
+        private Marble CreateMarbleForMode()
+        {
+            switch (movementMode)
+            {
+                case MovementMode.Kinematic3D:
+                    return Marble.CreateSphere3D(transform, marbleRadius, marbleColor, withPhysics: false);
+                case MovementMode.Physics3D:
+                    return Marble.CreateSphere3D(transform, marbleRadius, marbleColor, withPhysics: true);
+                default:
+                    return Marble.Create(transform, marbleRadius, marbleColor);
+            }
         }
 
         private IReadOnlyList<Vector2Int> FindCurrentPath(Vector2Int startCoord)
@@ -193,6 +230,74 @@ namespace MarbleOrchestra.Grid
                 marble.transform.localPosition = to;
                 TriggerCellContent(marble, path[i]);
             }
+        }
+
+        /// Kinematic 3D movement: no physics engine involved, the marble's
+        /// world position is sampled directly from TrackTerrainGenerator's
+        /// groove geometry at the same cellsPerSecond tempo as the 2D mode,
+        /// so it appears to emerge from the Start hole and vanish into the
+        /// Goal hole exactly where the terrain's holes are (see 0013).
+        private IEnumerator RunAlongPath3D(Marble marble, IReadOnlyList<Vector2Int> path)
+        {
+            float speed = Mathf.Max(cellsPerSecond, 0.01f);
+            float endPosition = path.Count - 1;
+
+            marble.transform.position = terrain.SampleGroovePosition(path, 0f, marbleRadius);
+            TriggerCellContent(marble, path[0]);
+            int lastTriggeredIndex = 0;
+
+            float pathPosition = 0f;
+            while (pathPosition < endPosition)
+            {
+                pathPosition = Mathf.Min(pathPosition + Time.deltaTime * speed, endPosition);
+                marble.transform.position = terrain.SampleGroovePosition(path, pathPosition, marbleRadius);
+
+                int currentIndex = Mathf.FloorToInt(pathPosition);
+                if (currentIndex > lastTriggeredIndex)
+                {
+                    lastTriggeredIndex = currentIndex;
+                    TriggerCellContent(marble, path[currentIndex]);
+                }
+
+                yield return null;
+            }
+
+            TriggerCellContent(marble, path[path.Count - 1]);
+        }
+
+        /// Physics-based movement: drops a gravity-driven Rigidbody marble
+        /// just above the Start hole and lets Unity physics roll it along
+        /// the terrain's MeshCollider groove until it gets close to the
+        /// Goal hole (or a generous timeout elapses, in case it derails).
+        private IEnumerator RunAlongPathPhysics(Marble marble, IReadOnlyList<Vector2Int> path)
+        {
+            Vector3 startPos = terrain.GetShoulderWorldPosition(path, 0) + Vector3.up * (marbleRadius + physicsDropHeight);
+            marble.transform.position = startPos;
+
+            Rigidbody rb = marble.GetComponent<Rigidbody>();
+            if (rb != null) rb.linearVelocity = Vector3.zero;
+
+            TriggerCellContent(marble, path[0]);
+
+            Vector3 goalPos = terrain.GetShoulderWorldPosition(path, path.Count - 1);
+            float timeout = (path.Count - 1) / Mathf.Max(cellsPerSecond, 0.01f) * physicsTimeoutMultiplier + 2f;
+            float elapsed = 0f;
+
+            while (elapsed < timeout)
+            {
+                elapsed += Time.deltaTime;
+
+                Vector3 marblePos = marble.transform.position;
+                float horizontalDistSqr = new Vector2(marblePos.x - goalPos.x, marblePos.z - goalPos.z).sqrMagnitude;
+                if (horizontalDistSqr <= physicsGoalRadius * physicsGoalRadius && marblePos.y <= goalPos.y + marbleRadius)
+                {
+                    break;
+                }
+
+                yield return null;
+            }
+
+            TriggerCellContent(marble, path[path.Count - 1]);
         }
 
         private void TriggerCellContent(Marble marble, Vector2Int coord)

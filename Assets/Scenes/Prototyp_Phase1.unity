@@ -572,6 +572,7 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.MarbleController
   grid: {fileID: 1612605610}
+  terrain: {fileID: 1612605614}
   cellsPerSecond: 3
   marbleRadius: 0.15
   marbleColor: {r: 0.1, g: 0.1, b: 0.1, a: 1}
@@ -699,6 +700,7 @@ GameObject:
   - component: {fileID: 1612605614}
   - component: {fileID: 1612605615}
   - component: {fileID: 1612605616}
+  - component: {fileID: 1700000022}
   m_Layer: 0
   m_Name: TrackTerrain
   m_TagString: Untagged
@@ -796,6 +798,20 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1700000020}
+  m_Mesh: {fileID: 0}
+--- !u!64 &1700000022
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1700000020}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_Enabled: 1
+  serializedVersion: 4
+  m_Convex: 0
+  m_CookingOptions: 30
   m_Mesh: {fileID: 0}
 --- !u!1 &1700000030
 GameObject:

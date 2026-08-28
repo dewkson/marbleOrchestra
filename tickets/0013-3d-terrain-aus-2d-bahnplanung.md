@@ -3,7 +3,7 @@ id: 0013
 title: 3D-Terrain mit Gefälle und Rail-Einkerbung aus 2D-Bahn
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Gameplay
 created: 2026-08-28
 ---
@@ -66,4 +66,9 @@ Akzeptanzkriterien (grobe erste Fassung):
   (Querschnitt vorher nur "v", jetzt "---v---"). Das Rail-Profil wurde dabei
   von einer V- auf eine echte U-Form (Halbkreisbogen mit Radius aus dem
   Murmelradius) umgestellt, damit die Murmel formschlüssig hineinpasst.
+- 2026-08-28: Start/Ziel-Enden der Bahn ergänzt: rundes Loch (Radius =
+  grooveRadius, wie die Rinne) an Start und Ziel. Die Rinne mündet nur von
+  der Fahrtrichtungsseite in dieses Loch, die gegenüberliegende Seite ist
+  als flache Platte auf Schulterhöhe geschlossen (kein durchgehender
+  Rinnen-Querschnitt in die falsche Richtung).
 

@@ -23,6 +23,46 @@ namespace MarbleOrchestra.Grid
             return go.AddComponent<Marble>();
         }
 
+        /// 3D sphere marble for TrackTerrainGenerator's ribbon. With
+        /// withPhysics=false the default primitive collider is removed
+        /// (kinematic mode only ever sets transform.position directly).
+        /// With withPhysics=true it keeps its SphereCollider and gets a
+        /// gravity-driven Rigidbody so it can roll against the terrain's
+        /// MeshCollider.
+        public static Marble CreateSphere3D(Transform parent, float radius, Color color, bool withPhysics)
+        {
+            GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            go.name = "Marble3D";
+            go.transform.SetParent(parent, false);
+            go.transform.localScale = Vector3.one * (radius * 2f);
+
+            if (withPhysics)
+            {
+                Rigidbody rb = go.AddComponent<Rigidbody>();
+                rb.useGravity = true;
+                rb.interpolation = RigidbodyInterpolation.Interpolate;
+            }
+            else
+            {
+                Object.Destroy(go.GetComponent<Collider>());
+            }
+
+            go.GetComponent<Renderer>().sharedMaterial = CreateSphereMaterial(color);
+
+            return go.AddComponent<Marble>();
+        }
+
+        private static Material CreateSphereMaterial(Color color)
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null) shader = Shader.Find("Standard");
+
+            Material material = new Material(shader);
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);
+            else material.color = color;
+            return material;
+        }
+
         private static Sprite GetCircleSprite()
         {
             if (circleSprite != null) return circleSprite;
