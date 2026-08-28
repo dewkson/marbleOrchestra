@@ -11,18 +11,21 @@ namespace MarbleOrchestra.Grid
     /// reaching Goal, its marble is replaced by a fresh one starting at
     /// Start again, instantly and with no gap between laps. Play is
     /// refused whenever no track is currently complete.
-    /// Keyboard-driven for now (Space = Play, S = Stop, R = Reset) so it is
-    /// testable without any UI; the public methods are ready for UI buttons later.
+    /// Keyboard-driven for now: SPACE toggles between planning (stopped,
+    /// pipes editable) and simulation (playing) - S stops without clearing,
+    /// R resets - so it is testable without any UI; the public methods are
+    /// ready for UI buttons later.
+    /// Lives on its own GameObject (with its own AudioSource for cell-content
+    /// sounds); grid is wired in the Inspector or auto-found at Awake.
     /// </summary>
-    [RequireComponent(typeof(PathGrid))]
     [RequireComponent(typeof(AudioSource))]
     public class MarbleController : MonoBehaviour
     {
+        [SerializeField] private PathGrid grid;
         [SerializeField] private float cellsPerSecond = 3f;
         [SerializeField] private float marbleRadius = 0.15f;
         [SerializeField] private Color marbleColor = new Color(0.1f, 0.1f, 0.1f);
 
-        private PathGrid grid;
         private AudioSource audioSource;
         private readonly List<Marble> marbles = new List<Marble>();
         private readonly List<Coroutine> runRoutines = new List<Coroutine>();
@@ -30,10 +33,11 @@ namespace MarbleOrchestra.Grid
 
         public bool IsPlaying => activeRunCount > 0;
         public bool CanPlay => HasCompletedTrack();
+        public float MarbleRadius => marbleRadius;
 
         private void Awake()
         {
-            grid = GetComponent<PathGrid>();
+            if (grid == null) grid = FindFirstObjectByType<PathGrid>();
 
             audioSource = GetComponent<AudioSource>();
             audioSource.playOnAwake = false;
@@ -43,9 +47,23 @@ namespace MarbleOrchestra.Grid
         {
             if (Keyboard.current == null) return;
 
-            if (Keyboard.current.spaceKey.wasPressedThisFrame) Play();
+            if (Keyboard.current.spaceKey.wasPressedThisFrame) TogglePlay();
             if (Keyboard.current.sKey.wasPressedThisFrame) Stop();
             if (Keyboard.current.rKey.wasPressedThisFrame) ResetMarble();
+        }
+
+        /// Switches between planning (stopped, pipes editable) and
+        /// simulation: stops and clears a running simulation, or starts one
+        /// if a completed track exists. No-op if no track is valid yet.
+        public bool TogglePlay()
+        {
+            if (IsPlaying)
+            {
+                ResetMarble();
+                return true;
+            }
+
+            return Play();
         }
 
         public bool Play()

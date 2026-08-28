@@ -12,6 +12,7 @@ namespace MarbleOrchestra.Grid
     {
         [SerializeField] private PathGrid grid;
         [SerializeField] private float padding = 0.6f;
+        [SerializeField] private float bottomHintSpace = 1.2f;
 
         private Camera cam;
 
@@ -34,7 +35,11 @@ namespace MarbleOrchestra.Grid
             Vector3 max = grid.transform.TransformPoint(grid.CellToLocalPosition(new Vector2Int(grid.Width - 1, grid.Height - 1)));
 
             float gridWidth = Mathf.Abs(max.x - min.x) + padding * 2f;
-            float gridHeight = Mathf.Abs(max.y - min.y) + padding * 2f;
+            // bottomHintSpace is added only on top of the symmetric padding,
+            // then the whole view is shifted down by half of it below - so
+            // the grid moves up, freeing exactly that much room at the
+            // bottom of the screen for the SPACE hint (PlaybackHintUI).
+            float gridHeight = Mathf.Abs(max.y - min.y) + padding * 2f + bottomHintSpace;
 
             float verticalSize = gridHeight / 2f;
             float horizontalSize = gridWidth / (2f * cam.aspect);
@@ -42,6 +47,7 @@ namespace MarbleOrchestra.Grid
             cam.orthographicSize = Mathf.Max(verticalSize, horizontalSize);
 
             Vector3 center = (min + max) / 2f;
+            center.y -= bottomHintSpace / 2f;
             transform.position = new Vector3(center.x, center.y, transform.position.z);
         }
     }
