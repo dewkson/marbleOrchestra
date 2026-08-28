@@ -67,4 +67,21 @@ Akzeptanzkriterien (grobe erste Fassung):
   - Ungetestet in der Unity-Physik-Engine selbst (kein Editor-Zugriff) -
     besonders Reibung/Rollverhalten und die Kollisions-Feinheiten an den
     Loch-Übergängen (0013) sollten im Editor geprüft/getunt werden.
-
+- 2026-08-28: Nachbesserungen am Physics3D-Modus nach erstem Test:
+  1. Separater, kleinerer Radius für die 3D-Murmel (`marbleRadius3D`,
+     Default 0.1 statt 0.15) - unabhängig vom 2D-Radius, um Steckenbleiben
+     in der Rinne zu vermeiden. Bestimmt jetzt auch die Rinnenbreite
+     (`TrackTerrainGenerator.grooveRadius`-Herleitung).
+  2. Ecken werden per Chaikin Corner-Cutting auf der Mittellinie
+     abgerundet (`cornerSmoothingIterations`, Default 2) statt als scharfer
+     Knick - betrifft Mesh UND kinematische Bewegung (beide nutzen dieselbe
+     geglättete Mittellinie), Physics3D profitiert automatisch über den
+     MeshCollider.
+  3. Start hat kein Loch mehr (`AppendSolidCap`) - Ursache des
+     Durchfallens war vermutlich, dass der Lochbereich keinen Boden hatte.
+     Zusätzlich spawnt die Physics-Murmel jetzt `physicsSpawnOffset`
+     (Default 30%) hinter dem Start, wo das Gefälle schon greift, statt
+     exakt auf der Kappe.
+  4. Ziel zeigt jetzt das (vorher für Start genutzte) Loch-Design
+     (`AppendHoleCap`) - Rinne mündet nur von einer Seite hinein, dahinter
+     schließen die Schultern ab.

@@ -33,8 +33,10 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private MovementMode movementMode = MovementMode.Kinematic2D;
         [SerializeField] private float cellsPerSecond = 3f;
         [SerializeField] private float marbleRadius = 0.15f;
+        [SerializeField] private float marbleRadius3D = 0.1f; // separate, smaller by default so it doesn't stick in the groove
         [SerializeField] private Color marbleColor = new Color(0.1f, 0.1f, 0.1f);
-        [SerializeField] private float physicsDropHeight = 0.05f; // extra height above the Start hole the physics marble drops from
+        [SerializeField] private float physicsDropHeight = 0.05f; // extra height above the Start the physics marble drops from
+        [SerializeField] private float physicsSpawnOffset = 0.3f; // fraction of the first cell the physics marble spawns past Start, so it lands where the slope is already there
         [SerializeField] private float physicsGoalRadius = 0.25f; // horizontal distance to Goal at which a physics marble counts as arrived
         [SerializeField] private float physicsTimeoutMultiplier = 4f; // safety margin over the kinematic duration before a stuck physics marble is force-ended
 
@@ -46,6 +48,7 @@ namespace MarbleOrchestra.Grid
         public bool IsPlaying => activeRunCount > 0;
         public bool CanPlay => HasCompletedTrack();
         public float MarbleRadius => marbleRadius;
+        public float MarbleRadius3D => marbleRadius3D;
 
         private void Awake()
         {
@@ -188,9 +191,9 @@ namespace MarbleOrchestra.Grid
             switch (movementMode)
             {
                 case MovementMode.Kinematic3D:
-                    return Marble.CreateSphere3D(transform, marbleRadius, marbleColor, withPhysics: false);
+                    return Marble.CreateSphere3D(transform, marbleRadius3D, marbleColor, withPhysics: false);
                 case MovementMode.Physics3D:
-                    return Marble.CreateSphere3D(transform, marbleRadius, marbleColor, withPhysics: true);
+                    return Marble.CreateSphere3D(transform, marbleRadius3D, marbleColor, withPhysics: true);
                 default:
                     return Marble.Create(transform, marbleRadius, marbleColor);
             }
@@ -235,14 +238,14 @@ namespace MarbleOrchestra.Grid
         /// Kinematic 3D movement: no physics engine involved, the marble's
         /// world position is sampled directly from TrackTerrainGenerator's
         /// groove geometry at the same cellsPerSecond tempo as the 2D mode,
-        /// so it appears to emerge from the Start hole and vanish into the
-        /// Goal hole exactly where the terrain's holes are (see 0013).
+        /// so it appears to roll away from Start and vanish into the Goal
+        /// hole exactly where the terrain's hole is (see 0013/0014).
         private IEnumerator RunAlongPath3D(Marble marble, IReadOnlyList<Vector2Int> path)
         {
             float speed = Mathf.Max(cellsPerSecond, 0.01f);
             float endPosition = path.Count - 1;
 
-            marble.transform.position = terrain.SampleGroovePosition(path, 0f, marbleRadius);
+            marble.transform.position = terrain.SampleGroovePosition(path, 0f, marbleRadius3D);
             TriggerCellContent(marble, path[0]);
             int lastTriggeredIndex = 0;
 
@@ -250,7 +253,7 @@ namespace MarbleOrchestra.Grid
             while (pathPosition < endPosition)
             {
                 pathPosition = Mathf.Min(pathPosition + Time.deltaTime * speed, endPosition);
-                marble.transform.position = terrain.SampleGroovePosition(path, pathPosition, marbleRadius);
+                marble.transform.position = terrain.SampleGroovePosition(path, pathPosition, marbleRadius3D);
 
                 int currentIndex = Mathf.FloorToInt(pathPosition);
                 if (currentIndex > lastTriggeredIndex)
@@ -266,12 +269,15 @@ namespace MarbleOrchestra.Grid
         }
 
         /// Physics-based movement: drops a gravity-driven Rigidbody marble
-        /// just above the Start hole and lets Unity physics roll it along
-        /// the terrain's MeshCollider groove until it gets close to the
-        /// Goal hole (or a generous timeout elapses, in case it derails).
+        /// just above the track - slightly past Start (physicsSpawnOffset)
+        /// so it lands where the downhill slope is already present and
+        /// immediately starts rolling, rather than on the flat solid cap
+        /// right at Start itself - and lets Unity physics roll it along the
+        /// terrain's MeshCollider groove until it gets close to the Goal
+        /// hole (or a generous timeout elapses, in case it derails).
         private IEnumerator RunAlongPathPhysics(Marble marble, IReadOnlyList<Vector2Int> path)
         {
-            Vector3 startPos = terrain.GetShoulderWorldPosition(path, 0) + Vector3.up * (marbleRadius + physicsDropHeight);
+            Vector3 startPos = terrain.GetShoulderWorldPosition(path, physicsSpawnOffset) + Vector3.up * (marbleRadius3D + physicsDropHeight);
             marble.transform.position = startPos;
 
             Rigidbody rb = marble.GetComponent<Rigidbody>();
@@ -289,7 +295,7 @@ namespace MarbleOrchestra.Grid
 
                 Vector3 marblePos = marble.transform.position;
                 float horizontalDistSqr = new Vector2(marblePos.x - goalPos.x, marblePos.z - goalPos.z).sqrMagnitude;
-                if (horizontalDistSqr <= physicsGoalRadius * physicsGoalRadius && marblePos.y <= goalPos.y + marbleRadius)
+                if (horizontalDistSqr <= physicsGoalRadius * physicsGoalRadius && marblePos.y <= goalPos.y + marbleRadius3D)
                 {
                     break;
                 }
