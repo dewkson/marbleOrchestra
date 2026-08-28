@@ -8,6 +8,8 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | ID | Titel | Typ | Priorität | Status | Area | Erstellt |
 |----|-------|-----|-----------|--------|------|----------|
 | 0014 | Murmelbewegung entlang der 3D-Bahn (kinematisch und Physics) | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-28 |
+| 0015 | Soundtrigger auf der 3D-Bahn visualisieren | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-28 |
+| 0016 | "Start"/"Ziel"-Beschriftung auf den 2D-Pipe-Karten | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-28 |
 | 0004 | Pipe-Swap per Drag & Drop mit Visualisierung | Feature | 🔵 Low | ⚪ Open | Gameplay | 2026-08-25 |
 
 ## Alle Tickets
@@ -28,6 +30,8 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0012 | Space-Umschaltung zwischen Bahnplanung und Simulation | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-08-28 |
 | 0013 | 3D-Terrain mit Gefälle und Rail-Einkerbung aus 2D-Bahn | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-08-28 |
 | 0014 | Murmelbewegung entlang der 3D-Bahn (kinematisch und Physics) | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-28 |
+| 0015 | Soundtrigger auf der 3D-Bahn visualisieren | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-28 |
+| 0016 | "Start"/"Ziel"-Beschriftung auf den 2D-Pipe-Karten | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-28 |
 
 ## Legende
 

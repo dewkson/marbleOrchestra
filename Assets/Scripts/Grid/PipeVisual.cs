@@ -13,12 +13,17 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private Color highlightColor = Color.yellow;
         [SerializeField] private Color connectedTint = new Color(0.35f, 0.65f, 1f);
         [SerializeField] private Color pathCompleteTint = new Color(0.35f, 0.9f, 0.45f);
+        [SerializeField] private Color roleLabelColor = Color.white;
+        [SerializeField] private float roleLabelCharacterSize = 0.05f;
+        [SerializeField] private int roleLabelFontSize = 32;
+        [SerializeField] private float roleLabelTopOffset = 0.38f; // distance from card center to the label, so it sits above the pipe arms instead of on top of them
 
         private static Sprite pixelSprite;
 
         private SpriteRenderer backgroundRenderer;
         private SpriteRenderer hubRenderer;
         private readonly SpriteRenderer[] armRenderers = new SpriteRenderer[4];
+        private TextMesh roleLabel;
         private Color baseColor = Color.white;
         private Color baseBackgroundColor = Color.gray;
 
@@ -40,6 +45,14 @@ namespace MarbleOrchestra.Grid
                 armRenderers[i].enabled = connected;
                 armRenderers[i].color = baseColor;
             }
+
+            PipeRole role = definition != null ? definition.Role : PipeRole.Normal;
+            roleLabel.text = role switch
+            {
+                PipeRole.Start => "Start",
+                PipeRole.Goal => "Ziel",
+                _ => string.Empty
+            };
         }
 
         public void SetHighlighted(bool highlighted)
@@ -106,6 +119,21 @@ namespace MarbleOrchestra.Grid
 
                 armRenderers[i] = renderer;
             }
+
+            GameObject label = new GameObject("RoleLabel");
+            label.transform.SetParent(transform, false);
+            label.transform.localPosition = new Vector3(0f, roleLabelTopOffset, 0f);
+
+            roleLabel = label.AddComponent<TextMesh>();
+            roleLabel.text = string.Empty;
+            roleLabel.anchor = TextAnchor.UpperCenter;
+            roleLabel.alignment = TextAlignment.Center;
+            roleLabel.characterSize = roleLabelCharacterSize;
+            roleLabel.fontSize = roleLabelFontSize;
+            roleLabel.color = roleLabelColor;
+
+            MeshRenderer labelRenderer = label.GetComponent<MeshRenderer>();
+            labelRenderer.sortingOrder = 4;
         }
 
         private static Sprite GetPixelSprite()
