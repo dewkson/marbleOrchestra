@@ -3,7 +3,7 @@ id: 0014
 title: Murmelbewegung entlang der 3D-Bahn (kinematisch und Physics)
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Gameplay
 created: 2026-08-28
 ---

@@ -3,7 +3,7 @@ id: 0021
 title: Murmel-Übergang zwischen Blöcken überprüfen und optimieren
 type: Task
 priority: Medium
-status: Open
+status: Done
 area: Physics
 created: 2026-08-29
 ---

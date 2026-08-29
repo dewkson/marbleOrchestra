@@ -3,7 +3,7 @@ id: 0020
 title: Höhenunterschied zwischen benachbarten Blöcken aus Pfad ableiten
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Physics
 created: 2026-08-29
 ---

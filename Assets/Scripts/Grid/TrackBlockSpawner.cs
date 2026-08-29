@@ -182,6 +182,20 @@ namespace MarbleOrchestra.Grid
             return Quaternion.LookRotation(forward, Vector3.up).eulerAngles.y;
         }
 
+        /// Cardinal Direction for the same from/to delta ComputeYawDegrees
+        /// uses (deliberately duplicated rather than refactoring that
+        /// already-tested method) - feeds BlockDefinition.PathDirection.
+        private static Direction ComputePathDirection(IReadOnlyList<Vector2Int> path, int index)
+        {
+            Vector2Int from = index < path.Count - 1 ? path[index] : path[index - 1];
+            Vector2Int to = index < path.Count - 1 ? path[index + 1] : path[index];
+            Vector2Int delta = to - from;
+
+            foreach (Direction dir in DirectionExtensions.All)
+                if (dir.ToGridOffset() == delta) return dir;
+            return Direction.None;
+        }
+
         private List<IReadOnlyList<Vector2Int>> FindCompletedPaths()
         {
             List<IReadOnlyList<Vector2Int>> paths = new List<IReadOnlyList<Vector2Int>>();
@@ -242,6 +256,13 @@ namespace MarbleOrchestra.Grid
                 block.Material = sharedMaterial;
                 block.YawDegrees = ComputeYawDegrees(path, i);
                 block.TiltDegrees = tiltDegrees; // ramps part of the step away; the rest is the fall to the next block (see class remarks)
+
+                PipeRole role = grid.GetPipe(cell)?.Role ?? PipeRole.Normal;
+                CellContentDefinition content = grid.GetContent(cell);
+                TriggerBehavior trigger = content != null ? TriggerBehavior.OnEnter : TriggerBehavior.None;
+                AudioClip audioEvent = (content as SoundTriggerContent)?.Clip;
+                block.SetDefinition(new BlockDefinition(cell, ComputePathDirection(path, i), blockHeight, role,
+                    trigger, audioEvent, BlockDefinition.DefaultBiome));
 
                 blocks.Add(block);
             }

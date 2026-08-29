@@ -34,6 +34,7 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private Material material;
         [SerializeField] private float yawDegrees; // rotation around world/local Y - facing direction
         [SerializeField] private float tiltDegrees; // downhill slope of the top surface, entry (higher) to exit (lower)
+        [SerializeField] private BlockDefinition definition; // WHAT this block is - see the Definition property below
 
         public Vector2 Size { get => size; set { size = value; Rebuild(); } }
         public float Height { get => height; set { height = value; Rebuild(); } }
@@ -56,6 +57,17 @@ namespace MarbleOrchestra.Grid
             get => profile;
             set { profile = value ?? FlatBoxProfile.Instance; Rebuild(); }
         }
+
+        /// WHAT this block is (grid/content-derived facts), as opposed to
+        /// this component's own concern of HOW it looks - see 0027. Set
+        /// once by whoever spawns the block (TrackBlockSpawner); TrackBlock
+        /// itself never reads or depends on it. Backed by a [SerializeField]
+        /// (rather than an auto-property) specifically so it shows up in
+        /// the Inspector for debugging - external code still can't mutate
+        /// it through a live block reference, since the getter returns a
+        /// copy of the struct.
+        public BlockDefinition Definition => definition;
+        public void SetDefinition(BlockDefinition value) => definition = value;
 
         /// Total vertical descent of the top surface from entry to exit,
         /// implied by TiltDegrees over the block's own length.

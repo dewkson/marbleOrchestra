@@ -3,7 +3,7 @@ id: 0019
 title: Block-Gefälle automatisch aus 2D-Pfadrichtung ableiten
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Physics
 created: 2026-08-29
 ---

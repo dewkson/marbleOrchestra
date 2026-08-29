@@ -7,14 +7,12 @@ Priorität (Critical → High → Medium → Low) sortiert.
 
 | ID | Titel | Typ | Priorität | Status | Area | Erstellt |
 |----|-------|-----|-----------|--------|------|----------|
-| 0014 | Murmelbewegung entlang der 3D-Bahn (kinematisch und Physics) | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-28 |
 | 0015 | Soundtrigger auf der 3D-Bahn visualisieren | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-28 |
-| 0016 | "Start"/"Ziel"-Beschriftung auf den 2D-Pipe-Karten | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-28 |
-| 0017 | 3D-Terrain als einzelne Blöcke pro Pfadabschnitt | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-29 |
-| 0018 | Universelles 3D-Block-Prefab als Basis | Feature | 🟡 Medium | ⚪ Open | Tooling | 2026-08-29 |
-| 0019 | Block-Gefälle automatisch aus 2D-Pfadrichtung ableiten | Feature | 🟡 Medium | ⚪ Open | Physics | 2026-08-29 |
-| 0020 | Höhenunterschied zwischen benachbarten Blöcken aus Pfad ableiten | Feature | 🟡 Medium | ⚪ Open | Physics | 2026-08-29 |
-| 0021 | Murmel-Übergang zwischen Blöcken überprüfen und optimieren | Task | 🟡 Medium | ⚪ Open | Physics | 2026-08-29 |
+| 0023 | Generisches Block-Trigger-System | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-29 |
+| 0024 | Sound-Trigger als erstes Block-Feature | Feature | 🟡 Medium | ⚪ Open | Audio | 2026-08-29 |
+| 0025 | Drum-Block / Hi-Hat-Prototyp | Feature | 🟡 Medium | ⚪ Open | Audio | 2026-08-29 |
+| 0026 | Instrumenten-Events von der Blocklogik entkoppeln | Task | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-29 |
+| 0027 | Datengetriebenes Block-Modell unabhängig von Darstellung | Feature | 🟡 Medium | ⚪ Open | Tooling | 2026-08-29 |
 | 0004 | Pipe-Swap per Drag & Drop mit Visualisierung | Feature | 🔵 Low | ⚪ Open | Gameplay | 2026-08-25 |
 | 0022 | Prefab-Varianten für Start-, Ziel- und Normal-Blöcke | Task | 🔵 Low | ⚪ Open | Tooling | 2026-08-29 |
 
@@ -35,15 +33,20 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0011 | Murmelbahnen loopbar machen | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-08-26 |
 | 0012 | Space-Umschaltung zwischen Bahnplanung und Simulation | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-08-28 |
 | 0013 | 3D-Terrain mit Gefälle und Rail-Einkerbung aus 2D-Bahn | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-08-28 |
-| 0014 | Murmelbewegung entlang der 3D-Bahn (kinematisch und Physics) | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-28 |
+| 0014 | Murmelbewegung entlang der 3D-Bahn (kinematisch und Physics) | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-08-28 |
 | 0015 | Soundtrigger auf der 3D-Bahn visualisieren | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-28 |
-| 0016 | "Start"/"Ziel"-Beschriftung auf den 2D-Pipe-Karten | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-28 |
-| 0017 | 3D-Terrain als einzelne Blöcke pro Pfadabschnitt | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-29 |
-| 0018 | Universelles 3D-Block-Prefab als Basis | Feature | 🟡 Medium | ⚪ Open | Tooling | 2026-08-29 |
-| 0019 | Block-Gefälle automatisch aus 2D-Pfadrichtung ableiten | Feature | 🟡 Medium | ⚪ Open | Physics | 2026-08-29 |
-| 0020 | Höhenunterschied zwischen benachbarten Blöcken aus Pfad ableiten | Feature | 🟡 Medium | ⚪ Open | Physics | 2026-08-29 |
-| 0021 | Murmel-Übergang zwischen Blöcken überprüfen und optimieren | Task | 🟡 Medium | ⚪ Open | Physics | 2026-08-29 |
+| 0016 | "Start"/"Ziel"-Beschriftung auf den 2D-Pipe-Karten | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-08-28 |
+| 0017 | 3D-Terrain als einzelne Blöcke pro Pfadabschnitt | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-08-29 |
+| 0018 | Universelles 3D-Block-Prefab als Basis | Feature | 🟡 Medium | ✅ Done | Tooling | 2026-08-29 |
+| 0019 | Block-Gefälle automatisch aus 2D-Pfadrichtung ableiten | Feature | 🟡 Medium | ✅ Done | Physics | 2026-08-29 |
+| 0020 | Höhenunterschied zwischen benachbarten Blöcken aus Pfad ableiten | Feature | 🟡 Medium | ✅ Done | Physics | 2026-08-29 |
+| 0021 | Murmel-Übergang zwischen Blöcken überprüfen und optimieren | Task | 🟡 Medium | ✅ Done | Physics | 2026-08-29 |
 | 0022 | Prefab-Varianten für Start-, Ziel- und Normal-Blöcke | Task | 🔵 Low | ⚪ Open | Tooling | 2026-08-29 |
+| 0023 | Generisches Block-Trigger-System | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-29 |
+| 0024 | Sound-Trigger als erstes Block-Feature | Feature | 🟡 Medium | ⚪ Open | Audio | 2026-08-29 |
+| 0025 | Drum-Block / Hi-Hat-Prototyp | Feature | 🟡 Medium | ⚪ Open | Audio | 2026-08-29 |
+| 0026 | Instrumenten-Events von der Blocklogik entkoppeln | Task | 🟡 Medium | ⚪ Open | Gameplay | 2026-08-29 |
+| 0027 | Datengetriebenes Block-Modell unabhängig von Darstellung | Feature | 🟡 Medium | ⚪ Open | Tooling | 2026-08-29 |
 
 ## Legende
 

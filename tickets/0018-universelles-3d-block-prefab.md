@@ -3,7 +3,7 @@ id: 0018
 title: Universelles 3D-Block-Prefab als Basis
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Tooling
 created: 2026-08-29
 ---

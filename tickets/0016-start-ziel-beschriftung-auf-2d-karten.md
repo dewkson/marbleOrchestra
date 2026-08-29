@@ -3,7 +3,7 @@ id: 0016
 title: "Start"/"Ziel"-Beschriftung auf den 2D-Pipe-Karten
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Gameplay
 created: 2026-08-28
 ---
@@ -35,4 +35,9 @@ Akzeptanzkriterien (grobe erste Fassung):
 - Normale Pipes bleiben unverändert (kein Text).
 
 ## Notizen
+
+- 2026-08-29: Bereits umgesetzt in `PipeVisual.cs` - `roleLabel` (ein
+  `TextMesh`-Kind-GameObject) zeigt in `Refresh()` je nach
+  `PipeRole` "Start"/"Ziel"/leer an, oberhalb der Pipe-Arme
+  positioniert (`roleLabelTopOffset`).
 

@@ -3,7 +3,7 @@ id: 0017
 title: 3D-Terrain als einzelne Blöcke pro Pfadabschnitt
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Gameplay
 created: 2026-08-29
 ---
