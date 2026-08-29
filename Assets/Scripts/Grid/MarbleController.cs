@@ -23,13 +23,13 @@ namespace MarbleOrchestra.Grid
     {
         /// See 0014: three ways to try the marble's movement.
         /// Kinematic2D is the original, flat 2D grid movement (unchanged).
-        /// Kinematic3D samples TrackTerrainGenerator's groove directly, no
+        /// Kinematic3D samples TrackBlockSpawner's groove directly, no
         /// physics engine involved. Physics3D drops a Rigidbody marble onto
-        /// the terrain's MeshCollider and lets gravity/collision roll it.
+        /// the spawned blocks' MeshColliders and lets gravity/collision roll it.
         public enum MovementMode { Kinematic2D, Kinematic3D, Physics3D }
 
         [SerializeField] private PathGrid grid;
-        [SerializeField] private TrackTerrainGenerator terrain;
+        [SerializeField] private TrackBlockSpawner terrain;
         [SerializeField] private MovementMode movementMode = MovementMode.Kinematic2D;
         [SerializeField] private float cellsPerSecond = 3f;
         [SerializeField] private float marbleRadius = 0.15f;
@@ -53,7 +53,7 @@ namespace MarbleOrchestra.Grid
         private void Awake()
         {
             if (grid == null) grid = FindFirstObjectByType<PathGrid>();
-            if (terrain == null) terrain = FindFirstObjectByType<TrackTerrainGenerator>();
+            if (terrain == null) terrain = FindFirstObjectByType<TrackBlockSpawner>();
 
             audioSource = GetComponent<AudioSource>();
             audioSource.playOnAwake = false;
@@ -236,7 +236,7 @@ namespace MarbleOrchestra.Grid
         }
 
         /// Kinematic 3D movement: no physics engine involved, the marble's
-        /// world position is sampled directly from TrackTerrainGenerator's
+        /// world position is sampled directly from TrackBlockSpawner's
         /// groove geometry at the same cellsPerSecond tempo as the 2D mode,
         /// so it appears to roll away from Start and vanish into the Goal
         /// hole exactly where the terrain's hole is (see 0013/0014).

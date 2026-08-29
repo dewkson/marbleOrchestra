@@ -23,7 +23,7 @@ namespace MarbleOrchestra.Grid
             return go.AddComponent<Marble>();
         }
 
-        /// 3D sphere marble for TrackTerrainGenerator's ribbon. With
+        /// 3D sphere marble for TrackBlockSpawner's blocks. With
         /// withPhysics=false the default primitive collider is removed
         /// (kinematic mode only ever sets transform.position directly).
         /// With withPhysics=true it keeps its SphereCollider and gets a
