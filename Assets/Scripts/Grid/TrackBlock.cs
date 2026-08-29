@@ -104,9 +104,30 @@ namespace MarbleOrchestra.Grid
 
             meshFilter.sharedMesh = mesh;
             meshCollider.sharedMesh = mesh;
+            meshCollider.sharedMaterial = LowFrictionMaterial();
 
             ApplyMaterial();
             ApplyOrientation();
+        }
+
+        private static PhysicsMaterial lowFrictionMaterial;
+
+        /// Low friction/no bounce so a marble rolls smoothly across block
+        /// boundaries instead of catching or bouncing at an edge.
+        private static PhysicsMaterial LowFrictionMaterial()
+        {
+            if (lowFrictionMaterial == null)
+            {
+                lowFrictionMaterial = new PhysicsMaterial("TrackBlockSurface")
+                {
+                    dynamicFriction = 0.05f,
+                    staticFriction = 0.05f,
+                    bounciness = 0f,
+                    frictionCombine = PhysicsMaterialCombine.Minimum,
+                    bounceCombine = PhysicsMaterialCombine.Minimum
+                };
+            }
+            return lowFrictionMaterial;
         }
 
         private static Vector2[] OffsetY(Vector2[] source, float dy)

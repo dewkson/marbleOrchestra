@@ -41,6 +41,12 @@ namespace MarbleOrchestra.Grid
                 Rigidbody rb = go.AddComponent<Rigidbody>();
                 rb.useGravity = true;
                 rb.interpolation = RigidbodyInterpolation.Interpolate;
+                // Blocks are separate, thinner mesh pieces with a real step
+                // (and, deliberately, a short fall) at each boundary rather
+                // than one continuous mesh - Continuous avoids tunneling
+                // through a block's thin edge at those higher relative speeds.
+                rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+                go.GetComponent<Collider>().sharedMaterial = LowFrictionMaterial();
             }
             else
             {
@@ -50,6 +56,27 @@ namespace MarbleOrchestra.Grid
             go.GetComponent<Renderer>().sharedMaterial = CreateSphereMaterial(color);
 
             return go.AddComponent<Marble>();
+        }
+
+        private static PhysicsMaterial lowFrictionMaterial;
+
+        /// Matches TrackBlock's own surface PhysicsMaterial (low friction,
+        /// no bounce) so the marble rolls smoothly instead of catching or
+        /// bouncing at a block boundary.
+        private static PhysicsMaterial LowFrictionMaterial()
+        {
+            if (lowFrictionMaterial == null)
+            {
+                lowFrictionMaterial = new PhysicsMaterial("MarbleSurface")
+                {
+                    dynamicFriction = 0.05f,
+                    staticFriction = 0.05f,
+                    bounciness = 0f,
+                    frictionCombine = PhysicsMaterialCombine.Minimum,
+                    bounceCombine = PhysicsMaterialCombine.Minimum
+                };
+            }
+            return lowFrictionMaterial;
         }
 
         private static Material CreateSphereMaterial(Color color)

@@ -30,10 +30,13 @@ namespace MarbleOrchestra.Grid
     /// on a xylophone key" sound trigger) - see 0021. tiltFraction 0 = flat
     /// blocks, pure fall; 1 = tilt fully closes the step, seamless, no
     /// fall; the current default sits in between.
-    /// Horizontal (X/Z) chaining at turns, and the groove-depth offset for
-    /// SampleGroovePosition/GetShoulderWorldPosition, are still a flat
-    /// placeholder pending proper EntryPointLocal/ExitPointLocal-based
-    /// chaining in 0021.
+    /// SampleGroovePosition/GetShoulderWorldPosition sample each block's
+    /// own real EntryPointLocal/ExitPointLocal for height (so the fall is
+    /// reflected exactly, see 0021), but always use plain grid cell centers
+    /// for X/Z - not the block's own rotated Entry/ExitPoint - since a turn
+    /// block's entry face (per the "outgoing direction only" yaw above)
+    /// generally does NOT line up with where the path actually enters it;
+    /// grid cell centers avoid that misalignment entirely.
     /// Lives on its own GameObject; grid, marbleController and
     /// trackBlockPrefab are wired in the Inspector or auto-found at Awake.
     /// </summary>
@@ -79,26 +82,38 @@ namespace MarbleOrchestra.Grid
             SyncTracks(FindCompletedPaths());
         }
 
-        /// World-space point at the groove floor at a fractional position
-        /// along the path - e.g. 2.3 means 30% of the way from path[2] to
-        /// path[3]. Placeholder: flat, straight-line interpolation between
-        /// cell centers, no groove/height/tilt yet. Used for kinematic 3D
+        /// World-space point at the groove floor, raised by marbleRadius so
+        /// a marble of that size rests on it, at a fractional position
+        /// along the path - e.g. 2.3 means 30% of the way from path[2]'s
+        /// own entry to its own exit. X/Z come from the grid cell centers
+        /// (always correct, even at a turn where a block's own rotated
+        /// Entry/ExitPoint would be offset to the wrong side - see 0019's
+        /// note on why turn blocks face only their outgoing direction);
+        /// only the height (Y) comes from the actual spawned block's own
+        /// EntryPointLocal/ExitPointLocal, so it reflects that block's real
+        /// tilt. The deliberate fall at each block boundary (see 0020) is
+        /// exactly the jump between one index's exit height and the next
+        /// index's entry height - not smoothed away. Used for kinematic 3D
         /// movement.
         public Vector3 SampleGroovePosition(IReadOnlyList<Vector2Int> path, float pathPosition, float marbleRadius)
         {
-            return transform.TransformPoint(InterpolateCenterline(path, pathPosition));
+            return SampleTrackPosition(path, pathPosition, marbleRadius);
         }
 
-        /// World-space point used to place a physics marble right above
-        /// Start, and as the Goal reference point for arrival detection.
-        /// Same placeholder centerline as SampleGroovePosition for now.
+        /// Same chained sampling as SampleGroovePosition, but at the floor
+        /// itself (no marble-radius offset) - used to place a physics
+        /// marble right above Start (MarbleController adds its own
+        /// marbleRadius3D + physicsDropHeight clearance on top), and as the
+        /// Goal reference point for arrival detection.
         public Vector3 GetShoulderWorldPosition(IReadOnlyList<Vector2Int> path, float pathPosition)
         {
-            return transform.TransformPoint(InterpolateCenterline(path, pathPosition));
+            return SampleTrackPosition(path, pathPosition, 0f);
         }
 
-        private Vector3 InterpolateCenterline(IReadOnlyList<Vector2Int> path, float pathPosition)
+        private Vector3 SampleTrackPosition(IReadOnlyList<Vector2Int> path, float pathPosition, float verticalOffset)
         {
+            TrackInstance track = FindTrackByStart(path[0]);
+
             float clamped = Mathf.Clamp(pathPosition, 0f, path.Count - 1);
             int index = Mathf.Clamp(Mathf.FloorToInt(clamped), 0, path.Count - 1);
             int nextIndex = Mathf.Clamp(index + 1, 0, path.Count - 1);
@@ -106,9 +121,28 @@ namespace MarbleOrchestra.Grid
 
             Vector3 a = grid.CellToLocalPosition(path[index]);
             Vector3 b = grid.CellToLocalPosition(path[nextIndex]);
-            Vector3 lerped = Vector3.Lerp(a, b, f);
-            float y = Mathf.Lerp(BlockHeightAt(index), BlockHeightAt(nextIndex), f);
-            return new Vector3(lerped.x, y, lerped.y);
+            Vector3 xz = Vector3.Lerp(a, b, f);
+
+            float floorY = SampleFloorY(track, index, f);
+            return transform.TransformPoint(new Vector3(xz.x, floorY + verticalOffset, xz.y));
+        }
+
+        /// Groove-floor height at fractional position f (0-1) between the
+        /// block at index's own entry and exit - i.e. within that ONE
+        /// block's real, possibly tilted surface. Falls back to the
+        /// pre-tilt formula if that track's blocks aren't spawned yet this
+        /// frame (e.g. the very first frame after a path just completed).
+        private float SampleFloorY(TrackInstance track, int index, float f)
+        {
+            if (track != null && index < track.Blocks.Count)
+            {
+                TrackBlock block = track.Blocks[index];
+                float entryY = block.transform.localPosition.y + block.EntryPointLocal.y;
+                float exitY = block.transform.localPosition.y + block.ExitPointLocal.y;
+                return Mathf.Lerp(entryY, exitY, f);
+            }
+
+            return BlockHeightAt(index) - grooveRadius;
         }
 
         /// TrackBlock.Height (= top-surface height above the shared floor

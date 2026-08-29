@@ -38,3 +38,19 @@ Verlassen des vorgesehenen Pfades.
 
 ## Notizen
 
+- 2026-08-29: Umgesetzt in `TrackBlockSpawner.SampleTrackPosition`/
+  `SampleFloorY`: X/Z kommen aus den Zellmitten (`grid.
+  CellToLocalPosition`), da ein Kurven-Block wegen seiner Yaw-Regel
+  (siehe [[0019]]-Notiz) mit seiner eigenen Entry-Seite nicht dort
+  liegt, wo der Pfad tatsächlich eintritt. Die Höhe kommt aus dem
+  tatsächlich gespawnten Block (`EntryPointLocal`/`ExitPointLocal`),
+  der Sprung zwischen Block-Exit und nächstem Block-Entry ist der
+  gewollte Fall (siehe [[0020]]) und wird nicht geglättet.
+- 2026-08-29: `TrackBlock` und `Marble` erhalten je ein prozedural
+  erzeugtes `PhysicsMaterial` (niedrige Reibung, keine Bounciness).
+  `Marble.CreateSphere3D` nutzt jetzt
+  `CollisionDetectionMode.ContinuousDynamic` gegen Tunneling an den
+  jetzt dünneren, mehrteiligen Collidern.
+- Zurückgestellt: Fase/Chamfer an Höhenstufen-Kanten - erst im
+  Playtesting prüfen, ob nötig.
+
