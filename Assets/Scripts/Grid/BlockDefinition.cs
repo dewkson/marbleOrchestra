@@ -31,9 +31,10 @@ namespace MarbleOrchestra.Grid
         public TriggerBehavior Trigger;
         public AudioClip AudioEvent; // pragmatic first pass - see 0026 notes on a future string instrumentId
         public string Biome; // placeholder - no biome system exists yet, always DefaultBiome today
+        public Color FlashColor; // see BlockFlashFeedback (0023) - defaults to Color.white when no content overrides it
 
         public BlockDefinition(Vector2Int coord, Direction pathDirection, float height, PipeRole type,
-            TriggerBehavior trigger, AudioClip audioEvent, string biome)
+            TriggerBehavior trigger, AudioClip audioEvent, string biome, Color flashColor)
         {
             Coord = coord;
             PathDirection = pathDirection;
@@ -42,6 +43,7 @@ namespace MarbleOrchestra.Grid
             Trigger = trigger;
             AudioEvent = audioEvent;
             Biome = biome;
+            FlashColor = flashColor;
         }
     }
 

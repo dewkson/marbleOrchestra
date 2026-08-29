@@ -259,15 +259,32 @@ namespace MarbleOrchestra.Grid
 
                 PipeRole role = grid.GetPipe(cell)?.Role ?? PipeRole.Normal;
                 CellContentDefinition content = grid.GetContent(cell);
+                SoundTriggerContent soundContent = content as SoundTriggerContent;
                 TriggerBehavior trigger = content != null ? TriggerBehavior.OnEnter : TriggerBehavior.None;
-                AudioClip audioEvent = (content as SoundTriggerContent)?.Clip;
+                Color flashColor = soundContent != null ? soundContent.FlashColor : Color.white;
                 block.SetDefinition(new BlockDefinition(cell, ComputePathDirection(path, i), blockHeight, role,
-                    trigger, audioEvent, BlockDefinition.DefaultBiome));
+                    trigger, soundContent?.Clip, BlockDefinition.DefaultBiome, flashColor));
 
                 blocks.Add(block);
             }
 
             return new TrackInstance { Path = path, Root = root.transform, Blocks = blocks };
+        }
+
+        /// The TrackBlock spawned at this grid cell, if any track
+        /// currently covers it (linear scan - tracks change rarely, this
+        /// is only called from MarbleController's per-cell trigger, not
+        /// per-frame).
+        public TrackBlock GetBlockAt(Vector2Int coord)
+        {
+            foreach (TrackInstance track in tracks)
+            {
+                for (int i = 0; i < track.Path.Count; i++)
+                {
+                    if (track.Path[i] == coord) return i < track.Blocks.Count ? track.Blocks[i] : null;
+                }
+            }
+            return null;
         }
 
         private TrackInstance FindTrackByStart(Vector2Int start)

@@ -15,10 +15,12 @@ namespace MarbleOrchestra.Grid
     /// pipes editable) and simulation (playing) - S stops without clearing,
     /// R resets - so it is testable without any UI; the public methods are
     /// ready for UI buttons later.
-    /// Lives on its own GameObject (with its own AudioSource for cell-content
-    /// sounds); grid is wired in the Inspector or auto-found at Awake.
+    /// Lives on its own GameObject; grid is wired in the Inspector or
+    /// auto-found at Awake. Cell-content reactions (sound, visual
+    /// feedback) live entirely on the triggered TrackBlock's sibling
+    /// components (see 0023) - this class only decides WHETHER a block
+    /// triggers, never HOW it reacts, so it has no AudioSource of its own.
     /// </summary>
-    [RequireComponent(typeof(AudioSource))]
     public class MarbleController : MonoBehaviour
     {
         /// See 0014: three ways to try the marble's movement.
@@ -40,7 +42,6 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private float physicsGoalRadius = 0.25f; // horizontal distance to Goal at which a physics marble counts as arrived
         [SerializeField] private float physicsTimeoutMultiplier = 4f; // safety margin over the kinematic duration before a stuck physics marble is force-ended
 
-        private AudioSource audioSource;
         private readonly List<Marble> marbles = new List<Marble>();
         private readonly List<Coroutine> runRoutines = new List<Coroutine>();
         private int activeRunCount;
@@ -54,9 +55,6 @@ namespace MarbleOrchestra.Grid
         {
             if (grid == null) grid = FindFirstObjectByType<PathGrid>();
             if (terrain == null) terrain = FindFirstObjectByType<TrackBlockSpawner>();
-
-            audioSource = GetComponent<AudioSource>();
-            audioSource.playOnAwake = false;
         }
 
         private void Update()
@@ -306,10 +304,18 @@ namespace MarbleOrchestra.Grid
             TriggerCellContent(marble, path[path.Count - 1]);
         }
 
+        /// Fires the BlockTrigger on whichever TrackBlock sits at this
+        /// cell, if it's configured to trigger at all (see 0027's
+        /// BlockDefinition.Trigger, resolved once at spawn time from the
+        /// cell's CellContentDefinition). What happens next - sound, visual
+        /// feedback - is entirely up to that block's own sibling
+        /// components (see 0023); this method deliberately knows nothing
+        /// about any of that.
         private void TriggerCellContent(Marble marble, Vector2Int coord)
         {
-            CellContentDefinition content = grid.GetContent(coord);
-            content?.Activate(new CellContentContext(grid, coord, audioSource, marble));
+            TrackBlock block = terrain != null ? terrain.GetBlockAt(coord) : null;
+            if (block != null && block.Definition.Trigger != TriggerBehavior.None)
+                block.GetComponent<BlockTrigger>()?.Fire();
         }
     }
 }
