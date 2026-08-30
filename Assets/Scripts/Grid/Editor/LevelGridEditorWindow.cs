@@ -32,6 +32,7 @@ namespace MarbleOrchestra.Grid.Editor
         }
 
         private const string GeneratedPipeFolder = "Assets/Levels/Pipes";
+        private const string GeneratedContentFolder = "Assets/Levels/Contents";
 
         private LevelData level;
         private PaintLayer activeLayer;
@@ -47,6 +48,10 @@ namespace MarbleOrchestra.Grid.Editor
         private Color customBackgroundColor = new Color(0.15f, 0.15f, 0.15f);
         private PipeRole customRole = PipeRole.Normal;
         private bool customLocked;
+
+        private bool useCustomContent;
+        private AudioClip customClip;
+        private Color customFlashColor = Color.white;
 
         private void OnEnable()
         {
@@ -187,11 +192,12 @@ namespace MarbleOrchestra.Grid.Editor
             {
                 foreach (CellContentDefinition content in availableContents)
                 {
-                    bool selected = selectedBrush == content;
+                    bool selected = !useCustomContent && selectedBrush == content;
                     string label = $"{content.ContentId} ({content.GetType().Name})";
                     if (DrawPaletteEntry(label, new Color(0.4f, 0.6f, 0.9f), selected))
                     {
                         selectedBrush = content;
+                        useCustomContent = false;
                     }
                 }
             }
@@ -201,6 +207,10 @@ namespace MarbleOrchestra.Grid.Editor
             if (activeLayer == PaintLayer.Pipe)
             {
                 DrawCustomPipeBuilder();
+            }
+            else
+            {
+                DrawCustomContentBuilder();
             }
 
             EditorGUILayout.EndVertical();
@@ -256,6 +266,24 @@ namespace MarbleOrchestra.Grid.Editor
             if (right) customConnections |= Direction.Right;
             if (down) customConnections |= Direction.Down;
             if (left) customConnections |= Direction.Left;
+        }
+
+        private void DrawCustomContentBuilder()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.BeginVertical(useCustomContent ? EditorStyles.helpBox : GUIStyle.none);
+            EditorGUILayout.LabelField("Custom Sound Trigger", EditorStyles.boldLabel);
+
+            customClip = (AudioClip)EditorGUILayout.ObjectField("Clip", customClip, typeof(AudioClip), false);
+            customFlashColor = EditorGUILayout.ColorField("Flash Color", customFlashColor);
+
+            if (GUILayout.Button(useCustomContent ? "Custom (active)" : "Use Custom"))
+            {
+                useCustomContent = true;
+                selectedBrush = null;
+            }
+
+            EditorGUILayout.EndVertical();
         }
 
         private bool DrawPaletteEntry(string label, Color swatchColor, bool selected)
@@ -445,7 +473,10 @@ namespace MarbleOrchestra.Grid.Editor
             }
             else
             {
-                level.SetContentAt(index, selectedBrush as CellContentDefinition);
+                CellContentDefinition content = useCustomContent
+                    ? GetOrCreateCustomContent(customClip, customFlashColor)
+                    : selectedBrush as CellContentDefinition;
+                level.SetContentAt(index, content);
             }
             EditorUtility.SetDirty(level);
             Repaint();
@@ -499,6 +530,55 @@ namespace MarbleOrchestra.Grid.Editor
             if (role != PipeRole.Normal) id += $"_{role}";
             if (locked) id += "_Locked";
             return id;
+        }
+
+        private SoundTriggerContent GetOrCreateCustomContent(AudioClip clip, Color flashColor)
+        {
+            foreach (CellContentDefinition existing in availableContents)
+            {
+                if (existing is SoundTriggerContent sound &&
+                    sound.Clip == clip && sound.FlashColor == flashColor)
+                {
+                    return sound;
+                }
+            }
+
+            return CreateCustomContentAsset(clip, flashColor);
+        }
+
+        private SoundTriggerContent CreateCustomContentAsset(AudioClip clip, Color flashColor)
+        {
+            SoundTriggerContent asset = CreateInstance<SoundTriggerContent>();
+
+            SerializedObject serialized = new SerializedObject(asset);
+            serialized.FindProperty("clip").objectReferenceValue = clip;
+            serialized.FindProperty("flashColor").colorValue = flashColor;
+            string contentId = BuildContentId(clip);
+            serialized.FindProperty("contentId").stringValue = contentId;
+            serialized.FindProperty("label").stringValue = BuildContentLabel(contentId);
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            if (!AssetDatabase.IsValidFolder(GeneratedContentFolder))
+            {
+                AssetDatabase.CreateFolder("Assets/Levels", "Contents");
+            }
+
+            string path = AssetDatabase.GenerateUniqueAssetPath($"{GeneratedContentFolder}/Sound_{contentId}.asset");
+            AssetDatabase.CreateAsset(asset, path);
+            AssetDatabase.SaveAssets();
+
+            RefreshPalette();
+            return asset;
+        }
+
+        private static string BuildContentId(AudioClip clip)
+        {
+            return clip != null ? clip.name : "Empty";
+        }
+
+        private static string BuildContentLabel(string contentId)
+        {
+            return contentId.Length > 0 ? contentId.Substring(0, 1).ToUpperInvariant() : "?";
         }
 
         private void RandomizePipes()

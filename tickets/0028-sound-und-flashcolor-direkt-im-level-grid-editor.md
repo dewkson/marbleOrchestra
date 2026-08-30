@@ -48,3 +48,19 @@ Assets vorher anlegen zu müssen und dann zuzuweisen).
   UI-Lösung.
 
 ## Notizen
+
+- 2026-08-29: Umgesetzt in `Assets/Scripts/Grid/Editor/
+  LevelGridEditorWindow.cs`, 1:1 nach dem Muster von [[0003]]s
+  "Custom Pipe"-Baukasten (`DrawCustomPipeBuilder`/`GetOrCreateCustomPipe`/
+  `CreateCustomPipeAsset`): neuer "Custom Sound Trigger"-Block im
+  Content-Layer mit Clip- und Flash-Color-Feld
+  (`DrawCustomContentBuilder`). Beim Malen wird über
+  `GetOrCreateCustomContent` zunächst nach einem bestehenden
+  `SoundTriggerContent`-Asset mit identischem Clip+FlashColor gesucht
+  (Wiederverwendung), sonst über `CreateCustomContentAsset` automatisch
+  eines in `Assets/Levels/Contents/Sound_<ClipName>.asset` erzeugt
+  (Felder via `SerializedObject`, da `SoundTriggerContent` keine
+  öffentlichen Setter hat) und die Palette aktualisiert.
+  `LevelData.cs`/`CellContentDefinition.cs`/`SoundTriggerContent.cs`
+  unverändert - reine Editor-Fenster-Ergänzung. Noch nicht im Editor
+  getestet (GUI-Code, für mich nicht automatisiert prüfbar).
