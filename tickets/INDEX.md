@@ -13,7 +13,6 @@ Priorität (Critical → High → Medium → Low) sortiert.
 
 | ID | Titel | Typ | Priorität | Status | Area | Erstellt |
 |----|-------|-----|-----------|--------|------|----------|
-| 0028 | Sound und Flash-Color direkt im Level Grid Editor definieren | Feature | 🟡 Medium | ⚪ Open | Level Editor | 2026-08-29 |
 | 0004 | Pipe-Swap per Drag & Drop mit Visualisierung | Feature | 🔵 Low | ⚪ Open | Gameplay | 2026-08-25 |
 | 0022 | Prefab-Varianten für Start-, Ziel- und Normal-Blöcke | Task | 🔵 Low | ⚪ Open | Tooling | 2026-08-29 |
 
@@ -48,4 +47,4 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0025 | Drum-Block / Hi-Hat-Prototyp | Feature | 🟡 Medium | ✅ Done | Audio | 2026-08-29 |
 | 0026 | Instrumenten-Events von der Blocklogik entkoppeln | Task | 🟡 Medium | ✅ Done | Gameplay | 2026-08-29 |
 | 0027 | Datengetriebenes Block-Modell unabhängig von Darstellung | Feature | 🟡 Medium | ✅ Done | Tooling | 2026-08-29 |
-| 0028 | Sound und Flash-Color direkt im Level Grid Editor definieren | Feature | 🟡 Medium | ⚪ Open | Level Editor | 2026-08-29 |
+| 0028 | Sound und Flash-Color direkt im Level Grid Editor definieren | Feature | 🟡 Medium | ✅ Done | Level Editor | 2026-08-29 |

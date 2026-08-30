@@ -3,7 +3,7 @@ id: 0028
 title: Sound und Flash-Color direkt im Level Grid Editor definieren
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Level Editor
 created: 2026-08-29
 ---
