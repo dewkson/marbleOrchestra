@@ -3,7 +3,7 @@ id: 0024
 title: Sound-Trigger als erstes Block-Feature
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Audio
 created: 2026-08-29
 ---
@@ -34,3 +34,14 @@ können.
     Inspector einstellbar, nicht hart codiert.
 
 ## Notizen
+
+- 2026-08-29: Umgesetzt in `Assets/Scripts/Grid/InstrumentReaction.cs`
+  (Sibling-Component von `TrackBlock`/`BlockTrigger`, eigene
+  `AudioSource`, abonniert `BlockTrigger.Triggered`, spielt
+  `TrackBlock.Definition.AudioEvent` per `PlayOneShot`). Dank [[0027]]
+  kein separater "Bridge"-Code in `MarbleController` nötig - der Clip
+  ist bereits zur Spawn-Zeit in `BlockDefinition` aufgelöst. Zu
+  `Assets/Prefabs/TrackBlock.prefab` hinzugefügt. Sound-Konfiguration
+  läuft weiterhin über ein per Level-Editor gemaltes
+  `SoundTriggerContent`-Asset - siehe [[0028]] für die geplante
+  Direkteingabe ohne Asset-Umweg.

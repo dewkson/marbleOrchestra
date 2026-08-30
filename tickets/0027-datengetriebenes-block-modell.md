@@ -3,7 +3,7 @@ id: 0027
 title: Datengetriebenes Block-Modell unabhängig von Darstellung
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Tooling
 created: 2026-08-29
 ---

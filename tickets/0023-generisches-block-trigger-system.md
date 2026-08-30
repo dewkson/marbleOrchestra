@@ -3,7 +3,7 @@ id: 0023
 title: Generisches Block-Trigger-System
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Gameplay
 created: 2026-08-29
 ---

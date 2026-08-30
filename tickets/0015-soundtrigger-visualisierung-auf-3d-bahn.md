@@ -3,7 +3,7 @@ id: 0015
 title: Soundtrigger auf der 3D-Bahn visualisieren
 type: Feature
 priority: Medium
-status: Open
+status: Wont Do
 area: Gameplay
 created: 2026-08-28
 ---
@@ -51,4 +51,6 @@ Akzeptanzkriterien (grobe erste Fassung):
   (Kinematic3D/Physics3D, siehe 0014).
 
 ## Notizen
+
+- 2026-08-29: Auf "Wont Do" gesetzt (User-Entscheidung).
 

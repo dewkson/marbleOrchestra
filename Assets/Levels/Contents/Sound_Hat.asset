@@ -15,3 +15,4 @@ MonoBehaviour:
   contentId: Hit
   label: H
   clip: {fileID: 8300000, guid: 010d85243a74e454d9b2f64ca89b00a0, type: 3}
+  flashColor: {r: 1, g: 0.85, b: 0, a: 1}
