@@ -67,8 +67,8 @@ namespace MarbleOrchestra.Grid
 
         private void Awake()
         {
-            if (grid == null) grid = FindFirstObjectByType<PathGrid>();
-            if (marbleController == null) marbleController = FindFirstObjectByType<MarbleController>();
+            if (grid == null) grid = FindAnyObjectByType<PathGrid>();
+            if (marbleController == null) marbleController = FindAnyObjectByType<MarbleController>();
 
             float marbleRadius = marbleController != null ? marbleController.MarbleRadius3D : 0.1f;
             if (grooveRadius <= 0f) grooveRadius = marbleRadius * 1.15f;

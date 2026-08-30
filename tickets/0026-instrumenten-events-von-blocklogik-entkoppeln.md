@@ -3,7 +3,7 @@ id: 0026
 title: Instrumenten-Events von der Blocklogik entkoppeln
 type: Task
 priority: Medium
-status: Open
+status: Done
 area: Gameplay
 created: 2026-08-29
 ---
@@ -33,3 +33,19 @@ verwenden.
     Umstellung unverändert weiter.
 
 ## Notizen
+
+- 2026-08-29: Umgesetzt. `InstrumentReaction.cs` spielt nicht mehr
+  selbst ab, sondern meldet nur noch die eigene `BlockDefinition` über
+  ein statisches `event Action<BlockDefinition> Played` - eigene
+  `AudioSource`-Pflicht entfällt (aus `TrackBlock.prefab` entfernt).
+  Statisch, weil `TrackBlockSpawner` Blöcke bei Pfadänderungen komplett
+  neu baut (`SyncTracks` → `Destroy`) - ein Instanz-Abo müsste sich
+  ständig neu verdrahten.
+  Neu: `Assets/Scripts/Audio/InstrumentAudioSystem.cs` (neuer Ordner/
+  Namespace `MarbleOrchestra.Audio`) - abonniert `InstrumentReaction.
+  Played`, spielt `BlockDefinition.AudioEvent` über eine eigene
+  `AudioSource`. In der Szene auf dem bestehenden "MarbleController"-
+  GameObject platziert, wiederverwendet dessen `AudioSource`-Komponente
+  (war seit [[0023]]s Aufräumen ungenutzt).
+  `MarbleController.TriggerCellContent` unverändert - kennt weiterhin
+  nur `BlockTrigger.Fire()`, nichts von Audio.

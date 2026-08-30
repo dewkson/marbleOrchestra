@@ -53,8 +53,8 @@ namespace MarbleOrchestra.Grid
 
         private void Awake()
         {
-            if (grid == null) grid = FindFirstObjectByType<PathGrid>();
-            if (terrain == null) terrain = FindFirstObjectByType<TrackBlockSpawner>();
+            if (grid == null) grid = FindAnyObjectByType<PathGrid>();
+            if (terrain == null) terrain = FindAnyObjectByType<TrackBlockSpawner>();
         }
 
         private void Update()

@@ -1,27 +1,28 @@
+using System;
 using UnityEngine;
 
 namespace MarbleOrchestra.Grid
 {
     /// <summary>
-    /// First concrete Block-Trigger reaction (see 0023/0024): plays this
-    /// block's own BlockDefinition.AudioEvent when triggered. Owns its own
-    /// AudioSource so it can react autonomously - MarbleController no
-    /// longer has (or needs) one of its own, see its class remarks. Reads
-    /// its clip from the block's Definition rather than being handed one,
-    /// same pattern as BlockFlashFeedback reading FlashColor from there.
+    /// Block-Trigger reaction (see 0023/0024) that reports this block's own
+    /// BlockDefinition to a static event instead of playing audio itself
+    /// (see 0026) - decouples the block from any specific Audio-/Music-
+    /// system. TrackBlockSpawner destroys/rebuilds a track's blocks on
+    /// every path change, so a central listener can't subscribe to
+    /// individual instances; a static event lets it subscribe once and
+    /// have blocks come and go freely (see InstrumentAudioSystem).
     /// </summary>
-    [RequireComponent(typeof(AudioSource))]
     [RequireComponent(typeof(TrackBlock))]
     public class InstrumentReaction : MonoBehaviour
     {
+        public static event Action<BlockDefinition> Played;
+
         private TrackBlock block;
-        private AudioSource audioSource;
         private BlockTrigger trigger;
 
         private void Awake()
         {
             block = GetComponent<TrackBlock>();
-            audioSource = GetComponent<AudioSource>();
             trigger = GetComponent<BlockTrigger>();
         }
 
@@ -35,10 +36,6 @@ namespace MarbleOrchestra.Grid
             if (trigger != null) trigger.Triggered -= HandleTriggered;
         }
 
-        private void HandleTriggered()
-        {
-            AudioClip clip = block.Definition.AudioEvent;
-            if (clip != null) audioSource.PlayOneShot(clip);
-        }
+        private void HandleTriggered() => Played?.Invoke(block.Definition);
     }
 }

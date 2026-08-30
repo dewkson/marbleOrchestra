@@ -23,7 +23,7 @@ namespace MarbleOrchestra.Grid
 
         private void Awake()
         {
-            if (marbleController == null) marbleController = FindFirstObjectByType<MarbleController>();
+            if (marbleController == null) marbleController = FindAnyObjectByType<MarbleController>();
             BuildUI();
         }
 

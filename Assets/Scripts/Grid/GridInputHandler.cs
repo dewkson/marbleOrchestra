@@ -20,8 +20,8 @@ namespace MarbleOrchestra.Grid
 
         private void Awake()
         {
-            if (grid == null) grid = FindFirstObjectByType<PathGrid>();
-            if (marbleController == null) marbleController = FindFirstObjectByType<MarbleController>();
+            if (grid == null) grid = FindAnyObjectByType<PathGrid>();
+            if (marbleController == null) marbleController = FindAnyObjectByType<MarbleController>();
             if (targetCamera == null) targetCamera = Camera.main;
         }
 
