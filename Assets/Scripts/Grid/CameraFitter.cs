@@ -28,8 +28,22 @@ namespace MarbleOrchestra.Grid
 
         public void Fit()
         {
-            if (grid == null || cam == null || !cam.orthographic) return;
-            if (grid.Width <= 0 || grid.Height <= 0) return;
+            if (!TryComputeFitPose(out Vector3 position, out float orthographicSize)) return;
+
+            cam.orthographicSize = orthographicSize;
+            transform.position = position;
+        }
+
+        /// Pure query version of Fit()'s math - used by Fit() itself and by
+        /// CameraModeTransition (see 0029) to know where the 2D planning
+        /// camera belongs without actually moving the camera there.
+        public bool TryComputeFitPose(out Vector3 position, out float orthographicSize)
+        {
+            position = default;
+            orthographicSize = default;
+
+            if (grid == null || cam == null || !cam.orthographic) return false;
+            if (grid.Width <= 0 || grid.Height <= 0) return false;
 
             Vector3 min = grid.transform.TransformPoint(grid.CellToLocalPosition(Vector2Int.zero));
             Vector3 max = grid.transform.TransformPoint(grid.CellToLocalPosition(new Vector2Int(grid.Width - 1, grid.Height - 1)));
@@ -44,11 +58,12 @@ namespace MarbleOrchestra.Grid
             float verticalSize = gridHeight / 2f;
             float horizontalSize = gridWidth / (2f * cam.aspect);
 
-            cam.orthographicSize = Mathf.Max(verticalSize, horizontalSize);
+            orthographicSize = Mathf.Max(verticalSize, horizontalSize);
 
             Vector3 center = (min + max) / 2f;
             center.y -= bottomHintSpace / 2f;
-            transform.position = new Vector3(center.x, center.y, transform.position.z);
+            position = new Vector3(center.x, center.y, transform.position.z);
+            return true;
         }
     }
 }

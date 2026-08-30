@@ -287,6 +287,33 @@ namespace MarbleOrchestra.Grid
             return null;
         }
 
+        /// World-space bounds encapsulating every currently spawned block
+        /// across all tracks, from their MeshRenderer.bounds (already
+        /// reflecting each block's real position, yaw and staircase
+        /// height). Used by CameraModeTransition (see 0029) to frame the
+        /// 3D view so the whole track fits on screen. False (bounds left
+        /// at default) if no track is currently spawned.
+        public bool TryGetTracksWorldBounds(out Bounds bounds)
+        {
+            bounds = default;
+            bool any = false;
+
+            foreach (TrackInstance track in tracks)
+            {
+                foreach (TrackBlock block in track.Blocks)
+                {
+                    if (block == null) continue;
+                    Renderer renderer = block.GetComponent<Renderer>();
+                    if (renderer == null) continue;
+
+                    if (!any) { bounds = renderer.bounds; any = true; }
+                    else bounds.Encapsulate(renderer.bounds);
+                }
+            }
+
+            return any;
+        }
+
         private TrackInstance FindTrackByStart(Vector2Int start)
         {
             foreach (TrackInstance track in tracks)
