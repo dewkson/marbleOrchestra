@@ -1,24 +1,28 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace MarbleOrchestra.Grid
 {
     /// <summary>
     /// Lerps the MainCamera between the flat 2D planning view (as computed
-    /// by CameraFitter) and a diagonal, isometric-looking view of the
-    /// spawned 3D TrackBlocks whenever MarbleController's play state flips
-    /// (see 0012's SPACE toggle) - so the 2D-to-3D switch reads as a camera
-    /// move rather than a hard cut (see 0029). Stays orthographic the whole
-    /// time; only Transform position/rotation and Camera.orthographicSize
-    /// are interpolated. Polls MarbleController.IsPlaying every frame,
-    /// matching PlaybackHintUI's existing pattern, instead of wiring a new
-    /// event into MarbleController.
+    /// by CameraFitter, top-down onto the grid - see 0029) and a diagonal,
+    /// isometric-looking view of the spawned 3D TrackBlocks whenever
+    /// MarbleController's play state flips (see 0012's SPACE toggle) - so
+    /// the 2D-to-3D switch reads as a camera move rather than a hard cut.
+    /// Stays orthographic the whole time; only Transform position/rotation
+    /// and Camera.orthographicSize are interpolated. Polls
+    /// MarbleController.IsPlaying every frame, matching PlaybackHintUI's
+    /// existing pattern, instead of wiring a new event into
+    /// MarbleController.
     /// The 3D target pose is derived every time from
     /// TrackBlockSpawner.TryGetTracksWorldBounds - the exact world bounds
     /// of the currently spawned blocks - by projecting its 8 corners onto
-    /// the isometric camera's own right/up/forward axes, so every block
-    /// stays fully inside the frame regardless of track length or shape.
+    /// the isometric camera's own right/up/forward axes (BoundsCameraMath),
+    /// so every block stays fully inside the frame regardless of track
+    /// length or shape. The 2D target pose (position, rotation AND size)
+    /// is asked from CameraFitter wholesale, rather than this component
+    /// keeping its own copy of the planning rotation - CameraFitter is the
+    /// single source of truth for what the 2D view looks like.
     /// Lives on the MainCamera; marbleController/terrain/cameraFitter are
     /// wired in the Inspector or auto-found at Awake.
     /// </summary>
@@ -30,7 +34,7 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private CameraFitter cameraFitter;
 
         [SerializeField] private float pitchDegrees = 35.264f; // true isometric tilt
-        [SerializeField] private float yawDegrees = 45f;
+        [SerializeField] private float yawDegrees = -45f;
         [SerializeField] private float padding = 1f;
         [SerializeField] private float nearMargin = 2f; // extra room between the camera and the nearest block, so it never pokes through the near clip plane
         [SerializeField] private float transitionDuration = 1.1f;
@@ -50,7 +54,6 @@ namespace MarbleOrchestra.Grid
         }
 
         private Camera cam;
-        private Quaternion planRotation;
         private bool wasPlaying;
         private Coroutine transitionRoutine;
 
@@ -60,12 +63,6 @@ namespace MarbleOrchestra.Grid
             if (marbleController == null) marbleController = FindAnyObjectByType<MarbleController>();
             if (terrain == null) terrain = FindAnyObjectByType<TrackBlockSpawner>();
             if (cameraFitter == null) cameraFitter = GetComponent<CameraFitter>();
-
-            // CameraFitter (see 0001) never touches rotation, only
-            // position/orthographicSize - so whatever rotation the camera
-            // has at Awake is the 2D planning rotation for the rest of
-            // this component's life.
-            planRotation = transform.rotation;
         }
 
         private void Update()
@@ -91,8 +88,8 @@ namespace MarbleOrchestra.Grid
 
         private CameraPose GetPlanPose(CameraPose fallback)
         {
-            if (cameraFitter != null && cameraFitter.TryComputeFitPose(out Vector3 position, out float orthographicSize))
-                return new CameraPose(position, planRotation, orthographicSize);
+            if (cameraFitter != null && cameraFitter.TryComputeFitPose(out Vector3 position, out Quaternion rotation, out float orthographicSize))
+                return new CameraPose(position, rotation, orthographicSize);
 
             return fallback;
         }
@@ -109,40 +106,14 @@ namespace MarbleOrchestra.Grid
 
             Quaternion rotation = Quaternion.Euler(pitchDegrees, yawDegrees, 0f);
             Vector3 forward = rotation * Vector3.forward;
-            Vector3 right = rotation * Vector3.right;
-            Vector3 up = rotation * Vector3.up;
 
-            Vector3 center = bounds.center;
-            float maxRight = 0f, maxUp = 0f, maxForward = 0f;
+            BoundsCameraMath.Extents extents = BoundsCameraMath.MeasureExtents(bounds, rotation);
 
-            foreach (Vector3 corner in EnumerateCorners(bounds))
-            {
-                Vector3 d = corner - center;
-                maxRight = Mathf.Max(maxRight, Mathf.Abs(Vector3.Dot(d, right)));
-                maxUp = Mathf.Max(maxUp, Mathf.Abs(Vector3.Dot(d, up)));
-                maxForward = Mathf.Max(maxForward, Mathf.Abs(Vector3.Dot(d, forward)));
-            }
-
-            float orthographicSize = Mathf.Max(maxUp, maxRight / cam.aspect) + padding;
-            float distance = maxForward + nearMargin;
-            Vector3 position = center - forward * distance;
+            float orthographicSize = Mathf.Max(extents.Up, extents.Right / cam.aspect) + padding;
+            float distance = extents.Forward + nearMargin;
+            Vector3 position = bounds.center - forward * distance;
 
             return new CameraPose(position, rotation, orthographicSize);
-        }
-
-        private static IEnumerable<Vector3> EnumerateCorners(Bounds bounds)
-        {
-            Vector3 min = bounds.min;
-            Vector3 max = bounds.max;
-
-            yield return new Vector3(min.x, min.y, min.z);
-            yield return new Vector3(min.x, min.y, max.z);
-            yield return new Vector3(min.x, max.y, min.z);
-            yield return new Vector3(min.x, max.y, max.z);
-            yield return new Vector3(max.x, min.y, min.z);
-            yield return new Vector3(max.x, min.y, max.z);
-            yield return new Vector3(max.x, max.y, min.z);
-            yield return new Vector3(max.x, max.y, max.z);
         }
 
         private IEnumerator LerpPose(CameraPose from, CameraPose to)

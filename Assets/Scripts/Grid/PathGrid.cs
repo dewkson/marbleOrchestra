@@ -142,7 +142,16 @@ namespace MarbleOrchestra.Grid
             go.transform.SetParent(transform, false);
             go.transform.localPosition = CellToLocalPosition(coord);
             go.transform.localScale = Vector3.one * cardScale;
-            go.AddComponent<BoxCollider2D>();
+
+            // A 3D BoxCollider rather than BoxCollider2D deliberately -
+            // Physics2D only ever considers a transform's position.xy and
+            // its rotation around Z, so it silently breaks once the grid
+            // is rotated out of a pure front-on X/Y orientation (see 0029's
+            // top-down planning view). A thin 3D box, raycast against with
+            // Physics.Raycast (see GridInputHandler), works under any
+            // grid/camera orientation.
+            BoxCollider collider = go.AddComponent<BoxCollider>();
+            collider.size = new Vector3(1f, 1f, 0.1f);
 
             PathPipe pipe = go.AddComponent<PathPipe>();
             pipe.Initialize(definition, coord);

@@ -3,7 +3,7 @@ id: 0029
 title: Kamerafahrt zwischen 2D-Planung und 3D-Visualisierung
 type: Feature
 priority: Medium
-status: In Progress
+status: Done
 area: Gameplay
 created: 2026-08-30
 ---
@@ -76,3 +76,52 @@ MainCamera in `Prototyp_Phase1.unity` gehängt (neben dem bestehenden
 Noch nicht im Editor getestet/verifiziert (Unity-Instanz war beim
 Umsetzen bereits vom User geöffnet, daher kein Batch-Mode-Compile-Check
 möglich) - User prüft selbst im offenen Editor.
+
+**Nachbesserung (User-Feedback):** Die erste Lösung nahm implizit eine
+Front-Ansicht der 2D-Planung an (Kamera blickt entlang Welt-Z, Grid-Ebene
+in lokaler X/Y). Der User wollte stattdessen eine Draufsicht (2D-Planung
+von oben, dann Kamerafahrt in die isometrische 3D-Ansicht) und hat dafür
+MainCamera und PathGrid in der Szene bereits per Hand um 90° um die
+X-Achse gedreht (Grid-Ebene liegt jetzt bei Welt-Y ≈ 8.75, Kamera blickt
+von Y ≈ 10.43 nach unten). Damit das kein reiner Editor-Hack bleibt,
+wurden alle beteiligten Scripts rotationsunabhängig gemacht:
+- `Assets/Scripts/Grid/BoundsCameraMath.cs` (neu) - gemeinsame Helper-
+  Klasse, die die 8 Eckpunkte einer world-space `Bounds` auf die
+  rechte/obere/vordere Achse einer beliebigen Rotation projiziert.
+  Ersetzt sowohl den alten, Welt-X/Y-annehmenden `CameraFitter`-Code als
+  auch den duplizierten Corner-Loop in `CameraModeTransition`.
+- `CameraFitter.cs` - `TryComputeFitPose()`/`Fit()` arbeiten jetzt
+  generisch mit der bei `Awake()` gecachten Kamerarotation/-position
+  (`planRotation`/`planPosition`) statt fest verdrahteter Welt-X/Y-Achsen;
+  die Grid-Bounds werden aus allen 4 Eck-Zellen über `grid.transform`
+  berechnet (respektiert jetzt auch die Grid-Rotation). Wichtig: die
+  Kamera-Distanz zur Grid-Ebene wird aus der bei `Awake()` gecachten
+  Ausgangsposition abgeleitet, nicht aus der aktuellen - sonst hätte jede
+  3D→2D-Rückfahrt die Distanz aus der letzten isometrischen Position
+  fehlberechnet.
+- `CameraModeTransition.cs` - fragt die 2D-Zielpose (Position, Rotation
+  UND Größe) komplett bei `CameraFitter.TryComputeFitPose()` ab, statt
+  selbst eine Kopie der Planungsrotation zu halten; nutzt
+  `BoundsCameraMath` für die 3D-Zielpose statt eigenem Corner-Code.
+- `Assets/Scripts/Grid/PathGrid.cs` - Pipe-Zellen bekommen jetzt einen 3D-
+  `BoxCollider` statt `BoxCollider2D`. Physics2D-Collider berücksichtigen
+  nur Position.xy und Z-Rotation; nach der Grid-Rotation wären alle Pipes
+  für Physics2D auf derselben Höhe "gestapelt" gewesen.
+- `Assets/Scripts/Grid/GridInputHandler.cs` - Klick-Erkennung nutzt jetzt
+  `Physics.Raycast` über `Camera.ScreenPointToRay` statt
+  `Physics2D.Raycast`, funktioniert dadurch unter jeder Grid-/Kamera-
+  Orientierung.
+
+Scene-seitig waren keine weiteren Änderungen an `Prototyp_Phase1.unity`
+nötig - die Feldlisten von `CameraFitter`/`CameraModeTransition` sind
+unverändert, die vom User bereits gesetzten Rotationen/Positionen von
+MainCamera und PathGrid bleiben wie vom User konfiguriert.
+
+**Feintuning (User-Feedback):** Yaw-Richtung der isometrischen 3D-Fahrt
+umgekehrt (`yawDegrees` in `CameraModeTransition` von `45` auf `-45`, in
+Script-Default und Szene). Da `BoundsCameraMath` Position/Größe generisch
+aus den Bahn-Bounds für die jeweils aktuelle Rotation berechnet, bleibt
+die Murmelbahn bei jedem Yaw-Vorzeichen automatisch vollständig im Bild.
+
+Vom User im Editor geprüft und für gut befunden - Status auf Done
+gesetzt.

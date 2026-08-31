@@ -9,6 +9,10 @@ namespace MarbleOrchestra.Grid
     /// Disabled while MarbleController is simulating - the track can only
     /// be edited during planning. Lives on its own GameObject; grid and
     /// marbleController are wired in the Inspector or auto-found at Awake.
+    /// Raycasts in full 3D (Physics.Raycast via ScreenPointToRay) rather
+    /// than Physics2D, since the planning camera/grid no longer have to be
+    /// front-on (see 0029's top-down planning view) - Physics2D would
+    /// silently ignore any rotation beyond the Z axis.
     /// </summary>
     public class GridInputHandler : MonoBehaviour
     {
@@ -55,10 +59,9 @@ namespace MarbleOrchestra.Grid
         private PathPipe RaycastPipe()
         {
             Vector2 screenPos = Mouse.current.position.ReadValue();
-            Vector2 worldPos = targetCamera.ScreenToWorldPoint(screenPos);
+            Ray ray = targetCamera.ScreenPointToRay(screenPos);
 
-            RaycastHit2D hit = Physics2D.Raycast(worldPos, Vector2.zero);
-            return hit.collider != null ? hit.collider.GetComponent<PathPipe>() : null;
+            return Physics.Raycast(ray, out RaycastHit hit) ? hit.collider.GetComponent<PathPipe>() : null;
         }
     }
 }
