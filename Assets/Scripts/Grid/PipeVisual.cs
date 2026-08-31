@@ -5,27 +5,36 @@ namespace MarbleOrchestra.Grid
     /// <summary>
     /// Draws a pipe purely from its Direction flags (a "+" of arms towards
     /// each connected side). No hand-authored art needed per pipe type.
+    /// "Highlighted" (click-click selection, and drag-and-drop's dragged/
+    /// hovered pipes - see 0004) is shown as a white border sprite that
+    /// peeks out from behind the card background, rather than tinting the
+    /// small center hub - the hub always just shows the pipe's own color.
     /// </summary>
     public class PipeVisual : MonoBehaviour
     {
         [SerializeField] private float armThickness = 0.15f;
         [SerializeField] private float hubSize = 0.2f;
-        [SerializeField] private Color highlightColor = Color.yellow;
+        [SerializeField] private Color borderColor = Color.white;
+        [SerializeField] private float borderScale = 1.1f; // relative to the 1x1 background - how far the border peeks out on each side
         [SerializeField] private Color connectedTint = new Color(0.35f, 0.65f, 1f);
         [SerializeField] private Color pathCompleteTint = new Color(0.35f, 0.9f, 0.45f);
         [SerializeField] private Color roleLabelColor = Color.white;
         [SerializeField] private float roleLabelCharacterSize = 0.05f;
         [SerializeField] private int roleLabelFontSize = 32;
         [SerializeField] private float roleLabelTopOffset = 0.38f; // distance from card center to the label, so it sits above the pipe arms instead of on top of them
+        [SerializeField] private int dragSortingBoost = 100; // added to every renderer's sortingOrder while dragged, so the card draws over every other pipe regardless of layout
 
         private static Sprite pixelSprite;
 
+        private SpriteRenderer borderRenderer;
         private SpriteRenderer backgroundRenderer;
         private SpriteRenderer hubRenderer;
         private readonly SpriteRenderer[] armRenderers = new SpriteRenderer[4];
         private TextMesh roleLabel;
+        private MeshRenderer roleLabelRenderer;
         private Color baseColor = Color.white;
         private Color baseBackgroundColor = Color.gray;
+        private bool dragElevated;
 
         public void Refresh(PipeDefinition definition)
         {
@@ -57,8 +66,26 @@ namespace MarbleOrchestra.Grid
 
         public void SetHighlighted(bool highlighted)
         {
-            if (hubRenderer == null) return;
-            hubRenderer.color = highlighted ? highlightColor : baseColor;
+            if (borderRenderer == null) return;
+            borderRenderer.enabled = highlighted;
+        }
+
+        /// While dragged (see 0004's GridInputHandler), the card should
+        /// visually cover every other pipe it passes over, regardless of
+        /// draw order - bump every one of this pipe's renderers well above
+        /// the sortingOrder range any other pipe uses (max 4, see
+        /// EnsureBuilt), then restore exactly on release.
+        public void SetDragElevated(bool elevated)
+        {
+            if (backgroundRenderer == null || dragElevated == elevated) return;
+            dragElevated = elevated;
+
+            int delta = elevated ? dragSortingBoost : -dragSortingBoost;
+            backgroundRenderer.sortingOrder += delta;
+            borderRenderer.sortingOrder += delta;
+            hubRenderer.sortingOrder += delta;
+            roleLabelRenderer.sortingOrder += delta;
+            foreach (SpriteRenderer arm in armRenderers) arm.sortingOrder += delta;
         }
 
         public void SetConnectivity(CellConnectivity connectivity)
@@ -84,6 +111,19 @@ namespace MarbleOrchestra.Grid
             if (hubRenderer != null) return;
 
             Sprite sprite = GetPixelSprite();
+
+            // Behind the background (lower sortingOrder) and slightly
+            // larger, so only a thin rim shows around the card's edges
+            // when enabled - a border made of the same 1x1 pixel sprite,
+            // no extra art needed.
+            GameObject border = new GameObject("SelectionBorder");
+            border.transform.SetParent(transform, false);
+            borderRenderer = border.AddComponent<SpriteRenderer>();
+            borderRenderer.sprite = sprite;
+            borderRenderer.sortingOrder = -1;
+            borderRenderer.color = borderColor;
+            borderRenderer.enabled = false;
+            border.transform.localScale = Vector3.one * borderScale;
 
             GameObject background = new GameObject("Background");
             background.transform.SetParent(transform, false);
@@ -132,8 +172,8 @@ namespace MarbleOrchestra.Grid
             roleLabel.fontSize = roleLabelFontSize;
             roleLabel.color = roleLabelColor;
 
-            MeshRenderer labelRenderer = label.GetComponent<MeshRenderer>();
-            labelRenderer.sortingOrder = 4;
+            roleLabelRenderer = label.GetComponent<MeshRenderer>();
+            roleLabelRenderer.sortingOrder = 4;
         }
 
         private static Sprite GetPixelSprite()

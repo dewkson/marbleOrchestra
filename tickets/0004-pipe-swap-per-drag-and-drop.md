@@ -3,7 +3,7 @@ id: 0004
 title: Pipe-Swap per Drag & Drop mit Visualisierung
 type: Feature
 priority: Low
-status: Open
+status: Done
 area: Gameplay
 created: 2026-08-25
 ---
@@ -32,3 +32,27 @@ benötigt eine entsprechende Visualisierung. Eher ein unwichtiges Ticket.
   bestehenden `SetSelected`-Highlight auf `PathPipe`.
 
 ## Notizen
+
+Umgesetzt in `Assets/Scripts/Grid/GridInputHandler.cs`, ohne den
+bestehenden Klick-Klick-Ablauf anzutasten:
+- Press+Release ohne nennenswerte Cursorbewegung (< `dragThresholdPixels`,
+  Inspector-Feld, Default 8px) wird weiterhin als Klick behandelt -
+  gleiches Verhalten wie vorher.
+- Sobald sich der Cursor bei gedrückter Maustaste über den Threshold
+  hinaus bewegt, beginnt ein Drag: die gehaltene Pipe folgt dem Cursor
+  (Schnittpunkt des Kamerastrahls mit der Grid-Ebene, normal =
+  `grid.transform.forward` - funktioniert unabhängig von der
+  Grid-/Kamera-Orientierung, siehe Ticket 0029) und bekommt denselben
+  `SetSelected`-Highlight wie die bestehende Klick-Auswahl. Die Pipe, über
+  der der Cursor gerade schwebt, wird ebenfalls hervorgehoben.
+- Beim Loslassen: liegt unter dem Cursor eine andere, nicht gesperrte
+  Pipe, wird über `PathGrid.SwapCards` getauscht; sonst springt die
+  gehaltene Pipe zurück auf ihren Ursprungsplatz (Drag ins Leere = Abbruch).
+- Ein begonnener Drag löscht eine eventuell noch offene
+  Klick-Klick-Auswahl, damit sich beide Eingabewege nicht in die Quere
+  kommen.
+- Während des Drags wird der eigene `BoxCollider` der gehaltenen Pipe
+  deaktiviert, da sie sonst (am Cursor liegend) ihren eigenen
+  Hover-/Drop-Raycast blockieren würde.
+- `IsLocked`-Pipes sind wie schon vorher vom Swap ausgeschlossen (Start-
+  als auch Zielseite).

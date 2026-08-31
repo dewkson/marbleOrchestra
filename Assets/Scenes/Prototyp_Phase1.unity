@@ -289,7 +289,7 @@ MonoBehaviour:
   terrain: {fileID: 1612605614}
   cameraFitter: {fileID: 330585548}
   pitchDegrees: 35.264
-  yawDegrees: 45
+  yawDegrees: -45
   padding: 1
   nearMargin: 2
   transitionDuration: 1.1
@@ -501,6 +501,7 @@ MonoBehaviour:
   targetCamera: {fileID: 330585545}
   grid: {fileID: 1612605610}
   marbleController: {fileID: 1612605612}
+  dragThresholdPixels: 8
 --- !u!114 &1612605610
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -38,6 +38,13 @@ namespace MarbleOrchestra.Grid
             visual.SetHighlighted(selected);
         }
 
+        /// See PipeVisual.SetDragElevated - visually raises this pipe
+        /// above every other one while it's being dragged (see 0004).
+        public void SetDragElevated(bool elevated)
+        {
+            visual.SetDragElevated(elevated);
+        }
+
         public void SetConnectivity(CellConnectivity connectivity)
         {
             visual.SetConnectivity(connectivity);
