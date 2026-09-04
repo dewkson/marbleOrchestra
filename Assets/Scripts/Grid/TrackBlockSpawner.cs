@@ -36,7 +36,12 @@ namespace MarbleOrchestra.Grid
     /// for X/Z - not the block's own rotated Entry/ExitPoint - since a turn
     /// block's entry face (per the "outgoing direction only" yaw above)
     /// generally does NOT line up with where the path actually enters it;
-    /// grid cell centers avoid that misalignment entirely.
+    /// grid cell centers avoid that misalignment entirely. On top of that
+    /// linear height lerp, each block's own MotionTrace (see 0038,
+    /// IBlockMotionTrace) can add a further vertical offset - the linear
+    /// lerp between two blocks' entry/exit heights stays the source of
+    /// truth for the deliberate fall at a boundary, while a variant's own
+    /// trace only ever shapes the interior of its own block.
     /// Lives on its own GameObject; grid, marbleController and
     /// trackBlockPrefab are wired in the Inspector or auto-found at Awake.
     /// </summary>
@@ -51,6 +56,7 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private float heightDropPerCell = 0.25f;
         [SerializeField] private float minBlockHeight = 0.05f; // safety floor so a long track's last blocks never become degenerate/near-zero thickness
         [SerializeField, Range(0f, 1f)] private float tiltFraction = 0.5f; // how much of the per-cell height step the block's own Tilt closes; the rest is the fall at the boundary. 0 = flat blocks (pure fall), 1 = seamless (no fall)
+        [SerializeField] private float testJumpApexHeight = 0f; // dev/testing hook for IBlockMotionTrace (see 0038): >0 makes every spawned block arc the marble up by this much via JumpMotionTrace instead of the default LinearMotionTrace, until a real per-block-variant trace selection (see 0022) exists
         [SerializeField] private Color terrainColor = new Color(0.30f, 0.45f, 0.20f); // grass/moss green - the "Default" biome's first look (see 0032)
         [SerializeField] private Color grooveColor = new Color(0.40f, 0.27f, 0.15f); // earthy brown for the rollable groove itself, distinct from the grass shoulders (see 0032)
 
@@ -142,7 +148,7 @@ namespace MarbleOrchestra.Grid
                 TrackBlock block = track.Blocks[index];
                 float entryY = block.transform.localPosition.y + block.EntryPointLocal.y;
                 float exitY = block.transform.localPosition.y + block.ExitPointLocal.y;
-                return Mathf.Lerp(entryY, exitY, f);
+                return Mathf.Lerp(entryY, exitY, f) + block.MotionTrace.SampleOffset(f);
             }
 
             return BlockHeightAt(index) - grooveRadius;
@@ -260,6 +266,7 @@ namespace MarbleOrchestra.Grid
                 block.GrooveMaterial = sharedGrooveMaterial;
                 block.YawDegrees = ComputeYawDegrees(path, i);
                 block.TiltDegrees = tiltDegrees; // ramps part of the step away; the rest is the fall to the next block (see class remarks)
+                if (testJumpApexHeight > 0f) block.MotionTrace = new JumpMotionTrace(testJumpApexHeight); // see field comment - dev hook, LinearMotionTrace (TrackBlock's default) otherwise
 
                 PipeRole role = grid.GetPipe(cell)?.Role ?? PipeRole.Normal;
                 CellContentDefinition content = grid.GetContent(cell);

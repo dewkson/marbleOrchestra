@@ -19,7 +19,7 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0022 | Block-Varianten - Rollen-Prefabs und wählbarer Sprung-/Nahtlos-Übergang | Feature | 🟡 Medium | ⚪ Open | Tooling | 2026-08-29 |
 | 0036 | Instrumentenreaktionen in 3D mit Partikeleffekt anreichern | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-04 |
 | 0037 | Sound für Murmel-Bewegung einbinden | Feature | 🟡 Medium | ⚪ Open | Audio | 2026-09-04 |
-| 0038 | Kinematischer Bewegungs-Trace pro Block-Variante definierbar | Feature | 🟡 Medium | ⚪ Open | Physics | 2026-09-04 |
+| 0038 | Kinematischer Bewegungs-Trace pro Block-Variante definierbar | Feature | 🟡 Medium | 🟡 In Progress | Physics | 2026-09-04 |
 
 ## Alle Tickets
 
@@ -62,4 +62,4 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0035 | Sanfter Kamera-Follow in 3D statt fixierter Kamera | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-04 |
 | 0036 | Instrumentenreaktionen in 3D mit Partikeleffekt anreichern | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-04 |
 | 0037 | Sound für Murmel-Bewegung einbinden | Feature | 🟡 Medium | ⚪ Open | Audio | 2026-09-04 |
-| 0038 | Kinematischer Bewegungs-Trace pro Block-Variante definierbar | Feature | 🟡 Medium | ⚪ Open | Physics | 2026-09-04 |
+| 0038 | Kinematischer Bewegungs-Trace pro Block-Variante definierbar | Feature | 🟡 Medium | 🟡 In Progress | Physics | 2026-09-04 |
