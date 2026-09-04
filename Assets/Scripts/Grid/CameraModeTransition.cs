@@ -9,6 +9,10 @@ namespace MarbleOrchestra.Grid
     /// isometric-looking view of the spawned 3D TrackBlocks whenever
     /// MarbleController's play state flips (see 0012's SPACE toggle) - so
     /// the 2D-to-3D switch reads as a camera move rather than a hard cut.
+    /// Once that entry transition settles, the camera doesn't stay put: it
+    /// keeps gently re-centering (SmoothDamp, see FollowMarble) on
+    /// MarbleController's currently tracked marble at a closer, dedicated
+    /// zoom than the whole-track framing it arrived at (see 0035).
     /// Stays orthographic the whole time; only Transform position/rotation
     /// and Camera.orthographicSize are interpolated. Polls
     /// MarbleController.IsPlaying every frame, matching PlaybackHintUI's
@@ -39,6 +43,10 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private float nearMargin = 2f; // extra room between the camera and the nearest block, so it never pokes through the near clip plane
         [SerializeField] private float transitionDuration = 1.1f;
 
+        [SerializeField] private float followDistance = 3f; // camera-to-marble distance along the isometric forward axis while following - closer than the whole-track fit, so the marble reads as the focus
+        [SerializeField] private float followOrthographicSize = 1.5f; // tighter zoom used once following starts, replacing the whole-track framing
+        [SerializeField] private float followSmoothTime = 0.3f; // SmoothDamp time constant - the "sanft" in sanfter Kamera-Follow
+
         private readonly struct CameraPose
         {
             public readonly Vector3 Position;
@@ -56,6 +64,8 @@ namespace MarbleOrchestra.Grid
         private Camera cam;
         private bool wasPlaying;
         private Coroutine transitionRoutine;
+        private Vector3 followVelocity;
+        private float followSizeVelocity;
 
         private void Awake()
         {
@@ -70,15 +80,24 @@ namespace MarbleOrchestra.Grid
             if (marbleController == null) return;
 
             bool isPlaying = marbleController.IsPlaying;
-            if (isPlaying == wasPlaying) return;
+            if (isPlaying != wasPlaying)
+            {
+                wasPlaying = isPlaying;
+                StartTransitionTo(isPlaying);
+                return;
+            }
 
-            wasPlaying = isPlaying;
-            StartTransitionTo(isPlaying);
+            // Once the one-shot entry transition into the isometric view
+            // has settled, keep gently re-centering on the marble every
+            // frame instead of staying fixed on the whole-track pose it
+            // ended on.
+            if (isPlaying && transitionRoutine == null) FollowMarble();
         }
 
         private void StartTransitionTo(bool playing)
         {
             if (transitionRoutine != null) StopCoroutine(transitionRoutine);
+            if (playing) followVelocity = Vector3.zero; // fresh follow, no leftover SmoothDamp momentum from a previous run
 
             CameraPose from = new CameraPose(transform.position, transform.rotation, cam.orthographicSize);
             CameraPose to = playing ? ComputeIsometricPose(from) : GetPlanPose(from);
@@ -114,6 +133,25 @@ namespace MarbleOrchestra.Grid
             Vector3 position = bounds.center - forward * distance;
 
             return new CameraPose(position, rotation, orthographicSize);
+        }
+
+        /// Keeps the camera centered on MarbleController's currently
+        /// tracked marble, at the same fixed isometric rotation the entry
+        /// transition ended on but a closer, dedicated follow distance/
+        /// zoom instead of the whole-track framing - smoothed with
+        /// SmoothDamp (rather than snapping straight to the marble) so the
+        /// follow reads as gentle even though the marble itself can change
+        /// direction abruptly at track corners.
+        private void FollowMarble()
+        {
+            Transform target = marbleController.PrimaryMarbleTransform;
+            if (target == null) return;
+
+            Vector3 forward = transform.rotation * Vector3.forward;
+            Vector3 desiredPosition = target.position - forward * followDistance;
+
+            transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref followVelocity, followSmoothTime);
+            cam.orthographicSize = Mathf.SmoothDamp(cam.orthographicSize, followOrthographicSize, ref followSizeVelocity, followSmoothTime);
         }
 
         private IEnumerator LerpPose(CameraPose from, CameraPose to)

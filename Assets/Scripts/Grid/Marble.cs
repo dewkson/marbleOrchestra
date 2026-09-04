@@ -29,7 +29,7 @@ namespace MarbleOrchestra.Grid
         /// With withPhysics=true it keeps its SphereCollider and gets a
         /// gravity-driven Rigidbody so it can roll against the terrain's
         /// MeshCollider.
-        public static Marble CreateSphere3D(Transform parent, float radius, Color color, bool withPhysics)
+        public static Marble CreateSphere3D(Transform parent, float radius, bool withPhysics)
         {
             GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.name = "Marble3D";
@@ -53,7 +53,7 @@ namespace MarbleOrchestra.Grid
                 Object.Destroy(go.GetComponent<Collider>());
             }
 
-            go.GetComponent<Renderer>().sharedMaterial = CreateSphereMaterial(color);
+            go.GetComponent<Renderer>().sharedMaterial = CreateSphereMaterial();
 
             return go.AddComponent<Marble>();
         }
@@ -79,14 +79,24 @@ namespace MarbleOrchestra.Grid
             return lowFrictionMaterial;
         }
 
-        private static Material CreateSphereMaterial(Color color)
+        private static readonly Color WoodColor = new Color(0.52f, 0.35f, 0.20f);
+
+        /// Wood-look material for the 3D marble: a flat wood-brown base
+        /// color with a satin (not glossy plastic, not metallic) finish.
+        private static Material CreateSphereMaterial()
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Lit");
             if (shader == null) shader = Shader.Find("Standard");
 
             Material material = new Material(shader);
-            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);
-            else material.color = color;
+
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", WoodColor);
+            else material.color = WoodColor;
+
+            if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.35f);
+            if (material.HasProperty("_Glossiness")) material.SetFloat("_Glossiness", 0.35f);
+            if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", 0f);
+
             return material;
         }
 

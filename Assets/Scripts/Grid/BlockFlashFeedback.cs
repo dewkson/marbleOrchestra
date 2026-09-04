@@ -53,14 +53,20 @@ namespace MarbleOrchestra.Grid
 
         private IEnumerator FlashRoutine(Color color)
         {
-            meshRenderer.GetPropertyBlock(propertyBlock);
             propertyBlock.SetColor("_BaseColor", color); // URP/Lit
             propertyBlock.SetColor("_Color", color);      // Standard fallback - harmless if the shader lacks either property
-            meshRenderer.SetPropertyBlock(propertyBlock);
+
+            // TrackBlock's mesh has two submeshes/materials since 0032
+            // (shoulders/walls vs. the groove itself) - SetPropertyBlock
+            // without an index only ever targets submesh 0, so both must be
+            // set explicitly or the groove wouldn't flash along with it.
+            for (int i = 0; i < meshRenderer.sharedMaterials.Length; i++)
+                meshRenderer.SetPropertyBlock(propertyBlock, i);
 
             yield return new WaitForSeconds(flashDuration);
 
-            meshRenderer.SetPropertyBlock(null); // clears the override, reverts to the shared Material's own color
+            for (int i = 0; i < meshRenderer.sharedMaterials.Length; i++)
+                meshRenderer.SetPropertyBlock(null, i); // clears the override, reverts to that submesh's own Material color
             flashRoutine = null;
         }
     }

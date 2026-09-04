@@ -32,6 +32,7 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private Vector2 size = Vector2.one; // x = width (lateral), y = length (along travel direction)
         [SerializeField] private float height = 0.2f; // solid body thickness below the rollable top surface
         [SerializeField] private Material material;
+        [SerializeField] private Material grooveMaterial; // rollable-groove submesh; falls back to `material` when unset (e.g. FlatBoxProfile blocks, which have no groove segments at all)
         [SerializeField] private float yawDegrees; // rotation around world/local Y - facing direction
         [SerializeField] private float tiltDegrees; // downhill slope of the top surface, entry (higher) to exit (lower)
         [SerializeField] private BlockDefinition definition; // WHAT this block is - see the Definition property below
@@ -43,6 +44,15 @@ namespace MarbleOrchestra.Grid
         {
             get => material;
             set { material = value; ApplyMaterial(); }
+        }
+
+        /// See GrooveMaterial's field comment - the groove submesh's own
+        /// material (e.g. an earthy brown, distinct from the shoulders'
+        /// grass color - see 0032).
+        public Material GrooveMaterial
+        {
+            get => grooveMaterial;
+            set { grooveMaterial = value; ApplyMaterial(); }
         }
 
         public float YawDegrees { get => yawDegrees; set { yawDegrees = value; ApplyOrientation(); } }
@@ -101,16 +111,19 @@ namespace MarbleOrchestra.Grid
             Vector2[] exitCrossSection = OffsetY(baseCrossSection, -halfDrop);
 
             List<Vector3> vertices = new List<Vector3>();
-            List<int> triangles = new List<int>();
+            List<int> mainTriangles = new List<int>();
+            List<int> grooveTriangles = new List<int>();
 
-            AppendTopSurface(entryCrossSection, exitCrossSection, vertices, triangles);
-            AppendSideWalls(entryCrossSection, exitCrossSection, vertices, triangles);
-            AppendEndCaps(entryCrossSection, exitCrossSection, vertices, triangles);
-            AppendBottom(entryCrossSection, vertices, triangles);
+            AppendTopSurface(entryCrossSection, exitCrossSection, vertices, mainTriangles, grooveTriangles);
+            AppendSideWalls(entryCrossSection, exitCrossSection, vertices, mainTriangles);
+            AppendEndCaps(entryCrossSection, exitCrossSection, vertices, mainTriangles);
+            AppendBottom(entryCrossSection, vertices, mainTriangles);
 
             Mesh mesh = new Mesh { name = "TrackBlock" };
             mesh.SetVertices(vertices);
-            mesh.SetTriangles(triangles, 0);
+            mesh.subMeshCount = 2; // 0 = shoulders/walls/skirts/bottom (`material`), 1 = the groove itself (`grooveMaterial`) - see IBlockProfile.IsGrooveSegment
+            mesh.SetTriangles(mainTriangles, 0);
+            mesh.SetTriangles(grooveTriangles, 1);
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
 
@@ -159,7 +172,8 @@ namespace MarbleOrchestra.Grid
         private void ApplyMaterial()
         {
             CacheComponents();
-            if (material != null) meshRenderer.sharedMaterial = material;
+            if (material == null) return;
+            meshRenderer.sharedMaterials = new[] { material, grooveMaterial != null ? grooveMaterial : material };
         }
 
         /// Yaw only - rotates the whole block around the vertical axis so
@@ -175,7 +189,11 @@ namespace MarbleOrchestra.Grid
         private float HalfLength => size.y * 0.5f;
         private float BottomY => -height;
 
-        private void AppendTopSurface(Vector2[] entryCrossSection, Vector2[] exitCrossSection, List<Vector3> vertices, List<int> triangles)
+        /// Splits the top surface's quads across the two submeshes (see
+        /// Rebuild) by asking the profile which cross-section segments are
+        /// groove vs. shoulder, so e.g. GrooveBlockProfile's rollable U can
+        /// render in its own material distinct from the flat shoulders.
+        private void AppendTopSurface(Vector2[] entryCrossSection, Vector2[] exitCrossSection, List<Vector3> vertices, List<int> mainTriangles, List<int> grooveTriangles)
         {
             int entryRing = vertices.Count;
             for (int j = 0; j < entryCrossSection.Length; j++)
@@ -191,6 +209,8 @@ namespace MarbleOrchestra.Grid
                 int b = entryRing + j + 1;
                 int c = exitRing + j;
                 int d = exitRing + j + 1;
+
+                List<int> triangles = profile.IsGrooveSegment(j, size) ? grooveTriangles : mainTriangles;
                 triangles.Add(a); triangles.Add(c); triangles.Add(b);
                 triangles.Add(b); triangles.Add(c); triangles.Add(d);
             }

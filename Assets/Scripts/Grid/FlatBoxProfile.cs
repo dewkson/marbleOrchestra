@@ -20,5 +20,7 @@ namespace MarbleOrchestra.Grid
         public Vector3 EntryPoint(Vector2 size) => new Vector3(0f, 0f, -size.y * 0.5f);
 
         public Vector3 ExitPoint(Vector2 size) => new Vector3(0f, 0f, size.y * 0.5f);
+
+        public bool IsGrooveSegment(int segmentIndex, Vector2 size) => false; // no groove - a flat plank
     }
 }

@@ -25,5 +25,13 @@ namespace MarbleOrchestra.Grid
         /// (local Z = +size.y/2), used to chain this block to the next
         /// one's entry point.
         Vector3 ExitPoint(Vector2 size);
+
+        /// Whether the top-surface segment between BuildCrossSection's
+        /// points[segmentIndex] and points[segmentIndex + 1] is part of the
+        /// rollable groove itself, as opposed to a flat shoulder - lets
+        /// TrackBlock render the groove with its own material (a different
+        /// color from the shoulders, e.g. earthy brown vs. grass - see
+        /// 0032) without needing to know the profile's own geometry.
+        bool IsGrooveSegment(int segmentIndex, Vector2 size);
     }
 }

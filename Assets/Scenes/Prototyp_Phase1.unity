@@ -293,6 +293,9 @@ MonoBehaviour:
   padding: 1
   nearMargin: 2
   transitionDuration: 1.1
+  followDistance: 3
+  followOrthographicSize: 1.5
+  followSmoothTime: 0.3
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -547,7 +550,7 @@ MonoBehaviour:
   grid: {fileID: 1612605610}
   terrain: {fileID: 1612605614}
   movementMode: 1
-  cellsPerSecond: 3
+  cellsPerSecond: 2
   marbleRadius: 0.15
   marbleRadius3D: 0.1
   marbleColor: {r: 0.1, g: 0.1, b: 0.1, a: 1}
@@ -673,7 +676,7 @@ MonoBehaviour:
   heightDropPerCell: 0.2
   minBlockHeight: 0.05
   tiltFraction: 0.2
-  terrainColor: {r: 0.45, g: 0.32, b: 0.22, a: 1}
+  terrainColor: {r: 0.3, g: 0.45, b: 0.2, a: 1}
 --- !u!114 &1612605617
 MonoBehaviour:
   m_ObjectHideFlags: 0

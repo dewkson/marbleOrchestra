@@ -51,6 +51,15 @@ namespace MarbleOrchestra.Grid
         public float MarbleRadius => marbleRadius;
         public float MarbleRadius3D => marbleRadius3D;
 
+        /// The marble a follow-camera (see CameraModeTransition) should
+        /// track: simply the first currently active one. Good enough for
+        /// the common single-track case; with multiple concurrent tracks
+        /// it's an arbitrary pick that can shift to a different track when
+        /// this one loops (RunTrack re-adds its fresh marble at the end of
+        /// the list each lap), rather than something worth tracking more
+        /// precisely for a first version.
+        public Transform PrimaryMarbleTransform => marbles.Count > 0 ? marbles[0].transform : null;
+
         private void Awake()
         {
             if (grid == null) grid = FindAnyObjectByType<PathGrid>();
@@ -189,9 +198,9 @@ namespace MarbleOrchestra.Grid
             switch (movementMode)
             {
                 case MovementMode.Kinematic3D:
-                    return Marble.CreateSphere3D(transform, marbleRadius3D, marbleColor, withPhysics: false);
+                    return Marble.CreateSphere3D(transform, marbleRadius3D, withPhysics: false);
                 case MovementMode.Physics3D:
-                    return Marble.CreateSphere3D(transform, marbleRadius3D, marbleColor, withPhysics: true);
+                    return Marble.CreateSphere3D(transform, marbleRadius3D, withPhysics: true);
                 default:
                     return Marble.Create(transform, marbleRadius, marbleColor);
             }

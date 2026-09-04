@@ -13,6 +13,11 @@ Priorität (Critical → High → Medium → Low) sortiert.
 
 | ID | Titel | Typ | Priorität | Status | Area | Erstellt |
 |----|-------|-----|-----------|--------|------|----------|
+| 0030 | 2D-Karten optisch aufwerten | Idea | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-04 |
+| 0031 | Instrumente abstrakt im 2D-Grid visualisieren | Idea | 🟡 Medium | ⚪ Open | Level Editor | 2026-09-04 |
+| 0033 | Licht und Schatten optimieren | Idea | 🟡 Medium | ⚪ Open | Other | 2026-09-04 |
+| 0036 | Instrumentenreaktionen in 3D mit Partikeleffekt anreichern | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-04 |
+| 0037 | Sound für Murmel-Bewegung einbinden | Feature | 🟡 Medium | ⚪ Open | Audio | 2026-09-04 |
 | 0022 | Prefab-Varianten für Start-, Ziel- und Normal-Blöcke | Task | 🔵 Low | ⚪ Open | Tooling | 2026-08-29 |
 
 ## Alle Tickets
@@ -48,3 +53,11 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0027 | Datengetriebenes Block-Modell unabhängig von Darstellung | Feature | 🟡 Medium | ✅ Done | Tooling | 2026-08-29 |
 | 0028 | Sound und Flash-Color direkt im Level Grid Editor definieren | Feature | 🟡 Medium | ✅ Done | Level Editor | 2026-08-29 |
 | 0029 | Kamerafahrt zwischen 2D-Planung und 3D-Visualisierung | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-08-30 |
+| 0030 | 2D-Karten optisch aufwerten | Idea | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-04 |
+| 0031 | Instrumente abstrakt im 2D-Grid visualisieren | Idea | 🟡 Medium | ⚪ Open | Level Editor | 2026-09-04 |
+| 0032 | Erstes Default-Terrain (Gras/Moos) definieren | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-04 |
+| 0033 | Licht und Schatten optimieren | Idea | 🟡 Medium | ⚪ Open | Other | 2026-09-04 |
+| 0034 | Kugel optisch aufwerten mit passendem Material | Idea | 🟡 Medium | ✅ Done | Gameplay | 2026-09-04 |
+| 0035 | Sanfter Kamera-Follow in 3D statt fixierter Kamera | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-04 |
+| 0036 | Instrumentenreaktionen in 3D mit Partikeleffekt anreichern | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-04 |
+| 0037 | Sound für Murmel-Bewegung einbinden | Feature | 🟡 Medium | ⚪ Open | Audio | 2026-09-04 |

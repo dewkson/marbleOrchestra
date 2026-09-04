@@ -32,5 +32,12 @@ namespace MarbleOrchestra.Grid
         public Vector3 EntryPoint(Vector2 size) => new Vector3(0f, -grooveRadius, -size.y * 0.5f);
 
         public Vector3 ExitPoint(Vector2 size) => new Vector3(0f, -grooveRadius, size.y * 0.5f);
+
+        /// BuildProfile lays points out as: [0] left shoulder corner,
+        /// [1..arcSegments+1] the arc sweeping the U itself, [arcSegments+2]
+        /// right shoulder corner - so segments 1..arcSegments (connecting
+        /// consecutive arc points) are the groove; segment 0 and the last
+        /// segment are the flat shoulders on either side of it.
+        public bool IsGrooveSegment(int segmentIndex, Vector2 size) => segmentIndex >= 1 && segmentIndex <= arcSegments;
     }
 }

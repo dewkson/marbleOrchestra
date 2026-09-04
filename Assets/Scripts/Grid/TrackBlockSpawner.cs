@@ -51,7 +51,8 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private float heightDropPerCell = 0.25f;
         [SerializeField] private float minBlockHeight = 0.05f; // safety floor so a long track's last blocks never become degenerate/near-zero thickness
         [SerializeField, Range(0f, 1f)] private float tiltFraction = 0.5f; // how much of the per-cell height step the block's own Tilt closes; the rest is the fall at the boundary. 0 = flat blocks (pure fall), 1 = seamless (no fall)
-        [SerializeField] private Color terrainColor = new Color(0.45f, 0.32f, 0.22f);
+        [SerializeField] private Color terrainColor = new Color(0.30f, 0.45f, 0.20f); // grass/moss green - the "Default" biome's first look (see 0032)
+        [SerializeField] private Color grooveColor = new Color(0.40f, 0.27f, 0.15f); // earthy brown for the rollable groove itself, distinct from the grass shoulders (see 0032)
 
         public float GrooveRadius => grooveRadius;
 
@@ -64,6 +65,7 @@ namespace MarbleOrchestra.Grid
 
         private readonly List<TrackInstance> tracks = new List<TrackInstance>();
         private Material sharedMaterial;
+        private Material sharedGrooveMaterial;
 
         private void Awake()
         {
@@ -75,6 +77,7 @@ namespace MarbleOrchestra.Grid
             grooveRadius = Mathf.Min(grooveRadius, grid.CellSize * 0.5f); // leaves room for a non-negative shoulder, see SideWidth
 
             sharedMaterial = CreateMaterial(terrainColor);
+            sharedGrooveMaterial = CreateMaterial(grooveColor);
         }
 
         private void Update()
@@ -254,6 +257,7 @@ namespace MarbleOrchestra.Grid
                 block.Size = blockSize;
                 block.Height = blockHeight; // bottom stays at the shared floor (local Y 0); only this block's own thickness shrinks
                 block.Material = sharedMaterial;
+                block.GrooveMaterial = sharedGrooveMaterial;
                 block.YawDegrees = ComputeYawDegrees(path, i);
                 block.TiltDegrees = tiltDegrees; // ramps part of the step away; the rest is the fall to the next block (see class remarks)
 
@@ -264,6 +268,8 @@ namespace MarbleOrchestra.Grid
                 Color flashColor = soundContent != null ? soundContent.FlashColor : Color.white;
                 block.SetDefinition(new BlockDefinition(cell, ComputePathDirection(path, i), blockHeight, role,
                     trigger, soundContent?.Clip, BlockDefinition.DefaultBiome, flashColor));
+
+                TerrainDecoration.Scatter(block, cell, block.Definition.Biome, grooveRadius, SideWidth, blockSize);
 
                 blocks.Add(block);
             }
