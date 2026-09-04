@@ -79,10 +79,13 @@ namespace MarbleOrchestra.Grid
             return lowFrictionMaterial;
         }
 
-        private static readonly Color WoodColor = new Color(0.52f, 0.35f, 0.20f);
+        private static readonly Color LightPink = new Color(0.95f, 0.75f, 0.85f);
+        private static readonly Color VeinPink = new Color(0.70f, 0.15f, 0.42f);
 
-        /// Wood-look material for the 3D marble: a flat wood-brown base
-        /// color with a satin (not glossy plastic, not metallic) finish.
+        /// Pink marble-look material for the 3D marble: a procedural
+        /// fine-veined marble texture (see GetMarbleTexture) with a
+        /// polished-stone finish. Fitting name overlap: a "Murmel" gets an
+        /// actual "Marmor" look.
         private static Material CreateSphereMaterial()
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Lit");
@@ -90,14 +93,70 @@ namespace MarbleOrchestra.Grid
 
             Material material = new Material(shader);
 
-            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", WoodColor);
-            else material.color = WoodColor;
+            Texture2D marble = GetMarbleTexture();
+            if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", marble);
+            else material.mainTexture = marble;
 
-            if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.35f);
-            if (material.HasProperty("_Glossiness")) material.SetFloat("_Glossiness", 0.35f);
+            if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.55f);
+            if (material.HasProperty("_Glossiness")) material.SetFloat("_Glossiness", 0.55f);
             if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", 0f);
 
             return material;
+        }
+
+        private static Texture2D marbleTexture;
+
+        /// Classic Perlin-marble recipe: turbulence-distorted sine bands
+        /// (sum of a few Perlin-noise octaves warps otherwise straight
+        /// diagonal bands into wavy veins). Tuned dense/subtle (high band
+        /// frequency, moderate turbulence) so it reads as fine marbling
+        /// rather than bold rings.
+        private static Texture2D GetMarbleTexture()
+        {
+            if (marbleTexture != null) return marbleTexture;
+
+            const int size = 128;
+            const float bandFrequency = 14f; // vein density - higher = finer veins
+            const float turbulencePower = 4f;
+            const int turbulenceOctaves = 4;
+
+            Texture2D texture = new Texture2D(size, size) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Repeat };
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float u = x / (float)size;
+                    float v = y / (float)size;
+
+                    float turbulence = Turbulence(u, v, turbulenceOctaves);
+                    float wave = Mathf.Sin((u + v) * bandFrequency * Mathf.PI + turbulencePower * turbulence);
+                    float t = wave * 0.5f + 0.5f;
+
+                    texture.SetPixel(x, y, Color.Lerp(VeinPink, LightPink, t));
+                }
+            }
+            texture.Apply();
+
+            marbleTexture = texture;
+            return texture;
+        }
+
+        /// Sum of Perlin noise at doubling frequencies/halving weight -
+        /// the standard "turbulence" trick that distorts GetMarbleTexture's
+        /// sine bands into organic, non-repeating veins.
+        private static float Turbulence(float u, float v, int octaves)
+        {
+            float value = 0f;
+            float freq = 1f;
+            float weight = 1f;
+            for (int i = 0; i < octaves; i++)
+            {
+                value += Mathf.PerlinNoise(u * freq, v * freq) * weight;
+                freq *= 2f;
+                weight *= 0.5f;
+            }
+            return value;
         }
 
         private static Sprite GetCircleSprite()

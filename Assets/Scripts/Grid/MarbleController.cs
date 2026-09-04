@@ -246,13 +246,16 @@ namespace MarbleOrchestra.Grid
         /// world position is sampled directly from TrackBlockSpawner's
         /// groove geometry at the same cellsPerSecond tempo as the 2D mode,
         /// so it appears to roll away from Start and vanish into the Goal
-        /// hole exactly where the terrain's hole is (see 0013/0014).
+        /// hole exactly where the terrain's hole is (see 0013/0014). Its
+        /// rotation is faked to match (see RollMarble) from each frame's
+        /// position delta, since sampling alone never turns it.
         private IEnumerator RunAlongPath3D(Marble marble, IReadOnlyList<Vector2Int> path)
         {
             float speed = Mathf.Max(cellsPerSecond, 0.01f);
             float endPosition = path.Count - 1;
 
-            marble.transform.position = terrain.SampleGroovePosition(path, 0f, marbleRadius3D);
+            Vector3 previousPosition = terrain.SampleGroovePosition(path, 0f, marbleRadius3D);
+            marble.transform.position = previousPosition;
             TriggerCellContent(marble, path[0]);
             int lastTriggeredIndex = 0;
 
@@ -260,7 +263,11 @@ namespace MarbleOrchestra.Grid
             while (pathPosition < endPosition)
             {
                 pathPosition = Mathf.Min(pathPosition + Time.deltaTime * speed, endPosition);
-                marble.transform.position = terrain.SampleGroovePosition(path, pathPosition, marbleRadius3D);
+                Vector3 nextPosition = terrain.SampleGroovePosition(path, pathPosition, marbleRadius3D);
+
+                RollMarble(marble, previousPosition, nextPosition);
+                marble.transform.position = nextPosition;
+                previousPosition = nextPosition;
 
                 int currentIndex = Mathf.FloorToInt(pathPosition);
                 if (currentIndex > lastTriggeredIndex)
@@ -273,6 +280,30 @@ namespace MarbleOrchestra.Grid
             }
 
             TriggerCellContent(marble, path[path.Count - 1]);
+        }
+
+        /// Kinematic3D has no physics engine to derive rolling from (unlike
+        /// Physics3D, where real rolling contact against the MeshCollider
+        /// already produces it) - SampleGroovePosition only ever moves the
+        /// marble's position, never its rotation. This fakes the same
+        /// visual: a sphere of marbleRadius3D rolling without slipping from
+        /// `from` to `to` turns by angle = distance/radius, around the axis
+        /// Vector3.Cross(Vector3.up, direction) - which is exactly the
+        /// world-space angular velocity a real rolling ball would have here
+        /// (from v = radius * (omega x up), solved for omega), so the top
+        /// of the marble always turns toward where it's actually heading
+        /// instead of spinning on an arbitrary or backwards axis.
+        private void RollMarble(Marble marble, Vector3 from, Vector3 to)
+        {
+            Vector3 delta = to - from;
+            float distance = delta.magnitude;
+            if (distance < 1e-6f) return;
+
+            Vector3 axis = Vector3.Cross(Vector3.up, delta / distance);
+            if (axis.sqrMagnitude < 1e-6f) return; // travel direction parallel to world-up - no well-defined roll axis (shouldn't occur on this track)
+
+            float angleDegrees = (distance / marbleRadius3D) * Mathf.Rad2Deg;
+            marble.transform.rotation = Quaternion.AngleAxis(angleDegrees, axis.normalized) * marble.transform.rotation;
         }
 
         /// Physics-based movement: drops a gravity-driven Rigidbody marble

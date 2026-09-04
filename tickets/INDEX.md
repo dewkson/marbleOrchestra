@@ -16,9 +16,10 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0030 | 2D-Karten optisch aufwerten | Idea | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-04 |
 | 0031 | Instrumente abstrakt im 2D-Grid visualisieren | Idea | 🟡 Medium | ⚪ Open | Level Editor | 2026-09-04 |
 | 0033 | Licht und Schatten optimieren | Idea | 🟡 Medium | ⚪ Open | Other | 2026-09-04 |
+| 0022 | Block-Varianten - Rollen-Prefabs und wählbarer Sprung-/Nahtlos-Übergang | Feature | 🟡 Medium | ⚪ Open | Tooling | 2026-08-29 |
 | 0036 | Instrumentenreaktionen in 3D mit Partikeleffekt anreichern | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-04 |
 | 0037 | Sound für Murmel-Bewegung einbinden | Feature | 🟡 Medium | ⚪ Open | Audio | 2026-09-04 |
-| 0022 | Prefab-Varianten für Start-, Ziel- und Normal-Blöcke | Task | 🔵 Low | ⚪ Open | Tooling | 2026-08-29 |
+| 0038 | Kinematischer Bewegungs-Trace pro Block-Variante definierbar | Feature | 🟡 Medium | ⚪ Open | Physics | 2026-09-04 |
 
 ## Alle Tickets
 
@@ -45,7 +46,7 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0019 | Block-Gefälle automatisch aus 2D-Pfadrichtung ableiten | Feature | 🟡 Medium | ✅ Done | Physics | 2026-08-29 |
 | 0020 | Höhenunterschied zwischen benachbarten Blöcken aus Pfad ableiten | Feature | 🟡 Medium | ✅ Done | Physics | 2026-08-29 |
 | 0021 | Murmel-Übergang zwischen Blöcken überprüfen und optimieren | Task | 🟡 Medium | ✅ Done | Physics | 2026-08-29 |
-| 0022 | Prefab-Varianten für Start-, Ziel- und Normal-Blöcke | Task | 🔵 Low | ⚪ Open | Tooling | 2026-08-29 |
+| 0022 | Block-Varianten - Rollen-Prefabs und wählbarer Sprung-/Nahtlos-Übergang | Feature | 🟡 Medium | ⚪ Open | Tooling | 2026-08-29 |
 | 0023 | Generisches Block-Trigger-System | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-08-29 |
 | 0024 | Sound-Trigger als erstes Block-Feature | Feature | 🟡 Medium | ✅ Done | Audio | 2026-08-29 |
 | 0025 | Drum-Block / Hi-Hat-Prototyp | Feature | 🟡 Medium | ✅ Done | Audio | 2026-08-29 |
@@ -61,3 +62,4 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0035 | Sanfter Kamera-Follow in 3D statt fixierter Kamera | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-04 |
 | 0036 | Instrumentenreaktionen in 3D mit Partikeleffekt anreichern | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-04 |
 | 0037 | Sound für Murmel-Bewegung einbinden | Feature | 🟡 Medium | ⚪ Open | Audio | 2026-09-04 |
+| 0038 | Kinematischer Bewegungs-Trace pro Block-Variante definierbar | Feature | 🟡 Medium | ⚪ Open | Physics | 2026-09-04 |

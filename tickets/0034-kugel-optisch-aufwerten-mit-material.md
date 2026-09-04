@@ -37,3 +37,11 @@ nur die 3D-Kugel (Kinematic3D/Physics3D, `CreateSphere3D`); die
 flache 2D-Murmel (Kinematic2D, `Marble.Create`) bleibt unverändert
 farbig (`marbleColor` in `MarbleController`).
 
+Nachträglich auf Wunsch zu einer pinken Marmoroptik mit feiner
+Maserung geändert: `CreateSphereMaterial` nutzt jetzt wieder eine
+prozedurale Textur (`GetMarbleTexture` - klassisches
+Perlin-Marmor-Rezept: turbulenzverzerrte Sinus-Bänder zwischen einem
+hellen und einem kräftigen Pink), diesmal deutlich feiner/dichter
+abgestimmt als die frühere, wieder entfernte Holzmaserung. Passender
+Wortwitz nebenbei: die "Murmel" bekommt eine echte "Marmor"-Optik.
+
