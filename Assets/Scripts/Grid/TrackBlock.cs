@@ -105,16 +105,53 @@ namespace MarbleOrchestra.Grid
         {
             CacheComponents();
 
-            Vector2[] baseCrossSection = profile.BuildCrossSection(size);
             float halfDrop = Drop * 0.5f;
-            Vector2[] entryCrossSection = OffsetY(baseCrossSection, halfDrop);
-            Vector2[] exitCrossSection = OffsetY(baseCrossSection, -halfDrop);
-
             List<Vector3> vertices = new List<Vector3>();
             List<int> mainTriangles = new List<int>();
             List<int> grooveTriangles = new List<int>();
 
-            AppendTopSurface(entryCrossSection, exitCrossSection, vertices, mainTriangles, grooveTriangles);
+            Vector2[] entryCrossSection;
+            Vector2[] exitCrossSection;
+
+            if (profile is IClosedEndBlockProfile closedEnd)
+            {
+                // Groove-shaped on the open half, a flattened (same points,
+                // Y=0) version of it on the closed half, so both halves
+                // share the same point layout and the internal wall between
+                // them (see AppendInternalWall) can connect them point for
+                // point - only the arc points actually differ in height,
+                // since the shoulder points already sit at Y=0 either way.
+                Vector2[] grooveShape = profile.BuildCrossSection(size);
+                Vector2[] flatShape = FlattenToRim(grooveShape);
+                float wallZ = Mathf.Clamp(closedEnd.WallZ, -HalfLength * 0.9f, HalfLength * 0.9f);
+
+                if (closedEnd.ClosedAtEntry)
+                {
+                    entryCrossSection = OffsetY(flatShape, halfDrop);
+                    exitCrossSection = OffsetY(grooveShape, -halfDrop);
+
+                    AppendTopSurface(entryCrossSection, -HalfLength, flatShape, wallZ, vertices, mainTriangles, grooveTriangles, forceShoulderMaterial: true);
+                    AppendTopSurface(grooveShape, wallZ, exitCrossSection, HalfLength, vertices, mainTriangles, grooveTriangles);
+                    AppendInternalWall(flatShape, grooveShape, wallZ, vertices, mainTriangles, flip: true);
+                }
+                else
+                {
+                    entryCrossSection = OffsetY(grooveShape, halfDrop);
+                    exitCrossSection = OffsetY(flatShape, -halfDrop);
+
+                    AppendTopSurface(entryCrossSection, -HalfLength, grooveShape, wallZ, vertices, mainTriangles, grooveTriangles);
+                    AppendTopSurface(flatShape, wallZ, exitCrossSection, HalfLength, vertices, mainTriangles, grooveTriangles, forceShoulderMaterial: true);
+                    AppendInternalWall(flatShape, grooveShape, wallZ, vertices, mainTriangles, flip: false);
+                }
+            }
+            else
+            {
+                Vector2[] baseCrossSection = profile.BuildCrossSection(size);
+                entryCrossSection = OffsetY(baseCrossSection, halfDrop);
+                exitCrossSection = OffsetY(baseCrossSection, -halfDrop);
+                AppendTopSurface(entryCrossSection, -HalfLength, exitCrossSection, HalfLength, vertices, mainTriangles, grooveTriangles);
+            }
+
             AppendSideWalls(entryCrossSection, exitCrossSection, vertices, mainTriangles);
             AppendEndCaps(entryCrossSection, exitCrossSection, vertices, mainTriangles);
             AppendBottom(entryCrossSection, vertices, mainTriangles);
@@ -193,26 +230,69 @@ namespace MarbleOrchestra.Grid
         /// Rebuild) by asking the profile which cross-section segments are
         /// groove vs. shoulder, so e.g. GrooveBlockProfile's rollable U can
         /// render in its own material distinct from the flat shoulders.
-        private void AppendTopSurface(Vector2[] entryCrossSection, Vector2[] exitCrossSection, List<Vector3> vertices, List<int> mainTriangles, List<int> grooveTriangles)
+        /// nearZ/farZ let a closed-end block (see IClosedEndBlockProfile)
+        /// call this twice - once per half - instead of always spanning the
+        /// full -HalfLength..HalfLength range. forceShoulderMaterial skips
+        /// the groove/shoulder split entirely (always shoulder material) -
+        /// used for a closed-end block's flat half, which has no groove to
+        /// speak of even though it shares the groove profile's own point
+        /// layout (see FlattenToRim).
+        private void AppendTopSurface(Vector2[] nearCrossSection, float nearZ, Vector2[] farCrossSection, float farZ, List<Vector3> vertices, List<int> mainTriangles, List<int> grooveTriangles, bool forceShoulderMaterial = false)
         {
-            int entryRing = vertices.Count;
-            for (int j = 0; j < entryCrossSection.Length; j++)
-                vertices.Add(new Vector3(entryCrossSection[j].x, entryCrossSection[j].y, -HalfLength));
+            int nearRing = vertices.Count;
+            for (int j = 0; j < nearCrossSection.Length; j++)
+                vertices.Add(new Vector3(nearCrossSection[j].x, nearCrossSection[j].y, nearZ));
 
-            int exitRing = vertices.Count;
-            for (int j = 0; j < exitCrossSection.Length; j++)
-                vertices.Add(new Vector3(exitCrossSection[j].x, exitCrossSection[j].y, HalfLength));
+            int farRing = vertices.Count;
+            for (int j = 0; j < farCrossSection.Length; j++)
+                vertices.Add(new Vector3(farCrossSection[j].x, farCrossSection[j].y, farZ));
 
-            for (int j = 0; j < entryCrossSection.Length - 1; j++)
+            for (int j = 0; j < nearCrossSection.Length - 1; j++)
             {
-                int a = entryRing + j;
-                int b = entryRing + j + 1;
-                int c = exitRing + j;
-                int d = exitRing + j + 1;
+                int a = nearRing + j;
+                int b = nearRing + j + 1;
+                int c = farRing + j;
+                int d = farRing + j + 1;
 
-                List<int> triangles = profile.IsGrooveSegment(j, size) ? grooveTriangles : mainTriangles;
+                List<int> triangles = !forceShoulderMaterial && profile.IsGrooveSegment(j, size) ? grooveTriangles : mainTriangles;
                 triangles.Add(a); triangles.Add(c); triangles.Add(b);
                 triangles.Add(b); triangles.Add(c); triangles.Add(d);
+            }
+        }
+
+        /// Same X positions as the given cross-section, but flattened to
+        /// Y=0 (the shoulder/rim height) - the "closed" counterpart to a
+        /// groove cross-section, used by a closed-end block's flat half
+        /// (see IClosedEndBlockProfile) so it shares that cross-section's
+        /// exact point layout and can be joined to it point-for-point by
+        /// AppendInternalWall.
+        private static Vector2[] FlattenToRim(Vector2[] source)
+        {
+            Vector2[] result = new Vector2[source.Length];
+            for (int i = 0; i < source.Length; i++) result[i] = new Vector2(source[i].x, 0f);
+            return result;
+        }
+
+        /// Seals the step between a closed-end block's flat half and its
+        /// groove half at their shared Z (see Rebuild) - like AppendSkirt,
+        /// but dropping to another cross-section's own per-point height
+        /// instead of a constant BottomY, so it exactly fills the gap where
+        /// the flat top (Y=0 throughout) sits above the groove's arc
+        /// (dipping below Y=0). Degenerates to a zero-height, invisible
+        /// quad on the shoulder segments, where both cross-sections already
+        /// agree (Y=0), which is harmless.
+        private static void AppendInternalWall(Vector2[] topCrossSection, Vector2[] bottomCrossSection, float z, List<Vector3> vertices, List<int> triangles, bool flip)
+        {
+            for (int j = 0; j < topCrossSection.Length - 1; j++)
+            {
+                Vector2 topA = topCrossSection[j];
+                Vector2 topB = topCrossSection[j + 1];
+                Vector2 bottomA = bottomCrossSection[j];
+                Vector2 bottomB = bottomCrossSection[j + 1];
+                AppendQuad(
+                    new Vector3(topA.x, topA.y, z), new Vector3(topB.x, topB.y, z),
+                    new Vector3(bottomA.x, bottomA.y, z), new Vector3(bottomB.x, bottomB.y, z),
+                    vertices, triangles, flip);
             }
         }
 

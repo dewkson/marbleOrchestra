@@ -53,6 +53,7 @@ namespace MarbleOrchestra.Grid
         [SerializeField, Range(0f, 1f)] private float tiltFraction = 0.5f; // how much of the per-cell height step the block's own Tilt closes; the rest is the fall at the boundary. 0 = flat blocks (pure fall), 1 = seamless (no fall)
         [SerializeField] private Color terrainColor = new Color(0.30f, 0.45f, 0.20f); // grass/moss green - the "Default" biome's first look (see 0032)
         [SerializeField] private Color grooveColor = new Color(0.40f, 0.27f, 0.15f); // earthy brown for the rollable groove itself, distinct from the grass shoulders (see 0032)
+        [SerializeField] private Color tunnelColor = new Color(0.05f, 0.05f, 0.06f); // near-black interior of the Start/Goal tunnel portal (see TunnelPortalDecoration)
 
         public float GrooveRadius => grooveRadius;
 
@@ -66,6 +67,7 @@ namespace MarbleOrchestra.Grid
         private readonly List<TrackInstance> tracks = new List<TrackInstance>();
         private Material sharedMaterial;
         private Material sharedGrooveMaterial;
+        private Material sharedTunnelMaterial;
 
         private void Awake()
         {
@@ -78,6 +80,7 @@ namespace MarbleOrchestra.Grid
 
             sharedMaterial = CreateMaterial(terrainColor);
             sharedGrooveMaterial = CreateMaterial(grooveColor);
+            sharedTunnelMaterial = CreateMaterial(tunnelColor);
         }
 
         private void Update()
@@ -243,6 +246,13 @@ namespace MarbleOrchestra.Grid
             Vector2 blockSize = new Vector2(grid.CellSize, grid.CellSize); // square footprint - see SideWidth
             float tiltDegrees = ComputeTiltDegrees(blockSize.y);
 
+            // How far the Start/Goal groove reaches past the block's center
+            // into its closed half, so it visibly runs into a
+            // TunnelPortalDecoration's mouth instead of dead-ending right
+            // at the frame - clamped well inside the closed half so it
+            // never collides with the block's own true edge.
+            float railExtension = Mathf.Min(grooveRadius * 1.5f, blockSize.y * 0.5f * 0.6f);
+
             for (int i = 0; i < path.Count; i++)
             {
                 Vector2Int cell = path[i];
@@ -253,7 +263,11 @@ namespace MarbleOrchestra.Grid
                 Vector3 cellPos = grid.CellToLocalPosition(cell);
                 block.transform.localPosition = new Vector3(cellPos.x, blockHeight, cellPos.y);
 
-                block.Profile = new GrooveBlockProfile(grooveRadius, SideWidth, grooveArcSegments);
+                bool isStart = i == 0;
+                bool isGoal = i == path.Count - 1;
+                block.Profile = isStart ? new ClosedEndGrooveBlockProfile(grooveRadius, SideWidth, grooveArcSegments, closedAtEntry: true, railExtension)
+                    : isGoal ? new ClosedEndGrooveBlockProfile(grooveRadius, SideWidth, grooveArcSegments, closedAtEntry: false, railExtension)
+                    : new GrooveBlockProfile(grooveRadius, SideWidth, grooveArcSegments);
                 block.Size = blockSize;
                 block.Height = blockHeight; // bottom stays at the shared floor (local Y 0); only this block's own thickness shrinks
                 block.Material = sharedMaterial;
@@ -270,6 +284,7 @@ namespace MarbleOrchestra.Grid
                     trigger, soundContent?.Clip, BlockDefinition.DefaultBiome, flashColor));
 
                 TerrainDecoration.Scatter(block, cell, block.Definition.Biome, grooveRadius, SideWidth, blockSize);
+                if (isStart || isGoal) TunnelPortalDecoration.Build(block, closedAtEntry: isStart, grooveRadius, SideWidth, blockSize, railExtension, sharedMaterial, sharedTunnelMaterial);
 
                 blocks.Add(block);
             }
