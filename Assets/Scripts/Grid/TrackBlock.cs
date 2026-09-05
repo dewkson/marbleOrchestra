@@ -68,19 +68,6 @@ namespace MarbleOrchestra.Grid
             set { profile = value ?? FlatBoxProfile.Instance; Rebuild(); }
         }
 
-        private IBlockMotionTrace motionTrace = LinearMotionTrace.Instance;
-
-        /// See IBlockMotionTrace - shapes the marble's height while it
-        /// traverses this block in Kinematic3D mode (read by
-        /// TrackBlockSpawner.SampleFloorY). Purely a runtime sampling
-        /// concern, not part of the mesh, so unlike Profile this never
-        /// triggers a Rebuild().
-        public IBlockMotionTrace MotionTrace
-        {
-            get => motionTrace;
-            set => motionTrace = value ?? LinearMotionTrace.Instance;
-        }
-
         /// WHAT this block is (grid/content-derived facts), as opposed to
         /// this component's own concern of HOW it looks - see 0027. Set
         /// once by whoever spawns the block (TrackBlockSpawner); TrackBlock
