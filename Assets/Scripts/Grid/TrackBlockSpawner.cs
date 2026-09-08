@@ -265,8 +265,12 @@ namespace MarbleOrchestra.Grid
 
                 bool isStart = i == 0;
                 bool isGoal = i == path.Count - 1;
+                CellContentDefinition content = grid.GetContent(cell);
+                bool isXylophonePad = !isStart && !isGoal && content is XylophonePadContent;
+
                 block.Profile = isStart ? new ClosedEndGrooveBlockProfile(grooveRadius, SideWidth, grooveArcSegments, closedAtEntry: true, railExtension)
                     : isGoal ? new ClosedEndGrooveBlockProfile(grooveRadius, SideWidth, grooveArcSegments, closedAtEntry: false, railExtension)
+                    : isXylophonePad ? new ClosedEndGrooveBlockProfile(grooveRadius, SideWidth, grooveArcSegments, closedAtEntry: true, railExtension)
                     : new GrooveBlockProfile(grooveRadius, SideWidth, grooveArcSegments);
                 block.Size = blockSize;
                 block.Height = blockHeight; // bottom stays at the shared floor (local Y 0); only this block's own thickness shrinks
@@ -276,15 +280,24 @@ namespace MarbleOrchestra.Grid
                 block.TiltDegrees = tiltDegrees; // ramps part of the step away; the rest is the fall to the next block (see class remarks)
 
                 PipeRole role = grid.GetPipe(cell)?.Role ?? PipeRole.Normal;
-                CellContentDefinition content = grid.GetContent(cell);
                 SoundTriggerContent soundContent = content as SoundTriggerContent;
-                TriggerBehavior trigger = content != null ? TriggerBehavior.OnEnter : TriggerBehavior.None;
+                TriggerBehavior trigger = soundContent != null ? TriggerBehavior.OnEnter : TriggerBehavior.None; // XylophonePadContent is visual-only, no trigger
                 Color flashColor = soundContent != null ? soundContent.FlashColor : Color.white;
                 block.SetDefinition(new BlockDefinition(cell, ComputePathDirection(path, i), blockHeight, role,
                     trigger, soundContent?.Clip, BlockDefinition.DefaultBiome, flashColor));
 
-                TerrainDecoration.Scatter(block, cell, block.Definition.Biome, grooveRadius, SideWidth, blockSize);
-                if (isStart || isGoal) TunnelPortalDecoration.Build(block, closedAtEntry: isStart, grooveRadius, SideWidth, blockSize, railExtension, sharedMaterial, sharedTunnelMaterial);
+                if (isStart || isGoal)
+                {
+                    TunnelPortalDecoration.Build(block, closedAtEntry: isStart, grooveRadius, SideWidth, blockSize, railExtension, sharedMaterial, sharedTunnelMaterial);
+                }
+                else if (isXylophonePad)
+                {
+                    XylophonePillowDecoration.Build(block, grooveRadius, SideWidth, sharedMaterial);
+                }
+                else
+                {
+                    TerrainDecoration.Scatter(block, cell, block.Definition.Biome, grooveRadius, SideWidth, blockSize);
+                }
 
                 blocks.Add(block);
             }
