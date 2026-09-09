@@ -3,16 +3,16 @@ using UnityEngine;
 namespace MarbleOrchestra.Grid
 {
     /// <summary>
-    /// Marks a cell as a "xylophone pad" TrackBlock variant (see 0022):
-    /// purely a marker for now, no fields - TrackBlockSpawner checks for
-    /// this type to swap in ClosedEndGrooveBlockProfile (same
-    /// groove-starts-near-center mechanism as Start/Goal) plus
-    /// XylophonePillowDecoration's horseshoe-shaped pillow instead of the
-    /// normal full-length groove. No sound/trigger behavior yet - purely
-    /// visual, unlike SoundTriggerContent.
+    /// Marks a cell as a "xylophone pad" TrackBlock variant: a
+    /// TriggerCellContent (see 0039) that's purely visual - no sound of its
+    /// own, but otherwise identical to SoundTriggerContent in how
+    /// TrackBlockSpawner treats it (BlockType.Trigger, ClosedEndGrooveBlockProfile
+    /// plus XylophoneBlockDecoration's simple raised block instead of the
+    /// normal full-length groove, marble falls onto it from the previous
+    /// block by FallHeight).
     /// </summary>
     [CreateAssetMenu(fileName = "XylophonePad_", menuName = "MarbleOrchestra/Cell Content/Xylophone Pad")]
-    public class XylophonePadContent : CellContentDefinition
+    public class XylophonePadContent : TriggerCellContent
     {
     }
 }

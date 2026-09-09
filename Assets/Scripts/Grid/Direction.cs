@@ -40,5 +40,15 @@ namespace MarbleOrchestra.Grid
                 default: return Vector2Int.zero;
             }
         }
+
+        /// Same axis mapping as ToGridOffset (grid Y -> local Z), just as a
+        /// horizontal unit Vector3 - used by TrackBlock's curved-groove
+        /// geometry (see 0040) to work directly in grid-axis-aligned local
+        /// coordinates instead of a yaw-rotated frame.
+        public static Vector3 ToLocalVector3(this Direction direction)
+        {
+            Vector2Int offset = direction.ToGridOffset();
+            return new Vector3(offset.x, 0f, offset.y);
+        }
     }
 }

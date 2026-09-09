@@ -22,6 +22,10 @@ namespace MarbleOrchestra.Grid
     /// Rebuild() regenerates the mesh from the current Size/Height/Tilt/
     /// Profile; call it after changing any of those at runtime. Yaw alone
     /// is a cheap transform op and doesn't require a rebuild.
+    /// A block normally sweeps its Profile's cross-section linearly from
+    /// entry (local -Z) to exit (local +Z) - see BuildStraightMesh. SetCurve
+    /// (see 0040) switches a block to a curved 90-degree sweep instead, for
+    /// a Normal block whose path actually turns - see BuildCurvedMesh.
     /// </summary>
     [ExecuteAlways]
     [RequireComponent(typeof(MeshFilter))]
@@ -36,6 +40,10 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private float yawDegrees; // rotation around world/local Y - facing direction
         [SerializeField] private float tiltDegrees; // downhill slope of the top surface, entry (higher) to exit (lower)
         [SerializeField] private BlockDefinition definition; // WHAT this block is - see the Definition property below
+
+        [SerializeField] private bool isCurved; // true: BuildCurvedMesh instead of BuildStraightMesh - see SetCurve/0040
+        [SerializeField] private Vector3 curveInVec = Vector3.forward; // horizontal unit vector, travel direction entering - see SetCurve
+        [SerializeField] private Vector3 curveOutVec = Vector3.forward; // horizontal unit vector, travel direction exiting - see SetCurve
 
         public Vector2 Size { get => size; set { size = value; Rebuild(); } }
         public float Height { get => height; set { height = value; Rebuild(); } }
@@ -68,6 +76,37 @@ namespace MarbleOrchestra.Grid
             set { profile = value ?? FlatBoxProfile.Instance; Rebuild(); }
         }
 
+        /// True once SetCurve has switched this block to a curved 90-degree
+        /// sweep (see 0040) instead of the default linear one.
+        public bool IsCurved => isCurved;
+
+        /// Switches this block to a curved sweep between two perpendicular
+        /// travel directions instead of the default straight -Z-to-+Z one -
+        /// see BuildCurvedMesh/0040 for the geometry. inputDirectionLocal/
+        /// outputDirectionLocal are horizontal unit vectors in this block's
+        /// OWN local space (e.g. Direction.ToLocalVector3()) - a curved
+        /// block is built grid-axis-aligned, so callers should also leave
+        /// YawDegrees at 0 rather than deriving it from a travel direction.
+        /// Never meaningful together with an IClosedEndBlockProfile (see
+        /// Rebuild's guard) - only a straight-through Normal-block groove
+        /// can turn; a Trigger's closed entry half never rolls through.
+        public void SetCurve(Vector3 inputDirectionLocal, Vector3 outputDirectionLocal)
+        {
+            isCurved = true;
+            curveInVec = inputDirectionLocal.normalized;
+            curveOutVec = outputDirectionLocal.normalized;
+            Rebuild();
+        }
+
+        /// Reverts to the default straight sweep - a no-op (no wasted
+        /// Rebuild) if this block was never curved in the first place.
+        public void ClearCurve()
+        {
+            if (!isCurved) return;
+            isCurved = false;
+            Rebuild();
+        }
+
         /// WHAT this block is (grid/content-derived facts), as opposed to
         /// this component's own concern of HOW it looks - see 0027. Set
         /// once by whoever spawns the block (TrackBlockSpawner); TrackBlock
@@ -85,11 +124,43 @@ namespace MarbleOrchestra.Grid
 
         /// Local-space point on the rollable surface at the entry (higher)
         /// edge, used to chain this block to the previous one's exit point.
+        /// Only its Y is meaningful for a curved block (see BuildCurvedMesh) -
+        /// its X/Z are always the straight-sweep entry point, never the
+        /// curve's own (see SampleGroovePointLocal instead for that).
         public Vector3 EntryPointLocal => profile.EntryPoint(size) + Vector3.up * (Drop * 0.5f);
 
         /// Local-space point on the rollable surface at the exit (lower)
         /// edge, used to chain this block to the next one's entry point.
         public Vector3 ExitPointLocal => profile.ExitPoint(size) - Vector3.up * (Drop * 0.5f);
+
+        /// Local-space point on this block's own rollable surface at
+        /// fractional position t (0 = entry, 1 = exit) - the TRUE geometric
+        /// point, unmodified (matching EntryPointLocal/ExitPointLocal
+        /// exactly at t=0/1). See TrackBlockSpawner.JunctionLocalXZ for
+        /// how callers keep this continuous with a straight neighbor's own
+        /// (grid-cell-center-based) sampling without distorting this arc's
+        /// own shape - blending THIS method's endpoints toward cell
+        /// centers instead (an earlier attempt) stretched the whole curve
+        /// out of shape, since its true chord (entry to exit) is
+        /// considerably shorter than a full cell-center-to-cell-center
+        /// span for a 90-degree turn (see 0039 follow-up).
+        public Vector3 SampleGroovePointLocal(float t)
+        {
+            t = Mathf.Clamp01(t);
+            if (!isCurved) return Vector3.Lerp(EntryPointLocal, ExitPointLocal, t);
+
+            // Same ring-center formula as BuildCurvedMesh, at this single
+            // fractional position - see that method's own remarks for the
+            // full derivation. The centerline is exactly the ring center
+            // itself (cross-section x = 0), so no `right` axis is needed.
+            float radius = HalfLength;
+            Vector3 center = radius * (curveOutVec - curveInVec);
+            float angle = t * Mathf.PI * 0.5f;
+            Vector3 radial = Mathf.Cos(angle) * -curveOutVec + Mathf.Sin(angle) * curveInVec;
+            Vector3 ringCenter = center + radius * radial;
+            float dy = Drop * (0.5f - t);
+            return ringCenter + Vector3.up * (profile.EntryPoint(size).y + dy);
+        }
 
         private MeshFilter meshFilter;
         private MeshRenderer meshRenderer;
@@ -105,10 +176,42 @@ namespace MarbleOrchestra.Grid
         {
             CacheComponents();
 
-            float halfDrop = Drop * 0.5f;
             List<Vector3> vertices = new List<Vector3>();
             List<int> mainTriangles = new List<int>();
             List<int> grooveTriangles = new List<int>();
+
+            // A curved sweep only ever makes sense for a plain through-
+            // rolling groove - an IClosedEndBlockProfile (Start/Goal/
+            // Trigger) never turns (see SetCurve's remarks and
+            // TrackBlockSpawner, which never calls SetCurve for those
+            // types), but this guard keeps Rebuild itself safe regardless.
+            if (isCurved && !(profile is IClosedEndBlockProfile))
+                BuildCurvedMesh(vertices, mainTriangles, grooveTriangles);
+            else
+                BuildStraightMesh(vertices, mainTriangles, grooveTriangles);
+
+            Mesh mesh = new Mesh { name = "TrackBlock" };
+            mesh.SetVertices(vertices);
+            mesh.subMeshCount = 2; // 0 = shoulders/walls/skirts/bottom (`material`), 1 = the groove itself (`grooveMaterial`) - see IBlockProfile.IsGrooveSegment
+            mesh.SetTriangles(mainTriangles, 0);
+            mesh.SetTriangles(grooveTriangles, 1);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+
+            meshFilter.sharedMesh = mesh;
+            meshCollider.sharedMesh = mesh;
+            meshCollider.sharedMaterial = LowFrictionMaterial();
+
+            ApplyMaterial();
+            ApplyOrientation();
+        }
+
+        /// Default sweep: entry (local Z = -HalfLength) straight to exit
+        /// (local Z = +HalfLength) - unchanged since before 0040, used for
+        /// every block except an actual 90-degree turn (see isCurved).
+        private void BuildStraightMesh(List<Vector3> vertices, List<int> mainTriangles, List<int> grooveTriangles)
+        {
+            float halfDrop = Drop * 0.5f;
 
             Vector2[] entryCrossSection;
             Vector2[] exitCrossSection;
@@ -155,21 +258,254 @@ namespace MarbleOrchestra.Grid
             AppendSideWalls(entryCrossSection, exitCrossSection, vertices, mainTriangles);
             AppendEndCaps(entryCrossSection, exitCrossSection, vertices, mainTriangles);
             AppendBottom(entryCrossSection, vertices, mainTriangles);
+        }
 
-            Mesh mesh = new Mesh { name = "TrackBlock" };
-            mesh.SetVertices(vertices);
-            mesh.subMeshCount = 2; // 0 = shoulders/walls/skirts/bottom (`material`), 1 = the groove itself (`grooveMaterial`) - see IBlockProfile.IsGrooveSegment
-            mesh.SetTriangles(mainTriangles, 0);
-            mesh.SetTriangles(grooveTriangles, 1);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
+        private const int CurveRingSegments = 8; // resolution of the 90-degree arc sweep - see 0040
 
-            meshFilter.sharedMesh = mesh;
-            meshCollider.sharedMesh = mesh;
-            meshCollider.sharedMaterial = LowFrictionMaterial();
+        /// Curved 90-degree sweep for a turning Normal block (see 0040):
+        /// builds CurveRingSegments+1 rings along a quarter-circle arc from
+        /// the entry edge (curveInVec side of the square footprint) to the
+        /// exit edge (curveOutVec side), instead of BuildStraightMesh's
+        /// single linear sweep.
+        /// Geometry (see the 0040 plan for the full derivation): with
+        /// R = HalfLength (== half the square footprint's width too),
+        /// entry point A = -curveInVec*R, exit point B = curveOutVec*R, the
+        /// arc center is C = R*(curveOutVec - curveInVec) - this places
+        /// both A and B at distance R from C for ANY curveInVec/curveOutVec,
+        /// and since they're perpendicular here, exactly a 90-degree arc.
+        /// At parameter t in [0,1] (angle = t*90 degrees):
+        ///   position(t)  = C + R * (cos(angle)*(-curveOutVec) + sin(angle)*curveInVec)
+        ///   forward(t)   ~ sin(angle)*curveOutVec + cos(angle)*curveInVec
+        ///   right(t)     = Cross(up, forward(t)) - same convention as the
+        ///                  implicit right=+X when forward=+Z in the
+        ///                  straight sweep, just rotated per ring.
+        /// Each ring's own Y offset ramps Tilt's Drop linearly across the
+        /// sweep, same as the straight sweep's halfDrop but generalized
+        /// from 2 rings to N.
+        private void BuildCurvedMesh(List<Vector3> vertices, List<int> mainTriangles, List<int> grooveTriangles)
+        {
+            float radius = HalfLength;
+            Vector3 center = radius * (curveOutVec - curveInVec);
 
-            ApplyMaterial();
-            ApplyOrientation();
+            int ringCount = CurveRingSegments + 1;
+            Vector2[] crossSection = profile.BuildCrossSection(size);
+
+            // Which cross-section index (0 or the last one) is the
+            // channel's OUTER rail - the one that actually needs the
+            // corner filler - versus the INNER one that collapses exactly
+            // onto the pivot corner (see AppendCurvedFillerSegment) depends
+            // on the turn's rotational sense: Cross(up, curveInVec) equals
+            // +curveOutVec for a "clockwise" turn (outer = index 0) and
+            // -curveOutVec for "counter-clockwise" (outer = the last
+            // index) - verified by hand for both senses. Getting this
+            // backwards for one of the two senses is exactly what made the
+            // filler attach to the wrong (already-at-the-corner) side,
+            // stretching it across the groove instead of into the empty
+            // far corner.
+            bool isClockwise = Vector3.Dot(Vector3.Cross(Vector3.up, curveInVec), curveOutVec) > 0f;
+            int railIndex = isClockwise ? 0 : crossSection.Length - 1;
+            bool railFirst = !isClockwise; // see AppendCurvedFillerSegment's natural-order requirement
+
+            Vector3[] ringCenters = new Vector3[ringCount];
+            Vector3[] ringRights = new Vector3[ringCount];
+            Vector2[][] ringCrossSections = new Vector2[ringCount][];
+            Vector3[] ringFillPoints = new Vector3[ringCount]; // see AppendCurvedFillerSegment - fills the square's far corner
+
+            for (int r = 0; r < ringCount; r++)
+            {
+                float t = (float)r / CurveRingSegments;
+                float angle = t * Mathf.PI * 0.5f;
+                Vector3 radial = Mathf.Cos(angle) * -curveOutVec + Mathf.Sin(angle) * curveInVec;
+                Vector3 forward = Mathf.Sin(angle) * curveOutVec + Mathf.Cos(angle) * curveInVec;
+
+                ringCenters[r] = center + radius * radial;
+                ringRights[r] = Vector3.Cross(Vector3.up, forward);
+                ringCrossSections[r] = OffsetY(crossSection, Drop * (0.5f - t));
+
+                // Distance from center, along the same radial direction, to
+                // where it hits the block's TRUE square boundary (the two
+                // far edges, meeting at the corner diagonally opposite the
+                // curve's pivot corner) - see the 0040 follow-up fix's
+                // derivation. sin/cos of angle are exactly radial's own
+                // dot products with curveInVec/-curveOutVec here, so this
+                // needs no separate trig call; Max avoids a divide-by-zero
+                // at the two ends, where it correctly matches the
+                // cross-section's own half-width (radius) exactly.
+                float fillDistance = 2f * radius / Mathf.Max(Mathf.Sin(angle), Mathf.Cos(angle));
+                ringFillPoints[r] = center + fillDistance * radial + Vector3.up * (Drop * (0.5f - t));
+            }
+
+            for (int r = 0; r < ringCount - 1; r++)
+            {
+                AppendCurvedTopSurfaceSegment(ringCenters[r], ringRights[r], ringCrossSections[r],
+                    ringCenters[r + 1], ringRights[r + 1], ringCrossSections[r + 1], vertices, mainTriangles, grooveTriangles);
+                AppendCurvedSideWallSegment(ringCenters[r], ringRights[r], ringCrossSections[r],
+                    ringCenters[r + 1], ringRights[r + 1], ringCrossSections[r + 1], vertices, mainTriangles);
+                AppendCurvedBottomSegment(ringCenters[r], ringRights[r], ringCrossSections[r],
+                    ringCenters[r + 1], ringRights[r + 1], ringCrossSections[r + 1], vertices, mainTriangles);
+
+                Vector3 nearRail = RingPoint(ringCenters[r], ringRights[r], ringCrossSections[r][railIndex]);
+                Vector3 farRail = RingPoint(ringCenters[r + 1], ringRights[r + 1], ringCrossSections[r + 1][railIndex]);
+                AppendCurvedFillerSegment(nearRail, ringFillPoints[r], farRail, ringFillPoints[r + 1], railFirst, vertices, mainTriangles);
+            }
+
+            AppendCurvedSkirt(ringCenters[0], ringRights[0], ringCrossSections[0], vertices, mainTriangles, flip: true);
+            AppendCurvedSkirt(ringCenters[ringCount - 1], ringRights[ringCount - 1], ringCrossSections[ringCount - 1], vertices, mainTriangles, flip: false);
+        }
+
+        /// Maps a profile's 2D cross-section point (x = lateral offset,
+        /// y = vertical offset) into 3D through a ring's own center/right
+        /// transform - the curved-sweep equivalent of a straight sweep's
+        /// implicit (x, y, z) construction.
+        private static Vector3 RingPoint(Vector3 center, Vector3 right, Vector2 point) => center + right * point.x + Vector3.up * point.y;
+
+        private static Vector3 RingFloorPoint(Vector3 center, Vector3 right, float x, float bottomY) => center + right * x + Vector3.up * bottomY;
+
+        /// Curved analogue of AppendTopSurface: identical winding/groove-
+        /// split logic, just mapping each cross-section point through its
+        /// own ring's center/right transform instead of a shared (x, y, z).
+        private void AppendCurvedTopSurfaceSegment(Vector3 nearCenter, Vector3 nearRight, Vector2[] nearCrossSection,
+            Vector3 farCenter, Vector3 farRight, Vector2[] farCrossSection,
+            List<Vector3> vertices, List<int> mainTriangles, List<int> grooveTriangles)
+        {
+            int nearRing = vertices.Count;
+            for (int j = 0; j < nearCrossSection.Length; j++)
+                vertices.Add(RingPoint(nearCenter, nearRight, nearCrossSection[j]));
+
+            int farRing = vertices.Count;
+            for (int j = 0; j < farCrossSection.Length; j++)
+                vertices.Add(RingPoint(farCenter, farRight, farCrossSection[j]));
+
+            for (int j = 0; j < nearCrossSection.Length - 1; j++)
+            {
+                int a = nearRing + j;
+                int b = nearRing + j + 1;
+                int c = farRing + j;
+                int d = farRing + j + 1;
+
+                List<int> triangles = profile.IsGrooveSegment(j, size) ? grooveTriangles : mainTriangles;
+                triangles.Add(a); triangles.Add(c); triangles.Add(b);
+                triangles.Add(b); triangles.Add(c); triangles.Add(d);
+            }
+        }
+
+        /// Curved analogue of AppendSideWalls, one ring-segment at a time -
+        /// a lofted band instead of a single full-length quad - reusing the
+        /// existing AppendQuad since both walls are already fully resolved
+        /// 3D points here. Same flip convention as AppendSideWalls (false
+        /// for the left rail, true for the right rail).
+        private void AppendCurvedSideWallSegment(Vector3 nearCenter, Vector3 nearRight, Vector2[] nearCrossSection,
+            Vector3 farCenter, Vector3 farRight, Vector2[] farCrossSection, List<Vector3> vertices, List<int> triangles)
+        {
+            Vector2 nearLeft = nearCrossSection[0];
+            Vector2 farLeft = farCrossSection[0];
+            Vector2 nearRightPoint = nearCrossSection[nearCrossSection.Length - 1];
+            Vector2 farRightPoint = farCrossSection[farCrossSection.Length - 1];
+
+            AppendQuad(
+                RingPoint(nearCenter, nearRight, nearLeft), RingPoint(farCenter, farRight, farLeft),
+                RingFloorPoint(nearCenter, nearRight, nearLeft.x, BottomY), RingFloorPoint(farCenter, farRight, farLeft.x, BottomY),
+                vertices, triangles, flip: false);
+
+            AppendQuad(
+                RingPoint(nearCenter, nearRight, nearRightPoint), RingPoint(farCenter, farRight, farRightPoint),
+                RingFloorPoint(nearCenter, nearRight, nearRightPoint.x, BottomY), RingFloorPoint(farCenter, farRight, farRightPoint.x, BottomY),
+                vertices, triangles, flip: true);
+        }
+
+        /// Curved analogue of AppendBottom, one ring-segment at a time -
+        /// both rings' left/right footprint points at BottomY, still a flat
+        /// quad since BottomY is constant across every ring.
+        private void AppendCurvedBottomSegment(Vector3 nearCenter, Vector3 nearRight, Vector2[] nearCrossSection,
+            Vector3 farCenter, Vector3 farRight, Vector2[] farCrossSection, List<Vector3> vertices, List<int> triangles)
+        {
+            float nearLeftX = nearCrossSection[0].x;
+            float nearRightX = nearCrossSection[nearCrossSection.Length - 1].x;
+            float farLeftX = farCrossSection[0].x;
+            float farRightX = farCrossSection[farCrossSection.Length - 1].x;
+
+            AppendQuad(
+                RingFloorPoint(nearCenter, nearRight, nearLeftX, BottomY), RingFloorPoint(nearCenter, nearRight, nearRightX, BottomY),
+                RingFloorPoint(farCenter, farRight, farLeftX, BottomY), RingFloorPoint(farCenter, farRight, farRightX, BottomY),
+                vertices, triangles, flip: true);
+        }
+
+        /// Fills the block's TRUE square footprint out to its actual edges:
+        /// the channel tube built by AppendCurved*Segment above is
+        /// deliberately narrower than the full square (its own outer rail -
+        /// nearRail/farRail, at whichever cross-section index BuildCurvedMesh
+        /// determined is the outer one for this turn's rotational sense -
+        /// traces an arc that cuts across the corner diagonally opposite
+        /// the curve's pivot corner instead of reaching it), so without
+        /// this the block's silhouette would be rounded there instead of
+        /// square. This adds the missing flat shoulder strip from that
+        /// same outer rail out to nearFill/farFill (the true square
+        /// boundary, see BuildCurvedMesh's fillDistance) - top, bottom, and
+        /// the true exterior wall at the outer edge. Self-contained/
+        /// watertight on its own; harmlessly coincides with the tube's own
+        /// outer wall (see AppendCurvedSideWallSegment) at their shared
+        /// seam.
+        /// railFirst says whether the rail point sits at the LOWER lateral
+        /// index than the (virtual, one-step-further-out) fill point, or
+        /// the other way around - it flips between the two rotational
+        /// senses because the outer rail itself is at index 0 for one
+        /// sense and at the last index for the other (see BuildCurvedMesh),
+        /// and getting this order backwards inverts the resulting normal -
+        /// see AppendCurvedTopSurfaceSegment's own (a, c, b)(b, c, d)
+        /// pattern, which this mirrors for a "natural low-to-high index"
+        /// pair plus AppendQuad's flip.
+        private void AppendCurvedFillerSegment(Vector3 nearRail, Vector3 nearFill, Vector3 farRail, Vector3 farFill,
+            bool railFirst, List<Vector3> vertices, List<int> triangles)
+        {
+            Vector3 nearRailBottom = new Vector3(nearRail.x, BottomY, nearRail.z);
+            Vector3 nearFillBottom = new Vector3(nearFill.x, BottomY, nearFill.z);
+            Vector3 farRailBottom = new Vector3(farRail.x, BottomY, farRail.z);
+            Vector3 farFillBottom = new Vector3(farFill.x, BottomY, farFill.z);
+
+            Vector3 nearLow = railFirst ? nearRail : nearFill;
+            Vector3 nearHigh = railFirst ? nearFill : nearRail;
+            Vector3 farLow = railFirst ? farRail : farFill;
+            Vector3 farHigh = railFirst ? farFill : farRail;
+            Vector3 nearLowBottom = railFirst ? nearRailBottom : nearFillBottom;
+            Vector3 nearHighBottom = railFirst ? nearFillBottom : nearRailBottom;
+            Vector3 farLowBottom = railFirst ? farRailBottom : farFillBottom;
+            Vector3 farHighBottom = railFirst ? farFillBottom : farRailBottom;
+
+            // Top/bottom: same natural-low-to-high-index pattern as
+            // AppendCurvedTopSurfaceSegment/AppendCurvedBottomSegment
+            // (flip:false for the up-facing top, flip:true for the
+            // down-facing bottom), just with the rail/fill order swapped
+            // per railFirst.
+            AppendQuad(nearLow, nearHigh, farLow, farHigh, vertices, triangles, flip: false);
+            AppendQuad(nearLowBottom, nearHighBottom, farLowBottom, farHighBottom, vertices, triangles, flip: true);
+            // True exterior wall, at the fill boundary itself. Its outward
+            // direction is Cross(sweepDirection, up) for flip:false (see
+            // AppendSideWalls' own hand-verified left/right convention,
+            // e.g. flip:false => -X when sweeping toward +Z) - and the fill
+            // boundary's own sweep direction (which of the block's two far
+            // edges it's tracing, and which way along it) reverses between
+            // the two rotational senses, so this needs the SAME railFirst
+            // flip as the top/bottom pair above (verified by hand for both
+            // senses: flip:false is correct for clockwise, flip:true for
+            // counter-clockwise - getting this wrong made the true
+            // exterior wall face inward instead of outward for one sense).
+            AppendQuad(nearFill, farFill, nearFillBottom, farFillBottom, vertices, triangles, flip: railFirst);
+        }
+
+        /// Curved analogue of AppendSkirt, for a single ring's own cross-
+        /// section - used only at the two true ends of the curve (ring 0
+        /// and the last ring), same as AppendEndCaps for a straight sweep.
+        private void AppendCurvedSkirt(Vector3 center, Vector3 right, Vector2[] crossSection, List<Vector3> vertices, List<int> triangles, bool flip)
+        {
+            for (int j = 0; j < crossSection.Length - 1; j++)
+            {
+                Vector2 a = crossSection[j];
+                Vector2 b = crossSection[j + 1];
+                AppendQuad(
+                    RingPoint(center, right, a), RingPoint(center, right, b),
+                    RingFloorPoint(center, right, a.x, BottomY), RingFloorPoint(center, right, b.x, BottomY),
+                    vertices, triangles, flip);
+            }
         }
 
         private static PhysicsMaterial lowFrictionMaterial;

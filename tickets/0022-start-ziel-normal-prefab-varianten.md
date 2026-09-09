@@ -3,7 +3,7 @@ id: 0022
 title: Block-Varianten - Rollen-Prefabs und wählbarer Sprung-/Nahtlos-Übergang
 type: Feature
 priority: Medium
-status: Open
+status: Wont Do
 area: Tooling
 created: 2026-08-29
 ---
@@ -63,3 +63,9 @@ nahtloser Übergang stattfindet.
     ausgearbeitet - explizit erst später relevant, siehe Beschreibung.
 
 ## Notizen
+
+**2026-09-09:** Status auf Wont Do gesetzt - wird durch [[0039]]
+(TrackBlock-Typen und Verbindungslogik vereinheitlichen) überschrieben/
+abgelöst, das die hier skizzierten Rollen- und Übergangsvarianten als
+Teil eines einheitlichen Block-Typ-Modells (Start/Goal/Normal/Trigger
+mit Input/Output-Richtung, Fall Height, Surface Inclination) abdeckt.

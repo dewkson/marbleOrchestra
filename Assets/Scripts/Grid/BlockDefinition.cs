@@ -9,7 +9,7 @@ namespace MarbleOrchestra.Grid
     /// System, see 0026). Assembled by TrackBlockSpawner per spawned block
     /// from already-authored data (PipeDefinition.Role via
     /// PathGrid.GetPipe, CellContentDefinition via PathGrid.GetContent)
-    /// plus values it already computes (direction, height) - this is
+    /// plus values it already computes (type, directions, height) - this is
     /// deliberately NOT a new authoring primitive; no new ScriptableObject,
     /// no LevelData/level-editor changes.
     /// </summary>
@@ -25,21 +25,28 @@ namespace MarbleOrchestra.Grid
         public const string DefaultBiome = "Default";
 
         public Vector2Int Coord;
-        public Direction PathDirection;
-        public float Height;
-        public PipeRole Type; // reuses the existing Normal/Start/Goal taxonomy
+        public Direction InputDirection; // direction the marble arrives from; None at Start
+        public Direction OutputDirection; // direction the marble leaves in; None at Goal
+        public float Height; // world Y of the groove floor at this block's entry point
+        public BlockType Type; // Start/Goal/Normal/Trigger - see 0039, independent of PipeRole
+        public float FallHeight; // > 0 only for Trigger blocks - see 0039
+        public float SurfaceInclination; // this block's own TrackBlock.TiltDegrees, in degrees
         public TriggerBehavior Trigger;
         public AudioClip AudioEvent; // pragmatic first pass - see 0026 notes on a future string instrumentId
         public string Biome; // placeholder - no biome system exists yet, always DefaultBiome today
         public Color FlashColor; // see BlockFlashFeedback (0023) - defaults to Color.white when no content overrides it
 
-        public BlockDefinition(Vector2Int coord, Direction pathDirection, float height, PipeRole type,
-            TriggerBehavior trigger, AudioClip audioEvent, string biome, Color flashColor)
+        public BlockDefinition(Vector2Int coord, Direction inputDirection, Direction outputDirection, float height,
+            BlockType type, float fallHeight, float surfaceInclination, TriggerBehavior trigger, AudioClip audioEvent,
+            string biome, Color flashColor)
         {
             Coord = coord;
-            PathDirection = pathDirection;
+            InputDirection = inputDirection;
+            OutputDirection = outputDirection;
             Height = height;
             Type = type;
+            FallHeight = fallHeight;
+            SurfaceInclination = surfaceInclination;
             Trigger = trigger;
             AudioEvent = audioEvent;
             Biome = biome;
