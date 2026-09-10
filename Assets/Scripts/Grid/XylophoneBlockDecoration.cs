@@ -38,7 +38,10 @@ namespace MarbleOrchestra.Grid
         /// of the landing point TriggerFallMarbleTrace needs.
         public static float PadCenterOffset(float grooveRadius, float sideWidth) => (grooveRadius + sideWidth) * 0.65f;
 
-        public static void Build(TrackBlock block, Vector3 fallSideLocal, float grooveRadius, float sideWidth, Material material)
+        /// Returns the bar's own MeshRenderer, so whoever builds it can
+        /// hand it to InstrumentPadFeedback (see 0042) as the thing that
+        /// reacts to this block's trigger.
+        public static MeshRenderer Build(TrackBlock block, Vector3 fallSideLocal, float grooveRadius, float sideWidth, Material material)
         {
             float halfCell = grooveRadius + sideWidth; // == half the (square) block's own width/length
             float boxHeight = PadTopY(grooveRadius);
@@ -60,28 +63,39 @@ namespace MarbleOrchestra.Grid
             float halfX = (fallAlongX ? boxThickness : boxLength) * 0.5f;
             float halfZ = (fallAlongX ? boxLength : boxThickness) * 0.5f;
 
-            Mesh mesh = BuildBoxMesh(center, halfX, halfZ, boxHeight);
+            // The mesh is built around the bar's OWN origin and the
+            // GameObject is moved to `center` instead of baking the offset
+            // into the vertices: that puts the pivot at the middle of the
+            // bar's base, which is what lets InstrumentPadFeedback (see
+            // 0042) pulse its scale so it grows in place - upwards and
+            // sideways, still seated on the block - rather than drifting
+            // away from the block's center as it grows.
+            Mesh mesh = BuildBoxMesh(halfX, halfZ, boxHeight);
 
             GameObject xylophoneBlock = new GameObject("XylophoneBlock");
             xylophoneBlock.transform.SetParent(block.transform, false);
+            xylophoneBlock.transform.localPosition = center;
 
             MeshFilter filter = xylophoneBlock.AddComponent<MeshFilter>();
             filter.sharedMesh = mesh;
 
             MeshRenderer renderer = xylophoneBlock.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = material;
+            return renderer;
         }
 
-        /// Simple axis-aligned box resting on Y=0 (the shoulder height),
-        /// centered laterally at `center` (X/Z), extending up by `height`.
+        /// Simple axis-aligned box resting on Y=0 (the shoulder height)
+        /// and centered laterally on its own origin, extending up by
+        /// `height` - see Build for why the bar's placement is left to the
+        /// transform instead of baked in here.
         /// Each face's winding was hand-verified (Cross(edge1,edge2) at
         /// each of the 6 faces) to give an outward-facing normal.
-        private static Mesh BuildBoxMesh(Vector3 center, float halfX, float halfZ, float height)
+        private static Mesh BuildBoxMesh(float halfX, float halfZ, float height)
         {
-            Vector3 b0 = center + new Vector3(-halfX, 0f, -halfZ);
-            Vector3 b1 = center + new Vector3(halfX, 0f, -halfZ);
-            Vector3 b2 = center + new Vector3(halfX, 0f, halfZ);
-            Vector3 b3 = center + new Vector3(-halfX, 0f, halfZ);
+            Vector3 b0 = new Vector3(-halfX, 0f, -halfZ);
+            Vector3 b1 = new Vector3(halfX, 0f, -halfZ);
+            Vector3 b2 = new Vector3(halfX, 0f, halfZ);
+            Vector3 b3 = new Vector3(-halfX, 0f, halfZ);
             Vector3 t0 = b0 + Vector3.up * height;
             Vector3 t1 = b1 + Vector3.up * height;
             Vector3 t2 = b2 + Vector3.up * height;

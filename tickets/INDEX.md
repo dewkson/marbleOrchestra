@@ -64,3 +64,4 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0039 | TrackBlock-Typen und Verbindungslogik vereinheitlichen | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-09 |
 | 0040 | Gebogene Rillen-Geometrie für 90°-Kurven-Blocks | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-09 |
 | 0041 | Korrekte Kinematic3D-Bewegung bei Kurven und Trigger-Fall verifizieren | Task | 🟡 Medium | ✅ Done | Physics | 2026-09-09 |
+| 0042 | Visuelles Trigger-Feedback auf Xylophon-Geometrie | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-10 |

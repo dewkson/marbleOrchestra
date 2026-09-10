@@ -465,7 +465,14 @@ namespace MarbleOrchestra.Grid
                 }
                 else if (type == BlockType.Trigger)
                 {
-                    XylophoneBlockDecoration.Build(block, fallSideLocal, grooveRadius, SideWidth, sharedMaterial);
+                    // The instrument element is built here, but how it
+                    // LOOKS and how it reacts to being hit belongs to the
+                    // block's own feedback component (see 0023's rule that
+                    // a block decides its own reactions) - this just hands
+                    // the two to each other. A block without that
+                    // component simply keeps the element's plain material.
+                    MeshRenderer padRenderer = XylophoneBlockDecoration.Build(block, fallSideLocal, grooveRadius, SideWidth, sharedMaterial);
+                    block.GetComponent<InstrumentPadFeedback>()?.Attach(padRenderer);
                 }
                 else
                 {
