@@ -63,6 +63,11 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 2
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -84,9 +89,11 @@ MeshRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!64 &100008
 MeshCollider:
@@ -96,9 +103,17 @@ MeshCollider:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 100000}
   m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
   m_IsTrigger: 0
+  m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 4
+  serializedVersion: 5
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 0}
@@ -112,13 +127,29 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1eea57f7347e494c9ccab901b3070959, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   size: {x: 1, y: 1}
   height: 0.2
   material: {fileID: 0}
+  grooveMaterial: {fileID: 0}
   yawDegrees: 0
   tiltDegrees: 0
+  definition:
+    Coord: {x: 0, y: 0}
+    InputDirection: 0
+    OutputDirection: 0
+    Height: 0
+    Type: 0
+    FallHeight: 0
+    SurfaceInclination: 0
+    Trigger: 0
+    AudioEvent: {fileID: 0}
+    Biome: 
+    FlashColor: {r: 0, g: 0, b: 0, a: 0}
+  isCurved: 0
+  curveInVec: {x: 0, y: 0, z: 1}
+  curveOutVec: {x: 0, y: 0, z: 1}
 --- !u!114 &100012
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -129,8 +160,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d6629e10ed5b44ba9cdc0bb91d8bc535, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!114 &100014
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -141,9 +172,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4d93b1c7e0526a48b7f31c9d8e04a752, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
-  padColor: {r: 0.85, g: 0.72, b: 0.35, a: 1}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  padColor: {r: 0.8509804, g: 0.34901968, b: 0.60847, a: 1}
   flashColor: {r: 1, g: 1, b: 1, a: 1}
   useContentFlashColor: 1
   scaleAmount: 0.25
@@ -158,5 +189,5 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2b868a327bc64bc1b84608d09b8e8aee, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
