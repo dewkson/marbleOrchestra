@@ -10,8 +10,10 @@ namespace MarbleOrchestra.Grid
     /// representation of the WORLD direction back toward the previous
     /// TrackBlock (i.e. the opposite of InputDirection - the marble travels
     /// IN that direction to arrive here, so it arrives FROM the opposite
-    /// side). The marble lands here, then rolls out through the groove in
-    /// the block's OutputDirection. Deliberately simple - an axis-aligned
+    /// side). The marble really does land here and bounce on into the
+    /// groove before rolling out in the block's OutputDirection - see
+    /// TriggerFallMarbleTrace/0038, which aims its fall at this bar's own
+    /// PadTopY/PadCenterOffset. Deliberately simple - an axis-aligned
     /// box, elongated ACROSS whichever local axis (X or Z) fallSideLocal
     /// points along (like a real xylophone bar, laid crosswise to the
     /// direction the marble falls in), not the original horseshoe/capsule
@@ -23,13 +25,26 @@ namespace MarbleOrchestra.Grid
     /// </summary>
     public static class XylophoneBlockDecoration
     {
+        /// Height of the bar's own top surface above the block's shoulder
+        /// plane (local Y 0) - i.e. exactly where a marble landing on it
+        /// comes to rest. Public because TriggerFallMarbleTrace (see 0038)
+        /// aims the marble's fall at this bar: reading the same number
+        /// from the same place is what keeps the marble from landing
+        /// somewhere the bar isn't.
+        public static float PadTopY(float grooveRadius) => grooveRadius * 0.55f;
+
+        /// How far the bar's own center sits from the block's center,
+        /// toward the fall side (close to the outer edge) - the other half
+        /// of the landing point TriggerFallMarbleTrace needs.
+        public static float PadCenterOffset(float grooveRadius, float sideWidth) => (grooveRadius + sideWidth) * 0.65f;
+
         public static void Build(TrackBlock block, Vector3 fallSideLocal, float grooveRadius, float sideWidth, Material material)
         {
             float halfCell = grooveRadius + sideWidth; // == half the (square) block's own width/length
-            float boxHeight = grooveRadius * 0.55f;
+            float boxHeight = PadTopY(grooveRadius);
             float boxLength = halfCell * 1.15f; // ACROSS the fall direction - elongated
             float boxThickness = halfCell * 0.35f; // along the fall direction - narrow
-            float offset = halfCell * 0.65f; // how far the box's own center sits from the block's center, toward the fall side (close to the outer edge)
+            float offset = PadCenterOffset(grooveRadius, sideWidth); // how far the box's own center sits from the block's center, toward the fall side (close to the outer edge)
 
             // Direction is always cardinal, and this block's own Yaw is
             // always a multiple of 90 degrees (see TrackBlockSpawner), so

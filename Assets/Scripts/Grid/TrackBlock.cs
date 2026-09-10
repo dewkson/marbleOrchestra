@@ -26,6 +26,9 @@ namespace MarbleOrchestra.Grid
     /// entry (local -Z) to exit (local +Z) - see BuildStraightMesh. SetCurve
     /// (see 0040) switches a block to a curved 90-degree sweep instead, for
     /// a Normal block whose path actually turns - see BuildCurvedMesh.
+    /// How the MARBLE moves across the block is a separate, equally
+    /// pluggable concern (Profile is the shape, Trace is the movement):
+    /// see Trace/IMarbleTrace/0038.
     /// </summary>
     [ExecuteAlways]
     [RequireComponent(typeof(MeshFilter))]
@@ -118,6 +121,19 @@ namespace MarbleOrchestra.Grid
         public BlockDefinition Definition => definition;
         public void SetDefinition(BlockDefinition value) => definition = value;
 
+        private IMarbleTrace trace;
+
+        /// The path the marble takes THROUGH this block in Kinematic3D
+        /// (see IMarbleTrace/0038) - the movement counterpart to Profile:
+        /// swapped per block variant by whoever spawns the block
+        /// (TrackBlockSpawner), never subclassed. Defaults to a straight
+        /// roll along this block's own groove floor, from its entry edge
+        /// to its exit edge, so a block always has a usable trace even if
+        /// nobody set one.
+        public IMarbleTrace Trace => trace ?? StraightMarbleTrace.BetweenZ(this, -HalfLength, HalfLength);
+
+        public void SetTrace(IMarbleTrace value) => trace = value;
+
         /// Total vertical descent of the top surface from entry to exit,
         /// implied by TiltDegrees over the block's own length.
         private float Drop => size.y * Mathf.Tan(tiltDegrees * Mathf.Deg2Rad);
@@ -136,14 +152,15 @@ namespace MarbleOrchestra.Grid
         /// Local-space point on this block's own rollable surface at
         /// fractional position t (0 = entry, 1 = exit) - the TRUE geometric
         /// point, unmodified (matching EntryPointLocal/ExitPointLocal
-        /// exactly at t=0/1). See TrackBlockSpawner.JunctionLocalXZ for
-        /// how callers keep this continuous with a straight neighbor's own
-        /// (grid-cell-center-based) sampling without distorting this arc's
-        /// own shape - blending THIS method's endpoints toward cell
-        /// centers instead (an earlier attempt) stretched the whole curve
-        /// out of shape, since its true chord (entry to exit) is
-        /// considerably shorter than a full cell-center-to-cell-center
-        /// span for a 90-degree turn (see 0039 follow-up).
+        /// exactly at t=0/1). Sampled by CurvedMarbleTrace (see 0038), i.e.
+        /// the marble follows this arc as it really is: since every block's
+        /// trace covers exactly its own extent, a straight neighbor's own
+        /// trace simply ends where this one begins, and neither has to be
+        /// distorted to meet the other (earlier attempts blended this
+        /// method's endpoints toward the grid cell centers instead, which
+        /// stretched the whole curve out of shape - its true chord is
+        /// considerably shorter than a cell-center-to-cell-center span for
+        /// a 90-degree turn; see 0039/0041 follow-ups).
         public Vector3 SampleGroovePointLocal(float t)
         {
             t = Mathf.Clamp01(t);

@@ -32,30 +32,28 @@ namespace MarbleOrchestra.Grid
     /// falls from the previous block onto the trigger element before
     /// continuing in its OutputDirection. A straight Normal block's own
     /// Tilt is always a small constant downhill slope
-    /// (normalInclinationDegrees); a Trigger block's own Tilt instead ramps
-    /// away a FRACTION (fallTiltFraction) of ITS OWN FallHeight, the rest
-    /// remaining as the deliberate fall at its entry boundary; a turning
-    /// Normal block and Start/Goal stay flat (0).
+    /// (normalInclinationDegrees); a turning Normal block, a Trigger block
+    /// and Start/Goal stay flat (0) - a Trigger's FallHeight is a real
+    /// fall in the marble's own trace (see below), so its surface no
+    /// longer ramps any part of it away.
     /// Every block shares the exact same floor plane (local Y 0, seen from
     /// below) - per an earlier ticket's explicit requirement - by solving
     /// each block's own Height (body thickness) from its required top
     /// height and using that SAME value as both TrackBlock.Height and the
     /// block's own transform.position.y (see BuildTrack); only the body
     /// thickness varies from block to block, never the shared floor.
-    /// SampleGroovePosition/GetShoulderWorldPosition sample a CURVED block
-    /// (see TrackBlock.IsCurved/0040) from its own real, unmodified
-    /// SampleGroovePointLocal (X/Z/Y together), so kinematic movement
-    /// actually hugs the turn instead of cutting across it. A STRAIGHT
-    /// block instead handles X/Z and Y separately: X/Z lerps between two
-    /// JunctionLocalXZ values - usually the plain grid cell centers on
-    /// either side (equivalent to that block's own centerline), except
-    /// right next to a curve, where the junction is that curve's own true
-    /// entry/exit instead of the cell center half a grid step further away
-    /// (see JunctionLocalXZ's own remarks). Y instead always comes from
-    /// THIS block's own entry/exit only (SampleFloorY, never blended
-    /// toward a neighbor) - deliberately, so a Trigger's own FallHeight
-    /// (see 0039) still reads as a sudden drop right at its boundary
-    /// instead of smearing across the whole previous block's travel.
+    /// Kinematic marble movement (see 0038/0041) is NOT reconstructed from
+    /// this geometry any more: every block carries its own IMarbleTrace
+    /// instead (see CreateTrace), covering exactly its own extent, and
+    /// MarbleController just plays those back end to end, one beat each.
+    /// That's what lets each block variant move the marble its own way
+    /// within an otherwise strictly even musical grid - a curve hugs its
+    /// real arc, a Trigger block drops the marble onto its pad, bounces it
+    /// into the groove and rolls it out, Start/Goal appear/vanish at their
+    /// own tunnel wall. The earlier approach (X/Z lerped between grid cell
+    /// centers, Y lerped from the current block's own entry to its exit)
+    /// mixed two parametrizations half a cell apart, which turned every
+    /// fall into a diagonal glide across the block - see 0041.
     /// Lives on its own GameObject; grid, marbleController and
     /// trackBlockPrefab are wired in the Inspector or auto-found at Awake.
     /// </summary>
@@ -69,7 +67,8 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private float startHeight = 1f; // world/spawner-local Y of the groove floor at Start's own entry point - the baseline the whole height chain hangs from (see 0039)
         [SerializeField] private float minBlockHeight = 0.05f; // safety floor for TrackBlock.Height, so a long chain of Trigger falls can never shrink a block to a degenerate/near-zero or negative thickness
         [SerializeField, Range(0f, 15f)] private float normalInclinationDegrees = 3f; // continuous downhill slope every straight Normal block's own surface has, in its travel direction - see 0039 follow-up. Curved Normal blocks stay flat (0) - a sloped curve is out of scope for now, see TrackBlock.SetCurve/0040
-        [SerializeField, Range(0f, 1f)] private float fallTiltFraction = 0.5f; // how much of a Trigger block's OWN FallHeight its Tilt closes; the rest is the actual fall onto the trigger element. 0 = flat pad (pure fall), 1 = seamless (no visible fall) - see 0039
+        [SerializeField, Range(0.05f, 0.9f)] private float triggerFallBeatFraction = 0.5f; // how much of a Trigger block's own beat the marble's fall onto its pad takes - the SAME for every Trigger block regardless of FallHeight, so all notes sound at the same phase and the music stays on the grid (see TriggerFallMarbleTrace/0038)
+        [SerializeField] private float triggerBounceHeight = 0.06f; // how high the marble hops off a Trigger block's pad before dropping into the groove; 0 = no bounce, it just drops on
         [SerializeField] private Color terrainColor = new Color(0.30f, 0.45f, 0.20f); // grass/moss green - the "Default" biome's first look (see 0032)
         [SerializeField] private Color grooveColor = new Color(0.40f, 0.27f, 0.15f); // earthy brown for the rollable groove itself, distinct from the grass shoulders (see 0032)
         [SerializeField] private Color tunnelColor = new Color(0.05f, 0.05f, 0.06f); // near-black interior of the Start/Goal tunnel portal (see TunnelPortalDecoration)
@@ -107,28 +106,48 @@ namespace MarbleOrchestra.Grid
             SyncTracks(FindCompletedPaths());
         }
 
-        /// World-space point at the groove floor, raised by marbleRadius so
-        /// a marble of that size rests on it, at a fractional position
-        /// along the path - e.g. 2.3 means 30% of the way from path[2]'s
-        /// own entry to its own exit. For a curved block (see
-        /// TrackBlock.IsCurved/0040) this follows the block's own real,
-        /// UNMODIFIED curved centerline (X/Z included, not just height) so
-        /// the marble visibly hugs the turn instead of cutting across it -
-        /// straight neighbors on either side aim their own X/Z at that same
-        /// curve's own true entry/exit instead of the plain cell center
-        /// they'd otherwise use (see JunctionLocalXZ), so nothing has to
-        /// snap OR distort to stay continuous. Used for kinematic 3D
-        /// movement.
-        public Vector3 SampleGroovePosition(IReadOnlyList<Vector2Int> path, float pathPosition, float marbleRadius)
+        /// True once this exact path's blocks actually exist - false in
+        /// the frame a track just completed but SyncTracks hasn't run yet
+        /// (MarbleController's and this component's Update order is
+        /// undefined), and false again once the path changed underneath a
+        /// marble that's still running on it.
+        public bool HasTrackFor(IReadOnlyList<Vector2Int> path)
         {
-            return SampleTrackPosition(path, pathPosition, marbleRadius);
+            if (path == null || path.Count == 0) return false;
+            TrackInstance track = FindTrackByStart(path[0]);
+            return track != null && PathEquals(track.Path, path);
         }
 
-        /// Same chained sampling as SampleGroovePosition, but at the floor
-        /// itself (no marble-radius offset) - used to place a physics
-        /// marble right above Start (MarbleController adds its own
-        /// marbleRadius3D + physicsDropHeight clearance on top), and as the
-        /// Goal reference point for arrival detection.
+        /// The marble's own movement across ONE block of this path (see
+        /// IMarbleTrace/0038): its trace, resolved against that block's
+        /// transform and the given tempo. False if this track isn't
+        /// spawned (any more) - the caller should then stop rather than
+        /// keep a marble running on blocks that no longer exist.
+        public bool TryGetTraceSegment(IReadOnlyList<Vector2Int> path, int index, float cellsPerSecond, out TrackTraceSegment segment)
+        {
+            segment = default;
+            if (!HasTrackFor(path)) return false;
+
+            TrackInstance track = FindTrackByStart(path[0]);
+            if (index < 0 || index >= track.Blocks.Count) return false;
+
+            TrackBlock block = track.Blocks[index];
+            if (block == null) return false;
+
+            segment = new TrackTraceSegment(block, block.Trace, cellsPerSecond);
+            return true;
+        }
+
+        /// World-space point on the marble's own path at a fractional
+        /// position along it - e.g. 2.3 means 30% of the way through
+        /// path[2]'s own beat (see IMarbleTrace), and path.Count means the
+        /// very end of the last block's. At the groove floor itself,
+        /// no marble-radius offset: used to place a physics marble right
+        /// above Start (MarbleController adds its own marbleRadius3D +
+        /// physicsDropHeight clearance on top), and as the Goal reference
+        /// point for arrival detection. Kinematic movement doesn't go
+        /// through here - it plays whole trace segments back instead (see
+        /// TryGetTraceSegment).
         public Vector3 GetShoulderWorldPosition(IReadOnlyList<Vector2Int> path, float pathPosition)
         {
             return SampleTrackPosition(path, pathPosition, 0f);
@@ -138,106 +157,34 @@ namespace MarbleOrchestra.Grid
         {
             TrackInstance track = FindTrackByStart(path[0]);
 
-            float clamped = Mathf.Clamp(pathPosition, 0f, path.Count - 1);
+            float clamped = Mathf.Clamp(pathPosition, 0f, path.Count);
             int index = Mathf.Clamp(Mathf.FloorToInt(clamped), 0, path.Count - 1);
-            float f = clamped - index;
+            float f = Mathf.Clamp01(clamped - index);
 
             TrackBlock block = track != null && index < track.Blocks.Count ? track.Blocks[index] : null;
 
-            if (block != null && block.IsCurved)
+            if (block == null)
             {
-                Vector3 localPoint = block.SampleGroovePointLocal(f);
-                return block.transform.TransformPoint(localPoint) + Vector3.up * verticalOffset;
+                // That block isn't spawned yet this frame (e.g. the very
+                // first frame after a path just completed) - the plain
+                // cell center at the baseline height is close enough, and
+                // self-corrects the very next frame once BuildTrack has
+                // actually run.
+                Vector3 cell = grid.CellToLocalPosition(path[index]);
+                return transform.TransformPoint(new Vector3(cell.x, startHeight, cell.y)) + Vector3.up * verticalOffset;
             }
 
-            // X/Z and Y are deliberately handled separately here: X/Z needs
-            // to be curve-aware at a turn's boundary (see JunctionLocalXZ),
-            // but Y must NOT blend across a block boundary that isn't
-            // continuous on purpose - a Trigger's own FallHeight (see 0039)
-            // is exactly such a deliberate jump, which SampleFloorY (using
-            // only block's own entry/exit) preserves as a sudden drop right
-            // at the boundary. Blending Y toward a neighbor too (an earlier
-            // attempt) smeared that drop across the WHOLE previous block's
-            // travel instead, looking like the marble just glides down in
-            // a straight line rather than rolling normally and then
-            // falling - see 0039 follow-up.
-            int nextIndex = Mathf.Clamp(index + 1, 0, path.Count - 1);
-            Vector3 a = JunctionLocalXZ(path, track, index);
-            Vector3 b = JunctionLocalXZ(path, track, nextIndex);
-            Vector3 xz = Vector3.Lerp(a, b, f);
-
-            float floorY = SampleFloorY(block, f);
-            return transform.TransformPoint(new Vector3(xz.x, floorY, xz.y)) + Vector3.up * verticalOffset;
+            return block.transform.TransformPoint(block.Trace.SampleLocal(f)) + Vector3.up * verticalOffset;
         }
 
-        /// Groove-floor height at fractional position f (0-1) between
-        /// block's own entry and exit - i.e. within that ONE block's real,
-        /// possibly tilted surface (or, for a Trigger, its own fall - see
-        /// 0039). Falls back to startHeight if that block isn't spawned
-        /// yet this frame (e.g. the very first frame after a path just
-        /// completed) - self-corrects the very next frame once BuildTrack
-        /// has actually run, so exactness here doesn't matter. Only used
-        /// for a non-curved block - see SampleTrackPosition.
-        private float SampleFloorY(TrackBlock block, float f)
-        {
-            if (block != null)
-            {
-                float entryY = block.transform.localPosition.y + block.EntryPointLocal.y;
-                float exitY = block.transform.localPosition.y + block.ExitPointLocal.y;
-                return Mathf.Lerp(entryY, exitY, f);
-            }
-
-            return startHeight;
-        }
-
-        /// Spawner-local X/Z the marble should be at when pathPosition
-        /// equals exactly k - normally the grid cell's own center (as
-        /// before), EXCEPT right at the boundary of a curved block (see
-        /// TrackBlock.IsCurved/0040), where it's that block's own true
-        /// entry/exit instead. Without this, a straight neighbor's plain
-        /// cell-center target would sit half a cell away from where the
-        /// curve actually starts/ends, so approaching/leaving it either
-        /// snapped (an earlier attempt at fixing this left the curve's own
-        /// endpoints alone) or - blending the curve's own endpoints toward
-        /// the cell centers instead (a second attempt) - stretched its
-        /// true chord out of shape instead (see 0039 follow-ups for both).
-        /// Start (k=0) and Goal (the last index) always stay center-based,
-        /// matching their own tunnel decoration; a curve directly adjacent
-        /// to either would still see this mismatch, but curves only ever
-        /// occur on interior Normal blocks today anyway.
-        private Vector3 JunctionLocalXZ(IReadOnlyList<Vector2Int> path, TrackInstance track, int k)
-        {
-            if (k > 0 && k < path.Count - 1)
-            {
-                // EntryPointLocal/ExitPointLocal always use the straight
-                // -Z/+Z formula, even on a curved block (see TrackBlock's
-                // own remarks) - SampleGroovePointLocal(0)/(1) is the
-                // curve-aware equivalent, which for a turn can sit along
-                // local X instead of Z.
-                TrackBlock atK = track != null && k < track.Blocks.Count ? track.Blocks[k] : null;
-                if (atK != null && atK.IsCurved) return SpawnerLocalXZ(atK, atK.SampleGroovePointLocal(0f));
-
-                TrackBlock beforeK = track != null && k - 1 < track.Blocks.Count ? track.Blocks[k - 1] : null;
-                if (beforeK != null && beforeK.IsCurved) return SpawnerLocalXZ(beforeK, beforeK.SampleGroovePointLocal(1f));
-            }
-
-            return grid.CellToLocalPosition(path[k]);
-        }
-
-        /// Converts a point in some block's own local space into
-        /// spawner-local space (x, z-as-y, matching grid.CellToLocalPosition's
-        /// own convention) WITHOUT a full world-space round-trip - valid
-        /// because every block is a direct child of a root GameObject that
-        /// itself sits at zero offset from this spawner's own transform
-        /// (see BuildTrack), so composing the block's own localPosition and
-        /// Yaw is exactly equivalent to (and cheaper than) TransformPoint
-        /// followed by InverseTransformPoint back through this spawner.
-        private static Vector3 SpawnerLocalXZ(TrackBlock block, Vector3 blockLocalPoint)
-        {
-            Vector3 rotated = Quaternion.Euler(0f, block.YawDegrees, 0f) * blockLocalPoint;
-            Vector3 spawnerLocal = block.transform.localPosition + rotated;
-            return new Vector3(spawnerLocal.x, spawnerLocal.z, 0f);
-        }
+        /// Smallest FallHeight a Trigger block can actually be built with:
+        /// its entry half is sealed off and carries the pad bar on top
+        /// (see BuildTrack's profile choice and XylophoneBlockDecoration),
+        /// so the previous block's groove must end at least at that bar's
+        /// own top for the marble to land ON the pad instead of starting
+        /// inside solid geometry. Anything smaller (e.g. a content asset
+        /// left at 0) is raised to this, with a warning.
+        private float MinTriggerFallHeight => grooveRadius + XylophoneBlockDecoration.PadTopY(grooveRadius);
 
         /// Flat shoulder width to each side of the groove, derived so the
         /// block's total width (2*grooveRadius + 2*SideWidth) exactly
@@ -299,24 +246,52 @@ namespace MarbleOrchestra.Grid
             return Direction.None;
         }
 
-        /// This block's own Tilt, in degrees. A Trigger block ramps part of
-        /// ITS OWN FallHeight away (scaled by fallTiltFraction) - the rest
-        /// is the intentional fall at its entry boundary (see class
-        /// remarks). A straight Normal block always gets a small constant
-        /// downhill slope (normalInclinationDegrees) so the marble keeps a
-        /// gentle, continuous pace even across a long flat-looking stretch -
-        /// see 0039 follow-up. A turning Normal block stays flat (a sloped
-        /// curve is out of scope for now, see TrackBlock.SetCurve/0040), and
-        /// so do Start/Goal.
-        private float ComputeSurfaceInclination(BlockType type, bool isTurn, float travelLength, float fallHeight)
+        /// This block's own Tilt, in degrees. A straight Normal block
+        /// always gets a small constant downhill slope
+        /// (normalInclinationDegrees) so the marble keeps a gentle,
+        /// continuous pace even across a long flat-looking stretch - see
+        /// 0039 follow-up. Everything else stays flat: a turning Normal
+        /// block (a sloped curve is out of scope for now, see
+        /// TrackBlock.SetCurve/0040), Start/Goal, and a Trigger block -
+        /// the latter because its FallHeight is a REAL fall in the
+        /// marble's own trace now (see TriggerFallMarbleTrace/0041), so
+        /// its pad no longer ramps part of that height away.
+        private float ComputeSurfaceInclination(BlockType type, bool isTurn)
         {
-            if (type == BlockType.Trigger)
-            {
-                float seamlessTiltDegrees = Mathf.Atan2(fallHeight, travelLength) * Mathf.Rad2Deg;
-                return seamlessTiltDegrees * fallTiltFraction;
-            }
             if (type == BlockType.Normal && !isTurn) return normalInclinationDegrees;
             return 0f;
+        }
+
+        /// The path the marble itself takes through this block (see
+        /// IMarbleTrace/0038) - the one place each block variant's own
+        /// movement is defined, as opposed to its shape (IBlockProfile).
+        /// Start/Goal are shortened to their own sealed groove end
+        /// (IClosedEndBlockProfile.WallZ), so the marble rolls out of /
+        /// into the tunnel portal's mouth rather than appearing at the
+        /// block's outer edge; a turn follows its real arc; a Trigger
+        /// block falls onto its pad, bounces into the groove and rolls
+        /// out. Called once per block at spawn time, after Size/Profile/
+        /// Yaw/Tilt are final (the traces read those).
+        private IMarbleTrace CreateTrace(TrackBlock block, BlockType type, bool isTurn, float fallHeight, Vector3 fallSideLocal, float railExtension)
+        {
+            if (isTurn) return new CurvedMarbleTrace(block);
+
+            float halfLength = block.Size.y * 0.5f;
+
+            switch (type)
+            {
+                case BlockType.Start:
+                    return StraightMarbleTrace.BetweenZ(block, -railExtension, halfLength);
+                case BlockType.Goal:
+                    return StraightMarbleTrace.BetweenZ(block, -halfLength, railExtension);
+                case BlockType.Trigger:
+                    return new TriggerFallMarbleTrace(block, fallSideLocal, fallHeight,
+                        XylophoneBlockDecoration.PadTopY(grooveRadius),
+                        XylophoneBlockDecoration.PadCenterOffset(grooveRadius, SideWidth),
+                        -railExtension + grooveRadius, triggerFallBeatFraction, triggerBounceHeight);
+                default:
+                    return StraightMarbleTrace.BetweenZ(block, -halfLength, halfLength);
+            }
         }
 
         private List<IReadOnlyList<Vector2Int>> FindCompletedPaths()
@@ -403,9 +378,16 @@ namespace MarbleOrchestra.Grid
                     : type == BlockType.Trigger ? new ClosedEndGrooveBlockProfile(grooveRadius, SideWidth, grooveArcSegments, closedAtEntry: true, railExtension)
                     : new GrooveBlockProfile(grooveRadius, SideWidth, grooveArcSegments);
 
-                float fallHeight = type == BlockType.Trigger ? triggerContent.FallHeight : 0f;
+                float requestedFallHeight = type == BlockType.Trigger ? triggerContent.FallHeight : 0f;
+                float fallHeight = type == BlockType.Trigger ? Mathf.Max(requestedFallHeight, MinTriggerFallHeight) : 0f;
+
+                if (fallHeight > requestedFallHeight + 1e-4f)
+                {
+                    Debug.LogWarning($"TrackBlockSpawner: Trigger-Inhalt an {cell} hat FallHeight {requestedFallHeight:0.###}, das Minimum ist {MinTriggerFallHeight:0.###} (sonst endet die Rille des Vorgaengers unterhalb der Pad-Leiste, auf die die Kugel fallen soll) - es wird mit dem Minimum gebaut.");
+                }
+
                 float entryY = runningExitY - fallHeight; // Start/Goal/Normal: fallHeight is always 0 -> perfectly height-matched to the previous block's exit
-                float inclinationDegrees = ComputeSurfaceInclination(type, isTurn, blockSize.y, fallHeight);
+                float inclinationDegrees = ComputeSurfaceInclination(type, isTurn);
                 float drop = blockSize.y * Mathf.Tan(inclinationDegrees * Mathf.Deg2Rad);
                 float halfDrop = drop * 0.5f;
 
@@ -421,6 +403,22 @@ namespace MarbleOrchestra.Grid
                 // how tall/short this particular block ends up being.
                 float localEntryY = profile.EntryPoint(blockSize).y + halfDrop;
                 float height = Mathf.Max(entryY - localEntryY, minBlockHeight);
+
+                // Where this block's entry REALLY ended up: identical to
+                // entryY, unless minBlockHeight had to clamp the body
+                // thickness (a long chain of falls, or one deeper than the
+                // track's own startHeight, can ask for a negative one).
+                // Everything downstream - the next block's entry, and this
+                // block's own marble trace - chains off the height that
+                // actually got built rather than the one that was asked
+                // for, so a clamp can't tear the marble's path open.
+                float actualEntryY = height + localEntryY;
+                float effectiveFallHeight = Mathf.Max(runningExitY - actualEntryY, 0f);
+
+                if (actualEntryY > entryY + 1e-4f)
+                {
+                    Debug.LogWarning($"TrackBlockSpawner: Block {i} bei {cell} muesste auf Hoehe {entryY:0.###} liegen, kann aber wegen minBlockHeight nur auf {actualEntryY:0.###} - die Summe der FallHeights hat die Bodenebene erreicht. startHeight erhoehen oder FallHeight der Trigger-Inhalte senken.");
+                }
 
                 Vector3 cellPos = grid.CellToLocalPosition(cell);
                 block.transform.localPosition = new Vector3(cellPos.x, height, cellPos.y);
@@ -444,10 +442,21 @@ namespace MarbleOrchestra.Grid
 
                 block.TiltDegrees = inclinationDegrees;
 
+                // The marble travels IN InputDirection to arrive here, so
+                // it arrives FROM the opposite side - undo this block's own
+                // Yaw to get that side in local space, regardless of which
+                // way the block itself faces. Both the fall (see
+                // TriggerFallMarbleTrace) and the pad the marble falls onto
+                // (XylophoneBlockDecoration) hang off this one vector, so
+                // they always agree on where "from" is.
+                Vector3 fallSideLocal = Quaternion.Euler(0f, -block.YawDegrees, 0f) * (-inputDir.ToLocalVector3());
+
+                block.SetTrace(CreateTrace(block, type, isTurn, effectiveFallHeight, fallSideLocal, railExtension));
+
                 SoundTriggerContent soundContent = content as SoundTriggerContent;
                 TriggerBehavior trigger = soundContent != null ? TriggerBehavior.OnEnter : TriggerBehavior.None; // XylophonePadContent is visual-only, no trigger
                 Color flashColor = soundContent != null ? soundContent.FlashColor : Color.white;
-                block.SetDefinition(new BlockDefinition(cell, inputDir, outputDir, entryY, type, fallHeight,
+                block.SetDefinition(new BlockDefinition(cell, inputDir, outputDir, actualEntryY, type, fallHeight,
                     inclinationDegrees, trigger, soundContent?.Clip, BlockDefinition.DefaultBiome, flashColor));
 
                 if (isStart || isGoal)
@@ -456,11 +465,6 @@ namespace MarbleOrchestra.Grid
                 }
                 else if (type == BlockType.Trigger)
                 {
-                    // The marble travels IN InputDirection to arrive here,
-                    // so it arrives FROM the opposite side - undo this
-                    // block's own Yaw to get that side in local space,
-                    // regardless of which way the block itself faces.
-                    Vector3 fallSideLocal = Quaternion.Euler(0f, -block.YawDegrees, 0f) * (-inputDir.ToLocalVector3());
                     XylophoneBlockDecoration.Build(block, fallSideLocal, grooveRadius, SideWidth, sharedMaterial);
                 }
                 else
@@ -469,7 +473,7 @@ namespace MarbleOrchestra.Grid
                 }
 
                 blocks.Add(block);
-                runningExitY = entryY - drop; // baseline the next block's entry must match, unless it's a Trigger block
+                runningExitY = actualEntryY - drop; // baseline the next block's entry must match, unless it's a Trigger block
             }
 
             return new TrackInstance { Path = path, Root = root.transform, Blocks = blocks };

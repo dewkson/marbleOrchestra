@@ -18,8 +18,6 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0033 | Licht und Schatten optimieren | Idea | 🟡 Medium | ⚪ Open | Other | 2026-09-04 |
 | 0036 | Instrumentenreaktionen in 3D mit Partikeleffekt anreichern | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-04 |
 | 0037 | Sound für Murmel-Bewegung einbinden | Feature | 🟡 Medium | ⚪ Open | Audio | 2026-09-04 |
-| 0038 | Kinematischer Bewegungs-Trace pro Block-Variante definierbar | Feature | 🟡 Medium | ⚪ Open | Physics | 2026-09-04 |
-| 0041 | Korrekte Kinematic3D-Bewegung bei Kurven und Trigger-Fall verifizieren | Task | 🟡 Medium | ⚪ Open | Physics | 2026-09-09 |
 
 ## Alle Tickets
 
@@ -62,7 +60,7 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0035 | Sanfter Kamera-Follow in 3D statt fixierter Kamera | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-04 |
 | 0036 | Instrumentenreaktionen in 3D mit Partikeleffekt anreichern | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-04 |
 | 0037 | Sound für Murmel-Bewegung einbinden | Feature | 🟡 Medium | ⚪ Open | Audio | 2026-09-04 |
-| 0038 | Kinematischer Bewegungs-Trace pro Block-Variante definierbar | Feature | 🟡 Medium | ⚪ Open | Physics | 2026-09-04 |
+| 0038 | Kinematischer Bewegungs-Trace pro Block-Variante definierbar | Feature | 🟡 Medium | ✅ Done | Physics | 2026-09-04 |
 | 0039 | TrackBlock-Typen und Verbindungslogik vereinheitlichen | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-09 |
 | 0040 | Gebogene Rillen-Geometrie für 90°-Kurven-Blocks | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-09 |
-| 0041 | Korrekte Kinematic3D-Bewegung bei Kurven und Trigger-Fall verifizieren | Task | 🟡 Medium | ⚪ Open | Physics | 2026-09-09 |
+| 0041 | Korrekte Kinematic3D-Bewegung bei Kurven und Trigger-Fall verifizieren | Task | 🟡 Medium | ✅ Done | Physics | 2026-09-09 |

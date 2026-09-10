@@ -46,6 +46,12 @@ namespace MarbleOrchestra.Grid
         private readonly List<Coroutine> runRoutines = new List<Coroutine>();
         private int activeRunCount;
 
+        /// How long the marble may wait for TrackBlockSpawner to actually
+        /// spawn a just-completed track's blocks before this lap is given
+        /// up on - the two components' Update order is undefined, so the
+        /// very frame Play() was pressed the blocks may not exist yet.
+        private const float TrackSpawnTimeoutSeconds = 1f;
+
         public bool IsPlaying => activeRunCount > 0;
         public bool CanPlay => HasCompletedTrack();
         public float MarbleRadius => marbleRadius;
@@ -242,50 +248,80 @@ namespace MarbleOrchestra.Grid
             }
         }
 
-        /// Kinematic 3D movement: no physics engine involved, the marble's
-        /// world position is sampled directly from TrackBlockSpawner's
-        /// groove geometry at the same cellsPerSecond tempo as the 2D mode,
-        /// so it appears to roll away from Start and vanish into the Goal
-        /// hole exactly where the terrain's hole is (see 0013/0014). Its
-        /// rotation is faked to match (see RollMarble) from each frame's
-        /// position delta, since sampling alone never turns it.
+        /// Kinematic 3D movement: no physics engine involved. Every block
+        /// defines the path the marble takes across IT - a straight roll,
+        /// a curve's real arc, or a Trigger block's fall-bounce-roll onto
+        /// its pad (see IMarbleTrace/0038) - and this simply plays those
+        /// traces back end to end, each in its own real time, so the
+        /// marble rolls away from Start, actually falls where the track
+        /// drops, and vanishes into the Goal hole exactly where the
+        /// terrain's hole is (see 0013/0014). Its rotation is faked to
+        /// match (see RollMarble) from each frame's position delta, since
+        /// sampling alone never turns it.
+        /// Every block takes exactly one beat (1 / cellsPerSecond, see
+        /// TrackTraceSegment.Duration), whatever its geometry - a cell is
+        /// a beat, which is what keeps the sounds the marble sets off in
+        /// time. Only the marble's pace WITHIN a block varies.
+        /// A block's own trigger fires at its trace's ImpactTime - i.e.
+        /// when the marble is SEEN arriving (hitting the pad), not when it
+        /// crosses the cell boundary. That phase is identical on every
+        /// Trigger block (see TriggerFallMarbleTrace), so the notes stay a
+        /// whole number of beats apart.
         private IEnumerator RunAlongPath3D(Marble marble, IReadOnlyList<Vector2Int> path)
         {
-            float speed = Mathf.Max(cellsPerSecond, 0.01f);
-            float endPosition = path.Count - 1;
+            // Park the marble at Start right away (a rough guess is fine -
+            // it's replaced by the first real trace sample below), so it
+            // never shows up at the origin for the frames the track's
+            // blocks may still need to appear.
+            marble.transform.position = terrain.GetShoulderWorldPosition(path, 0f) + Vector3.up * marbleRadius3D;
 
-            Vector3 previousPosition = terrain.SampleGroovePosition(path, 0f, marbleRadius3D);
-            marble.transform.position = previousPosition;
-            TriggerCellContent(marble, path[0]);
-            int lastTriggeredIndex = 0;
-
-            float pathPosition = 0f;
-            while (pathPosition < endPosition)
+            float waited = 0f;
+            while (!terrain.HasTrackFor(path) && waited < TrackSpawnTimeoutSeconds)
             {
-                pathPosition = Mathf.Min(pathPosition + Time.deltaTime * speed, endPosition);
-                Vector3 nextPosition = terrain.SampleGroovePosition(path, pathPosition, marbleRadius3D);
-
-                RollMarble(marble, previousPosition, nextPosition);
-                marble.transform.position = nextPosition;
-                previousPosition = nextPosition;
-
-                int currentIndex = Mathf.FloorToInt(pathPosition);
-                if (currentIndex > lastTriggeredIndex)
-                {
-                    lastTriggeredIndex = currentIndex;
-                    TriggerCellContent(marble, path[currentIndex]);
-                }
-
+                waited += Time.deltaTime;
                 yield return null;
             }
 
-            TriggerCellContent(marble, path[path.Count - 1]);
+            bool hasPreviousPosition = false;
+            Vector3 previousPosition = Vector3.zero;
+
+            for (int i = 0; i < path.Count; i++)
+            {
+                // Re-resolved per block rather than cached for the whole
+                // lap, so a pipe swap that rebuilds this track underneath
+                // a running marble ends its lap cleanly (RunTrack then
+                // re-checks the path) instead of sampling dead blocks.
+                if (!terrain.TryGetTraceSegment(path, i, cellsPerSecond, out TrackTraceSegment segment)) yield break;
+
+                float elapsed = 0f;
+                bool triggered = false;
+
+                while (true)
+                {
+                    Vector3 position = segment.SampleWorld(elapsed, marbleRadius3D);
+                    if (hasPreviousPosition) RollMarble(marble, previousPosition, position);
+                    marble.transform.position = position;
+                    previousPosition = position;
+                    hasPreviousPosition = true;
+
+                    if (!triggered && elapsed >= segment.ImpactTime)
+                    {
+                        triggered = true;
+                        TriggerCellContent(marble, path[i]);
+                    }
+
+                    if (elapsed >= segment.Duration) break;
+
+                    yield return null;
+                    elapsed = Mathf.Min(elapsed + Time.deltaTime, segment.Duration);
+                }
+            }
         }
 
         /// Kinematic3D has no physics engine to derive rolling from (unlike
         /// Physics3D, where real rolling contact against the MeshCollider
-        /// already produces it) - SampleGroovePosition only ever moves the
-        /// marble's position, never its rotation. This fakes the same
+        /// already produces it) - a trace only ever moves the marble's
+        /// position, never its rotation. This fakes the same
         /// visual: a sphere of marbleRadius3D rolling without slipping from
         /// `from` to `to` turns by angle = distance/radius, around the axis
         /// Vector3.Cross(Vector3.up, direction) - which is exactly the
@@ -293,9 +329,15 @@ namespace MarbleOrchestra.Grid
         /// (from v = radius * (omega x up), solved for omega), so the top
         /// of the marble always turns toward where it's actually heading
         /// instead of spinning on an arbitrary or backwards axis.
+        /// Only the HORIZONTAL part of the step drives it: rolling contact
+        /// is what spins a marble, and a fall (see TriggerFallMarbleTrace)
+        /// has none - counting its drop as rolling distance would make the
+        /// marble spin up wildly in mid-air. On the track's own gentle
+        /// slopes the two are the same to within a fraction of a percent.
         private void RollMarble(Marble marble, Vector3 from, Vector3 to)
         {
             Vector3 delta = to - from;
+            delta.y = 0f;
             float distance = delta.magnitude;
             if (distance < 1e-6f) return;
 
@@ -323,7 +365,11 @@ namespace MarbleOrchestra.Grid
 
             TriggerCellContent(marble, path[0]);
 
-            Vector3 goalPos = terrain.GetShoulderWorldPosition(path, path.Count - 1);
+            // path.Count is the very END of the last block's own trace (see
+            // TrackBlockSpawner.GetShoulderWorldPosition) - i.e. the Goal's
+            // sealed groove end inside the tunnel mouth, which is where a
+            // marble that has really arrived ends up.
+            Vector3 goalPos = terrain.GetShoulderWorldPosition(path, path.Count);
             float timeout = (path.Count - 1) / Mathf.Max(cellsPerSecond, 0.01f) * physicsTimeoutMultiplier + 2f;
             float elapsed = 0f;
 
