@@ -14,4 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.SoundTriggerContent
   contentId: Snare
   label: S
+  fallHeight: 0
   clip: {fileID: 8300000, guid: dd0e23e674e326e40831be6923c1a6ca, type: 3}
+  flashColor: {r: 1, g: 1, b: 1, a: 1}
