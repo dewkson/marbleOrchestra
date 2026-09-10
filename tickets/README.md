@@ -10,7 +10,7 @@ versioniert wird.
   (nur `Open`/`In Progress`, absteigend nach Priorität sortiert) und "Alle
   Tickets" (Longlist, sortiert nach ID).
 - `TEMPLATE.md` - Vorlage für neue Tickets.
-- `NNNN-slug.md` - Ein Ticket pro Datei, fortlaufend nummeriert (`0001`, `0002`, ...).
+- `einzeltickets/NNNN-slug.md` - Ein Ticket pro Datei, fortlaufend nummeriert (`0001`, `0002`, ...).
 
 ## Ticket anlegen
 

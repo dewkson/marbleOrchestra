@@ -1,6 +1,6 @@
 ---
 name: ticket
-description: Nimmt anhand einer Freitext-Beschreibung ein neues Ticket auf und dokumentiert es im dateibasierten Ticket-System unter tickets/. Nutzen bei "leg ein Ticket an", "notier den Bug", "das sollten wir tracken" o.ä.
+description: Nimmt anhand einer Freitext-Beschreibung ein neues Ticket auf und dokumentiert es im dateibasierten Ticket-System unter tickets/einzeltickets/. Nutzen bei "leg ein Ticket an", "notier den Bug", "das sollten wir tracken" o.ä.
 argument-hint: <Beschreibung des Bugs/Features/Tasks>
 ---
 
@@ -14,9 +14,10 @@ wurde, frage kurz danach.
    `tickets/` noch nicht existiert, lege es inkl. `INDEX.md` (leere Tabelle)
    und `TEMPLATE.md` neu an, orientiert an diesem Skill.
 
-2. **Nächste ID bestimmen**: Schau in `tickets/` nach vorhandenen Dateien
-   `NNNN-*.md` und nimm die höchste Nummer + 1, vierstellig mit führenden
-   Nullen (`0001`, `0002`, ...). Bei leerem Verzeichnis: `0001`.
+2. **Nächste ID bestimmen**: Schau in `tickets/einzeltickets/` nach
+   vorhandenen Dateien `NNNN-*.md` und nimm die höchste Nummer + 1,
+   vierstellig mit führenden Nullen (`0001`, `0002`, ...). Bei leerem
+   Verzeichnis: `0001`.
 
 3. **Beschreibung analysieren** und daraus ableiten (nichts erfinden, was
    nicht aus der Beschreibung oder dem Code hervorgeht):
@@ -35,7 +36,7 @@ wurde, frage kurz danach.
      in einer Nachricht, lege für jedes ein eigenes Ticket mit eigener ID an,
      statt sie zu vermischen.
 
-4. **Ticket-Datei anlegen** unter `tickets/NNNN-<slug>.md` (Slug = Titel,
+4. **Ticket-Datei anlegen** unter `tickets/einzeltickets/NNNN-<slug>.md` (Slug = Titel,
    klein geschrieben, Bindestriche statt Leerzeichen) nach dem Schema aus
    `TEMPLATE.md`:
    - Frontmatter (`id`, `title`, `type`, `priority`, `status: Open`, `area`,
