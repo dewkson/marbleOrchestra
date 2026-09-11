@@ -72,6 +72,7 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private Color terrainColor = new Color(0.30f, 0.45f, 0.20f); // grass/moss green - the "Default" biome's first look (see 0032)
         [SerializeField] private Color grooveColor = new Color(0.40f, 0.27f, 0.15f); // earthy brown for the rollable groove itself, distinct from the grass shoulders (see 0032)
         [SerializeField] private Color tunnelColor = new Color(0.05f, 0.05f, 0.06f); // near-black interior of the Start/Goal tunnel portal (see TunnelPortalDecoration)
+        [SerializeField] private TerrainDecorationSettings terrainDecorationSettings; // moss-clump count/size/color/clustering - see TerrainDecoration.Scatter; null falls back to TerrainDecorationSettings.Default
 
         public float GrooveRadius => grooveRadius;
 
@@ -476,7 +477,7 @@ namespace MarbleOrchestra.Grid
                 }
                 else
                 {
-                    TerrainDecoration.Scatter(block, cell, block.Definition.Biome, grooveRadius, SideWidth, blockSize);
+                    TerrainDecoration.Scatter(block, cell, block.Definition.Biome, grooveRadius, SideWidth, blockSize, terrainDecorationSettings);
                 }
 
                 blocks.Add(block);

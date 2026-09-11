@@ -174,8 +174,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4d93b1c7e0526a48b7f31c9d8e04a752, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  padColor: {r: 0.8509804, g: 0.34901968, b: 0.60847, a: 1}
-  flashColor: {r: 1, g: 1, b: 1, a: 1}
+  padColor: {r: 0.8941177, g: 0.6039216, b: 0.6901961, a: 1}
+  flashColor: {r: 0.98823535, g: 0.6901961, b: 0.4901961, a: 1}
   useContentFlashColor: 1
   scaleAmount: 0.25
   pulseDuration: 0.18

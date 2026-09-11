@@ -517,7 +517,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0506b7ce37689243b46c7b5f4d8145b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.PathGrid
-  level: {fileID: 11400000, guid: a735286efe61161449d2a5bfe0a5fe27, type: 2}
+  level: {fileID: 11400000, guid: 6a1024776a1e3d146aabc64827cb4418, type: 2}
   cellSize: 1.2
   cardScale: 1
 --- !u!4 &1612605611
@@ -677,9 +677,10 @@ MonoBehaviour:
   normalInclinationDegrees: 3
   triggerFallBeatFraction: 0.144
   triggerBounceHeight: 0.08
-  terrainColor: {r: 0.3, g: 0.45, b: 0.2, a: 1}
-  grooveColor: {r: 0.4, g: 0.27, b: 0.15, a: 1}
+  terrainColor: {r: 0.4039216, g: 0.5803922, b: 0.21176472, a: 1}
+  grooveColor: {r: 0.50980395, g: 0.38431376, b: 0.31764707, a: 1}
   tunnelColor: {r: 0.05, g: 0.05, b: 0.06, a: 1}
+  terrainDecorationSettings: {fileID: 11400000, guid: 633d6e6723f7de842abb672850f7c0f0, type: 2}
 --- !u!114 &1612605617
 MonoBehaviour:
   m_ObjectHideFlags: 0

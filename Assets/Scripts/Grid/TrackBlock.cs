@@ -179,6 +179,40 @@ namespace MarbleOrchestra.Grid
             return ringCenter + Vector3.up * (profile.EntryPoint(size).y + dy);
         }
 
+        /// For decorations sitting on the flat shoulders (see
+        /// TerrainDecoration): the top surface's local Y above a horizontal
+        /// local-space point, plus that point's lateral distance from the
+        /// groove's centerline - |x| for a straight sweep, the radial
+        /// distance from the quarter-circle arc for a curved one (same
+        /// center as BuildCurvedMesh), so a caller can keep clear of the
+        /// groove on either. The Y is shoulder level (cross-section Y 0)
+        /// with Tilt's Drop ramped along the sweep exactly like the mesh
+        /// itself - only meaningful outside the groove.
+        public float ShoulderSurfaceY(Vector3 localPoint, out float distanceFromCenterline)
+        {
+            float t;
+            if (isCurved && !(profile is IClosedEndBlockProfile))
+            {
+                float radius = HalfLength;
+                Vector3 fromCenter = localPoint - radius * (curveOutVec - curveInVec);
+                fromCenter.y = 0f;
+                distanceFromCenterline = Mathf.Abs(fromCenter.magnitude - radius);
+
+                // Inverse of BuildCurvedMesh's radial(angle): both dot
+                // products are non-negative anywhere inside the square
+                // footprint, so this stays within [0, 90] degrees.
+                float angle = Mathf.Atan2(Vector3.Dot(fromCenter, curveInVec), Vector3.Dot(fromCenter, -curveOutVec));
+                t = Mathf.Clamp01(angle / (Mathf.PI * 0.5f));
+            }
+            else
+            {
+                distanceFromCenterline = Mathf.Abs(localPoint.x);
+                t = Mathf.Clamp01((localPoint.z + HalfLength) / size.y);
+            }
+
+            return Drop * (0.5f - t);
+        }
+
         private MeshFilter meshFilter;
         private MeshRenderer meshRenderer;
         private MeshCollider meshCollider;
