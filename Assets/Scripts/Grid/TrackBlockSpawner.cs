@@ -454,7 +454,10 @@ namespace MarbleOrchestra.Grid
 
                 block.SetTrace(CreateTrace(block, type, isTurn, effectiveFallHeight, fallSideLocal, railExtension));
 
-                SoundTriggerContent soundContent = content as SoundTriggerContent;
+                // Start/Goal stay silent even with sound content: they sit
+                // outside the loop's bar, overlapping the neighbouring laps
+                // (see MarbleController.RunTrack/0043).
+                SoundTriggerContent soundContent = type == BlockType.Trigger ? content as SoundTriggerContent : null;
                 TriggerBehavior trigger = soundContent != null ? TriggerBehavior.OnEnter : TriggerBehavior.None; // XylophonePadContent is visual-only, no trigger
                 Color flashColor = soundContent != null ? soundContent.FlashColor : Color.white;
                 block.SetDefinition(new BlockDefinition(cell, inputDir, outputDir, actualEntryY, type, fallHeight,

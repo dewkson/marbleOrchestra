@@ -6,11 +6,14 @@ using UnityEngine.InputSystem;
 namespace MarbleOrchestra.Grid
 {
     /// <summary>
-    /// Drives one Marble per completed Start-to-Goal track of PathGrid's
-    /// last validation, all running concurrently. Each track loops: on
-    /// reaching Goal, its marble is replaced by a fresh one starting at
-    /// Start again, instantly and with no gap between laps. Play is
-    /// refused whenever no track is currently complete.
+    /// Drives the marbles of every completed Start-to-Goal track of
+    /// PathGrid's last validation, all running concurrently. Each track
+    /// loops on one shared BeatClock (see 0043): only the blocks between
+    /// Start and Goal count as the loop's steps, Start and Goal overlap
+    /// the neighbouring laps - so a 16-step loop is an 18-block track -
+    /// and every lap starts on a downbeat of the level's loop
+    /// (LevelData.LoopLengthSteps). Play is refused whenever no track is
+    /// currently complete.
     /// Keyboard-driven for now: SPACE toggles between planning (stopped,
     /// pipes editable) and simulation (playing) - S stops without clearing,
     /// R resets - so it is testable without any UI; the public methods are
@@ -43,8 +46,9 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private float physicsTimeoutMultiplier = 4f; // safety margin over the kinematic duration before a stuck physics marble is force-ended
 
         private readonly List<Marble> marbles = new List<Marble>();
-        private readonly List<Coroutine> runRoutines = new List<Coroutine>();
         private int activeRunCount;
+        private BeatClock clock;
+        private int stepsPerLoop;
 
         /// How long the marble may wait for TrackBlockSpawner to actually
         /// spawn a just-completed track's blocks before this lap is given
@@ -106,31 +110,28 @@ namespace MarbleOrchestra.Grid
             }
 
             ClearMarbles();
-            runRoutines.Clear();
             activeRunCount = 0;
+
+            // Beat 0 is now - every track's first lap starts on it.
+            clock = new BeatClock(cellsPerSecond);
+            stepsPerLoop = grid.Level != null ? grid.Level.LoopLengthSteps : 0;
 
             foreach (PathValidationResult result in grid.LastValidations)
             {
                 if (!result.GoalReached) continue;
 
-                Marble marble = CreateMarbleForMode();
-                marbles.Add(marble);
                 activeRunCount++;
-                runRoutines.Add(StartCoroutine(RunTrack(marble, result.OrderedPath[0])));
+                StartCoroutine(RunTrack(result.OrderedPath[0]));
             }
 
             return true;
         }
 
+        /// Stops every track loop and every lap still in flight (see
+        /// RunLap) - they're the only coroutines this component runs.
         public void Stop()
         {
-            if (runRoutines.Count == 0) return;
-
-            foreach (Coroutine routine in runRoutines)
-            {
-                StopCoroutine(routine);
-            }
-            runRoutines.Clear();
+            StopAllCoroutines();
             activeRunCount = 0;
         }
 
@@ -159,44 +160,76 @@ namespace MarbleOrchestra.Grid
             marbles.Clear();
         }
 
-        /// Loops one marble around the track from startCoord for as long as
-        /// that track stays completely validated. Re-resolves the current
-        /// path from grid.LastValidations before every lap, so a pipe swap
-        /// that breaks the track stops the loop at the next lap boundary.
-        /// The old marble is destroyed and a fresh one spawned at Start in
-        /// the same synchronous step (no yield in between), so the swap at
-        /// Goal reads as instant rather than a teleport of one instance.
-        private IEnumerator RunTrack(Marble marble, Vector2Int startCoord)
+        /// Keeps one track looping for as long as it stays completely
+        /// validated (see 0043). Start and Goal are outside the loop's bar
+        /// (always silent, see TrackBlockSpawner), so a lap's steps are
+        /// only path[1..Count-2] and Start/Goal overlap the neighbouring
+        /// laps: the next marble appears on Start the moment the current
+        /// one reaches the last block before Goal. On a track exactly one
+        /// loop long it then reaches path[1] on the very beat the current
+        /// one reaches Goal - 16 steps = 18 blocks, looping every 16
+        /// beats. On a shorter track it waits parked on Start until its
+        /// lap is due.
+        /// Each lap runs as its own coroutine (RunLap), since two marbles
+        /// share the track during that overlap. Laps are scheduled on the
+        /// shared clock's beat grid - lap k rolls off Start at exactly
+        /// k * LapLengthInSteps beats, so nothing drifts. The path is
+        /// re-resolved before every lap, so a pipe swap that breaks the
+        /// track stops the loop at the next lap.
+        private IEnumerator RunTrack(Vector2Int startCoord)
         {
             IReadOnlyList<Vector2Int> path = FindCurrentPath(startCoord);
+            double startBeat = 0d; // beat this lap's marble rolls off Start - Play() just started the clock
 
             while (path != null)
             {
-                switch (movementMode)
-                {
-                    case MovementMode.Kinematic3D:
-                        yield return RunAlongPath3D(marble, path);
-                        break;
-                    case MovementMode.Physics3D:
-                        yield return RunAlongPathPhysics(marble, path);
-                        break;
-                    default:
-                        yield return RunAlongPath(marble, path);
-                        break;
-                }
-
-                marble.gameObject.SetActive(false);
-                Destroy(marble.gameObject);
-                marbles.Remove(marble);
-
-                path = FindCurrentPath(startCoord);
-                if (path == null) break;
-
-                marble = CreateMarbleForMode();
+                Marble marble = CreateMarbleForMode();
                 marbles.Add(marble);
+                StartCoroutine(RunLap(marble, path, startBeat));
+
+                double nextSpawnBeat = startBeat + path.Count - 2; // this marble reaches the last block before Goal
+                startBeat += LapLengthInSteps(path.Count);
+
+                while (clock.CurrentBeat < nextSpawnBeat) yield return null;
+                path = FindCurrentPath(startCoord);
             }
 
             activeRunCount--;
+        }
+
+        /// One marble's single run from Start to Goal (waiting parked on
+        /// Start until startBeat first), after which it vanishes.
+        private IEnumerator RunLap(Marble marble, IReadOnlyList<Vector2Int> path, double startBeat)
+        {
+            switch (movementMode)
+            {
+                case MovementMode.Kinematic3D:
+                    yield return RunAlongPath3D(marble, path, startBeat);
+                    break;
+                case MovementMode.Physics3D:
+                    yield return RunAlongPathPhysics(marble, path, startBeat);
+                    break;
+                default:
+                    yield return RunAlongPath(marble, path, startBeat);
+                    break;
+            }
+
+            marble.gameObject.SetActive(false);
+            Destroy(marble.gameObject);
+            marbles.Remove(marble);
+        }
+
+        /// A track's lap in beats: its steps (every block except Start and
+        /// Goal) rounded up to whole loops of stepsPerLoop, so every track
+        /// restarts on a shared downbeat - a shorter track rests until the
+        /// next one, a longer one spans several loops. stepsPerLoop 0 falls
+        /// back to the step count itself. Never below one beat, so a bare
+        /// Start-Goal track can't spawn marbles endlessly.
+        private int LapLengthInSteps(int pathLength)
+        {
+            int steps = Mathf.Max(pathLength - 2, 1);
+            if (stepsPerLoop <= 0) return steps;
+            return (steps + stepsPerLoop - 1) / stepsPerLoop * stepsPerLoop;
         }
 
         private Marble CreateMarbleForMode()
@@ -223,28 +256,30 @@ namespace MarbleOrchestra.Grid
             return null;
         }
 
-        private IEnumerator RunAlongPath(Marble marble, IReadOnlyList<Vector2Int> path)
+        /// Flat 2D movement: cell i is reached at beat i of the lap, and the
+        /// Goal holds its beat like every other cell, so a lap is
+        /// path.Count beats in this mode too. Waits parked on Start until
+        /// the lap's downbeat.
+        private IEnumerator RunAlongPath(Marble marble, IReadOnlyList<Vector2Int> path, double lapStartBeat)
         {
-            marble.transform.localPosition = grid.CellToLocalPosition(path[0]);
-            TriggerCellContent(marble, path[0]);
+            int lastIndex = path.Count - 1;
+            int nextTrigger = 0;
 
-            float duration = 1f / Mathf.Max(cellsPerSecond, 0.01f);
-
-            for (int i = 1; i < path.Count; i++)
+            while (true)
             {
-                Vector3 from = grid.CellToLocalPosition(path[i - 1]);
-                Vector3 to = grid.CellToLocalPosition(path[i]);
+                double lapBeat = clock.CurrentBeat - lapStartBeat;
 
-                float elapsed = 0f;
-                while (elapsed < duration)
-                {
-                    elapsed += Time.deltaTime;
-                    marble.transform.localPosition = Vector3.Lerp(from, to, elapsed / duration);
-                    yield return null;
-                }
+                float position = (float)System.Math.Max(0d, System.Math.Min(lapBeat, lastIndex));
+                int from = Mathf.FloorToInt(position);
+                int to = Mathf.Min(from + 1, lastIndex);
+                marble.transform.localPosition = Vector3.Lerp(grid.CellToLocalPosition(path[from]), grid.CellToLocalPosition(path[to]), position - from);
 
-                marble.transform.localPosition = to;
-                TriggerCellContent(marble, path[i]);
+                // Every cell reached by now - several at once only after a
+                // frame hitch, so no note is ever skipped.
+                while (nextTrigger <= lastIndex && nextTrigger <= lapBeat) TriggerCellContent(marble, path[nextTrigger++]);
+
+                if (lapBeat >= path.Count) yield break;
+                yield return null;
             }
         }
 
@@ -267,7 +302,12 @@ namespace MarbleOrchestra.Grid
         /// crosses the cell boundary. That phase is identical on every
         /// Trigger block (see TriggerFallMarbleTrace), so the notes stay a
         /// whole number of beats apart.
-        private IEnumerator RunAlongPath3D(Marble marble, IReadOnlyList<Vector2Int> path)
+        /// Position is read off the shared clock every frame (block =
+        /// whole beats into the lap, progress = the fraction), never
+        /// accumulated from Time.deltaTime - so it can't drift (see 0043).
+        /// Before the lap's downbeat the marble waits parked at the very
+        /// beginning of Start's trace.
+        private IEnumerator RunAlongPath3D(Marble marble, IReadOnlyList<Vector2Int> path, double lapStartBeat)
         {
             // Park the marble at Start right away (a rough guess is fine -
             // it's replaced by the first real trace sample below), so it
@@ -284,37 +324,38 @@ namespace MarbleOrchestra.Grid
 
             bool hasPreviousPosition = false;
             Vector3 previousPosition = Vector3.zero;
+            int nextTrigger = 0;
 
-            for (int i = 0; i < path.Count; i++)
+            while (true)
             {
-                // Re-resolved per block rather than cached for the whole
-                // lap, so a pipe swap that rebuilds this track underneath
-                // a running marble ends its lap cleanly (RunTrack then
-                // re-checks the path) instead of sampling dead blocks.
-                if (!terrain.TryGetTraceSegment(path, i, cellsPerSecond, out TrackTraceSegment segment)) yield break;
+                double lapBeat = clock.CurrentBeat - lapStartBeat;
 
-                float elapsed = 0f;
-                bool triggered = false;
+                // Segments are re-resolved every frame rather than cached
+                // for the whole lap, so a pipe swap that rebuilds this
+                // track underneath a running marble ends its lap cleanly
+                // (RunTrack then re-checks the path) instead of sampling
+                // dead blocks.
+                double position = System.Math.Max(0d, System.Math.Min(lapBeat, path.Count));
+                int index = System.Math.Min((int)position, path.Count - 1);
+                if (!terrain.TryGetTraceSegment(path, index, cellsPerSecond, out TrackTraceSegment segment)) yield break;
 
-                while (true)
+                Vector3 worldPosition = segment.SampleWorld((float)(position - index) * segment.Duration, marbleRadius3D);
+                if (hasPreviousPosition) RollMarble(marble, previousPosition, worldPosition);
+                marble.transform.position = worldPosition;
+                previousPosition = worldPosition;
+                hasPreviousPosition = true;
+
+                // Every block whose impact moment has passed - several at
+                // once only after a frame hitch, so no note is ever skipped.
+                while (nextTrigger < path.Count)
                 {
-                    Vector3 position = segment.SampleWorld(elapsed, marbleRadius3D);
-                    if (hasPreviousPosition) RollMarble(marble, previousPosition, position);
-                    marble.transform.position = position;
-                    previousPosition = position;
-                    hasPreviousPosition = true;
-
-                    if (!triggered && elapsed >= segment.ImpactTime)
-                    {
-                        triggered = true;
-                        TriggerCellContent(marble, path[i]);
-                    }
-
-                    if (elapsed >= segment.Duration) break;
-
-                    yield return null;
-                    elapsed = Mathf.Min(elapsed + Time.deltaTime, segment.Duration);
+                    if (!terrain.TryGetTraceSegment(path, nextTrigger, cellsPerSecond, out TrackTraceSegment triggerSegment)) yield break;
+                    if (lapBeat < nextTrigger + triggerSegment.ImpactTime / triggerSegment.Duration) break;
+                    TriggerCellContent(marble, path[nextTrigger++]);
                 }
+
+                if (lapBeat >= path.Count) yield break;
+                yield return null;
             }
         }
 
@@ -355,13 +396,22 @@ namespace MarbleOrchestra.Grid
         /// right at Start itself - and lets Unity physics roll it along the
         /// terrain's MeshCollider groove until it gets close to the Goal
         /// hole (or a generous timeout elapses, in case it derails).
-        private IEnumerator RunAlongPathPhysics(Marble marble, IReadOnlyList<Vector2Int> path)
+        /// Held kinematic above Start until the lap's downbeat, so it's
+        /// only ever dropped ON the beat grid - the roll itself isn't.
+        private IEnumerator RunAlongPathPhysics(Marble marble, IReadOnlyList<Vector2Int> path, double lapStartBeat)
         {
             Vector3 startPos = terrain.GetShoulderWorldPosition(path, physicsSpawnOffset) + Vector3.up * (marbleRadius3D + physicsDropHeight);
             marble.transform.position = startPos;
 
             Rigidbody rb = marble.GetComponent<Rigidbody>();
-            if (rb != null) rb.linearVelocity = Vector3.zero;
+            if (rb != null) rb.isKinematic = true;
+            while (clock.CurrentBeat < lapStartBeat) yield return null;
+
+            if (rb != null)
+            {
+                rb.isKinematic = false;
+                rb.linearVelocity = Vector3.zero;
+            }
 
             TriggerCellContent(marble, path[0]);
 

@@ -14,12 +14,15 @@ namespace MarbleOrchestra.Grid
     {
         [SerializeField] private int width = 4;
         [SerializeField] private int height = 3;
+        [Tooltip("Loop length in steps (one beat each). Only the blocks between Start and Goal count - Start/Goal are silent and overlap the neighbouring laps, so a 16-step loop is an 18-block track. Every track's lap is rounded up to whole loops, so all tracks restart on a shared downbeat. 0 = each track loops with its own step count.")]
+        [SerializeField] private int loopLengthSteps = 16;
         [FormerlySerializedAs("cards")]
         [SerializeField] private List<PipeDefinition> pipes = new List<PipeDefinition>();
         [SerializeField] private List<CellContentDefinition> contents = new List<CellContentDefinition>();
 
         public int Width => width;
         public int Height => height;
+        public int LoopLengthSteps => Mathf.Max(0, loopLengthSteps);
         public IReadOnlyList<PipeDefinition> Pipes => pipes;
         public IReadOnlyList<CellContentDefinition> Contents => contents;
 
@@ -109,11 +112,18 @@ namespace MarbleOrchestra.Grid
 
             int startCount = 0;
             int goalCount = 0;
-            foreach (PipeDefinition pipe in pipes)
+            for (int i = 0; i < pipes.Count; i++)
             {
+                PipeDefinition pipe = pipes[i];
                 if (pipe == null) continue;
                 if (pipe.Role == PipeRole.Start) startCount++;
                 if (pipe.Role == PipeRole.Goal) goalCount++;
+
+                bool isStartOrGoal = pipe.Role == PipeRole.Start || pipe.Role == PipeRole.Goal;
+                if (isStartOrGoal && i < contents.Count && contents[i] is ITriggerCellContent)
+                {
+                    Debug.LogWarning($"{name}: cell {i % width},{i / width} holds a {pipe.Role} pipe and trigger content - Start/Goal are always silent, the content is ignored there.", this);
+                }
             }
 
             if (startCount < 1)

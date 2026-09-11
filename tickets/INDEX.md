@@ -18,6 +18,7 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0033 | Licht und Schatten optimieren | Idea | 🟡 Medium | ⚪ Open | Other | 2026-09-04 |
 | 0036 | Instrumentenreaktionen in 3D mit Partikeleffekt anreichern | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-04 |
 | 0037 | Sound für Murmel-Bewegung einbinden | Feature | 🟡 Medium | ⚪ Open | Audio | 2026-09-04 |
+| 0043 | Globaler Beat-Takt und Loop-Länge pro Level | Feature | 🟡 Medium | 🟡 In Progress | Audio | 2026-09-11 |
 
 ## Alle Tickets
 
@@ -65,3 +66,4 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0040 | Gebogene Rillen-Geometrie für 90°-Kurven-Blocks | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-09 |
 | 0041 | Korrekte Kinematic3D-Bewegung bei Kurven und Trigger-Fall verifizieren | Task | 🟡 Medium | ✅ Done | Physics | 2026-09-09 |
 | 0042 | Visuelles Trigger-Feedback auf Xylophon-Geometrie | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-10 |
+| 0043 | Globaler Beat-Takt und Loop-Länge pro Level | Feature | 🟡 Medium | 🟡 In Progress | Audio | 2026-09-11 |

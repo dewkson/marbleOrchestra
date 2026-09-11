@@ -21,6 +21,7 @@ namespace MarbleOrchestra.Grid
         public int Width { get; private set; }
         public int Height { get; private set; }
         public float CellSize => cellSize;
+        public LevelData Level => level;
         public IReadOnlyList<PathValidationResult> LastValidations { get; private set; } = new List<PathValidationResult>();
 
         private void Awake()
