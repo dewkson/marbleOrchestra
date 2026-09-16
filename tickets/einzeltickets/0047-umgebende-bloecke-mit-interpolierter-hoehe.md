@@ -3,7 +3,7 @@ id: 0047
 title: Umgebende Blöcke mit interpolierter Höhe
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Gameplay
 created: 2026-09-16
 ---
@@ -75,3 +75,47 @@ direkten Bahn-Nachbarn ist aus der Beschreibung nicht eindeutig ableitbar
 und müsste beim Umsetzen festgelegt werden.
 
 ## Notizen
+
+Umsetzung in `TrackBlockSpawner.cs` (`SyncFillerBlocks()`, aufgerufen aus
+`Update()` neben dem bestehenden `SyncTracks()`):
+
+- `CollectTrackHeights()` sammelt für jede aktuell gespawnte Bahn-Zelle
+  (über alle Tracks/Sublevels hinweg) ihre tatsächliche Höhe
+  (`TrackBlock.transform.localPosition.y`, identisch zu dem, was
+  `BuildTrack` als `height` auch für `TrackBlock.Height` verwendet).
+- `SolveFillerHeights()` löst für jede der übrigen Zellen im ganzen
+  `Width`x`Height`-Grid (nicht bebaubare, unbenutzte und Zellen außerhalb
+  jedes Sublevel-Bereichs) eine Höhe: pro Achse (Links/Rechts,
+  Oben/Unten) exakter Mittelwert bei zwei gegenüberliegenden bekannten
+  Nachbarn; bei nur einem direkten Nachbarn wird dessen übernächster
+  Nachbar in derselben Richtung herangezogen, um das Gefälle per linearer
+  Extrapolation (`2*nah - fern`) fortzusetzen. Löst in mehreren
+  Durchgängen von außen nach innen auf (eine in Durchgang N gelöste Zelle
+  wird in Durchgang N+1 selbst zum gültigen Nachbarn), damit sich ein
+  Gefälle über mehrere Blöcke hinweg fortsetzt statt abrupt zu wechseln.
+  Zwei Prioritätsstufen: echte Zwei-Punkt-Ableitungen (Mittelwert/
+  Extrapolation) werden zuerst über das ganze Grid ausgeschöpft, bevor
+  eine Zelle mit nur einem einzelnen bekannten Nachbarn (keine zweite
+  Referenz für eine Steigung) diesen einfach flach übernimmt - damit
+  gewinnt eine echte Steigung immer gegen eine willkürliche flache
+  Fortsetzung, unabhängig von der Verarbeitungsreihenfolge. Für die von
+  der Beschreibung offen gelassene Frage (siehe unten) war das die
+  gewählte Festlegung. Komplett isolierte Zellen ohne jeden Bezug zu
+  einer Bahn-Zelle fallen auf `startHeight` zurück (dieselbe Baseline, an
+  der auch die Bahn-Höhenkette hängt).
+- `BuildFillerBlock()` instanziiert dafür ein normales `TrackBlock` mit
+  `FlatBoxProfile` (flache Planke, keine Rille) statt eines
+  Groove-Profils, `BlockType.Filler` (neu in `BlockType.cs`) als
+  Kennzeichnung, und dekoriert es wie einen Normal-Block über
+  `TerrainDecoration.Scatter` (mit `grooveRadius = 0`, da kein Rillen-
+  Bereich freigehalten werden muss).
+- Alle Filler-Blöcke hängen unter einem einzigen `FillerBlocks`-Root, der
+  komplett neu gebaut wird, sobald sich die Menge/Höhe der Bahn-Zellen
+  ändert (Vergleich gegen `lastTrackHeights`) - anders als bei
+  `SyncTracks` gibt es hier kein laufendes Murmel-/Zustands-Objekt, das
+  über einen Rebuild hinweg erhalten bleiben müsste.
+
+Die Blöcke stehen unabhängig vom Spielzustand immer (auch schon während
+der 2D-Planung, bevor überhaupt zum ersten Mal simuliert wird) - sichtbar
+werden sie ohnehin erst, wenn die isometrische 3D-Ansicht aktiv ist, genau
+wie die echten Bahn-Blöcke auch.

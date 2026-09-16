@@ -56,6 +56,11 @@ namespace MarbleOrchestra.Grid
     /// fall into a diagonal glide across the block - see 0041.
     /// Lives on its own GameObject; grid, marbleController and
     /// trackBlockPrefab are wired in the Inspector or auto-found at Awake.
+    /// Surrounding, non-rollable filler terrain (see 0047,
+    /// SyncFillerBlocks) covers every OTHER grid cell - non-buildable
+    /// ones (0045), simply unused ones, and anything outside every
+    /// SubLevel's own Area (0046) - so the track reads as carved into a
+    /// continuous landscape instead of floating over an empty plane.
     /// </summary>
     public class TrackBlockSpawner : MonoBehaviour
     {
@@ -88,6 +93,12 @@ namespace MarbleOrchestra.Grid
         private Material sharedGrooveMaterial;
         private Material sharedTunnelMaterial;
 
+        // See 0047/SyncFillerBlocks: the surrounding, non-rollable terrain
+        // that fills every grid cell NOT covered by a track block.
+        private readonly Dictionary<Vector2Int, float> lastTrackHeights = new Dictionary<Vector2Int, float>();
+        private GameObject fillerRoot;
+        private static readonly Vector2Int[] FillerAxisOffsets = { Direction.Right.ToGridOffset(), Direction.Up.ToGridOffset() };
+
         private void Awake()
         {
             if (grid == null) grid = FindAnyObjectByType<PathGrid>();
@@ -105,6 +116,7 @@ namespace MarbleOrchestra.Grid
         private void Update()
         {
             SyncTracks(FindCompletedPaths());
+            SyncFillerBlocks();
         }
 
         /// True once this exact path's blocks actually exist - false in
@@ -335,6 +347,220 @@ namespace MarbleOrchestra.Grid
                 if (FindTrackByStart(path[0]) != null) continue;
                 tracks.Add(BuildTrack(path));
             }
+        }
+
+        /// Surrounds the actual marble track with flat, non-rollable
+        /// filler blocks (see 0047) for every grid cell NOT covered by a
+        /// track block right now - permanently non-buildable cells (see
+        /// 0045), simply unused ones, and any area outside every
+        /// SubLevel's own Area if SubLevels don't tile the whole grid (see
+        /// 0046). Each filler's own height comes from its neighbours (see
+        /// SolveFillerHeights) rather than a track's own height chain, so
+        /// the terrain reads as one continuous landscape the track is
+        /// carved into rather than an island floating in a flat plane.
+        /// Rebuilt in one shot whenever the set of track cells (or any of
+        /// their heights) actually changes - cheap enough at
+        /// grid-prototype scale, and simpler than diffing individual
+        /// filler blocks the way SyncTracks diffs individual tracks
+        /// (fillers carry no marble/running state to preserve across a
+        /// rebuild).
+        private void SyncFillerBlocks()
+        {
+            Dictionary<Vector2Int, float> trackHeights = CollectTrackHeights();
+            if (FillerInputUnchanged(trackHeights)) return;
+
+            lastTrackHeights.Clear();
+            foreach (KeyValuePair<Vector2Int, float> entry in trackHeights) lastTrackHeights[entry.Key] = entry.Value;
+
+            if (fillerRoot != null) Destroy(fillerRoot);
+            fillerRoot = new GameObject("FillerBlocks");
+            fillerRoot.transform.SetParent(transform, false);
+
+            Vector2 blockSize = new Vector2(grid.CellSize, grid.CellSize);
+            foreach (KeyValuePair<Vector2Int, float> entry in SolveFillerHeights(trackHeights))
+            {
+                BuildFillerBlock(entry.Key, entry.Value, blockSize);
+            }
+        }
+
+        private Dictionary<Vector2Int, float> CollectTrackHeights()
+        {
+            Dictionary<Vector2Int, float> result = new Dictionary<Vector2Int, float>();
+            foreach (TrackInstance track in tracks)
+            {
+                for (int i = 0; i < track.Path.Count && i < track.Blocks.Count; i++)
+                {
+                    TrackBlock block = track.Blocks[i];
+                    if (block != null) result[track.Path[i]] = block.transform.localPosition.y;
+                }
+            }
+            return result;
+        }
+
+        private bool FillerInputUnchanged(Dictionary<Vector2Int, float> current)
+        {
+            if (fillerRoot == null) return false;
+            if (current.Count != lastTrackHeights.Count) return false;
+
+            foreach (KeyValuePair<Vector2Int, float> entry in current)
+            {
+                if (!lastTrackHeights.TryGetValue(entry.Key, out float previous) || !Mathf.Approximately(previous, entry.Value))
+                    return false;
+            }
+            return true;
+        }
+
+        /// Fills in a height for every grid cell not already covered by a
+        /// track (see SyncFillerBlocks), so the surrounding terrain reads
+        /// as one continuous landscape rather than a flat plane the track
+        /// floats over. Two opposite direct neighbours (known, or already
+        /// solved in an earlier pass) average straight to the height
+        /// between them. A single direct neighbour plus the next one
+        /// further out in the SAME direction instead extrapolates that
+        /// pair's own slope onward (2*near - far), so a continuous incline
+        /// keeps rising/falling into the surrounding terrain instead of
+        /// flattening out the moment the track ends. Solved outward from
+        /// the known track cells in repeated passes - a cell resolved in
+        /// pass N becomes a usable neighbour in pass N+1, which is what
+        /// lets a slope keep propagating more than one cell deep.
+        /// Every genuine two-point read (average or slope extrapolation)
+        /// is exhausted across the WHOLE grid first, in its own priority
+        /// tier, before a cell with only ever a single lone neighbour
+        /// falls back to flatly copying it - so a real incline always
+        /// wins over an arbitrary flat guess wherever one is available,
+        /// regardless of which cell happens to be processed first. A cell
+        /// no pass in either tier ever reaches (an isolated blocked/unused
+        /// region with no path back to any track cell) settles at
+        /// startHeight, the same baseline the track's own height chain
+        /// hangs from.
+        private Dictionary<Vector2Int, float> SolveFillerHeights(Dictionary<Vector2Int, float> trackHeights)
+        {
+            Dictionary<Vector2Int, float> resolved = new Dictionary<Vector2Int, float>(trackHeights);
+            List<Vector2Int> pending = new List<Vector2Int>();
+
+            for (int y = 0; y < grid.Height; y++)
+            {
+                for (int x = 0; x < grid.Width; x++)
+                {
+                    Vector2Int coord = new Vector2Int(x, y);
+                    if (!resolved.ContainsKey(coord)) pending.Add(coord);
+                }
+            }
+
+            // Width+Height passes are always enough for a slope to cross
+            // the whole grid from any edge.
+            int maxPasses = grid.Width + grid.Height;
+            ResolveFillerPasses(resolved, pending, maxPasses, allowFlatFallback: false);
+            ResolveFillerPasses(resolved, pending, maxPasses, allowFlatFallback: true);
+
+            foreach (Vector2Int coord in pending) resolved[coord] = startHeight;
+
+            Dictionary<Vector2Int, float> fillerHeights = new Dictionary<Vector2Int, float>();
+            foreach (KeyValuePair<Vector2Int, float> entry in resolved)
+            {
+                if (!trackHeights.ContainsKey(entry.Key)) fillerHeights[entry.Key] = entry.Value;
+            }
+            return fillerHeights;
+        }
+
+        private static void ResolveFillerPasses(Dictionary<Vector2Int, float> resolved, List<Vector2Int> pending, int maxPasses, bool allowFlatFallback)
+        {
+            for (int pass = 0; pass < maxPasses && pending.Count > 0; pass++)
+            {
+                bool anyResolved = false;
+
+                for (int i = pending.Count - 1; i >= 0; i--)
+                {
+                    if (!TryDeriveFillerHeight(pending[i], resolved, allowFlatFallback, out float height)) continue;
+
+                    resolved[pending[i]] = height;
+                    pending.RemoveAt(i);
+                    anyResolved = true;
+                }
+
+                if (!anyResolved) break;
+            }
+        }
+
+        /// One cell's candidate height per axis (Left/Right, Down/Up),
+        /// averaged across however many axes actually produced one - see
+        /// SolveFillerHeights for the per-axis rules themselves.
+        /// allowFlatFallback gates the lone-neighbour case specifically -
+        /// see SolveFillerHeights' two-tier call.
+        private static bool TryDeriveFillerHeight(Vector2Int coord, Dictionary<Vector2Int, float> resolved, bool allowFlatFallback, out float height)
+        {
+            float sum = 0f;
+            int count = 0;
+
+            foreach (Vector2Int axis in FillerAxisOffsets)
+            {
+                bool hasNegative = resolved.TryGetValue(coord - axis, out float negative);
+                bool hasPositive = resolved.TryGetValue(coord + axis, out float positive);
+
+                if (hasNegative && hasPositive)
+                {
+                    sum += (negative + positive) * 0.5f;
+                }
+                else if (hasNegative && resolved.TryGetValue(coord - axis * 2, out float negativeFar))
+                {
+                    sum += 2f * negative - negativeFar; // continue the negative-side slope onward
+                }
+                else if (hasPositive && resolved.TryGetValue(coord + axis * 2, out float positiveFar))
+                {
+                    sum += 2f * positive - positiveFar; // continue the positive-side slope onward
+                }
+                else if (allowFlatFallback && hasNegative)
+                {
+                    sum += negative; // no second point to derive a slope from - continue flat instead
+                }
+                else if (allowFlatFallback && hasPositive)
+                {
+                    sum += positive;
+                }
+                else
+                {
+                    continue;
+                }
+
+                count++;
+            }
+
+            if (count == 0)
+            {
+                height = 0f;
+                return false;
+            }
+
+            height = sum / count;
+            return true;
+        }
+
+        private void BuildFillerBlock(Vector2Int cell, float height, Vector2 blockSize)
+        {
+            float clampedHeight = Mathf.Max(height, minBlockHeight);
+
+            TrackBlock block = Instantiate(trackBlockPrefab, fillerRoot.transform);
+            block.name = $"Filler_{cell.x}_{cell.y}";
+
+            Vector3 cellPos = grid.CellToLocalPosition(cell);
+            block.transform.localPosition = new Vector3(cellPos.x, clampedHeight, cellPos.y);
+
+            block.ClearCurve();
+            block.Profile = FlatBoxProfile.Instance;
+            block.Size = blockSize;
+            block.Height = clampedHeight;
+            block.Material = sharedMaterial;
+            block.GrooveMaterial = sharedMaterial; // FlatBoxProfile has no groove segments, so this is never actually sampled
+            block.YawDegrees = 0f;
+            block.TiltDegrees = 0f;
+
+            block.SetDefinition(new BlockDefinition(cell, Direction.None, Direction.None, clampedHeight,
+                BlockType.Filler, 0f, 0f, TriggerBehavior.None, null, BlockDefinition.DefaultBiome, Color.white));
+
+            // grooveRadius 0 here (unlike a real track block): a flat
+            // filler has no groove to keep decorations clear of, so they
+            // may as well scatter across its entire top surface.
+            TerrainDecoration.Scatter(block, cell, BlockDefinition.DefaultBiome, 0f, blockSize.x * 0.5f, blockSize, terrainDecorationSettings);
         }
 
         private TrackInstance BuildTrack(IReadOnlyList<Vector2Int> path)

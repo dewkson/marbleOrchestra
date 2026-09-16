@@ -6,13 +6,15 @@ namespace MarbleOrchestra.Grid
     /// in the 2D level editor: Normal/Start/Goal). TrackBlockSpawner derives
     /// exactly one BlockType per spawned block from its position in the
     /// path (Start/Goal) and its CellContentDefinition (Trigger), falling
-    /// back to Normal - see 0039.
+    /// back to Normal - see 0039. Filler (see 0047) is the odd one out: it
+    /// isn't part of any marble path at all, just surrounding terrain.
     /// </summary>
     public enum BlockType
     {
         Start,
         Goal,
         Normal,
-        Trigger
+        Trigger,
+        Filler
     }
 }
