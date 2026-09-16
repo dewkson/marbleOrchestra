@@ -91,16 +91,23 @@ namespace MarbleOrchestra.Grid
             return true;
         }
 
-        /// World-space bounds of the grid's four corner cells, using the
+        /// World-space bounds of the four corner cells of the currently
+        /// active SubLevel's own area (see 0046's PathGrid.ActiveSubLevelArea -
+        /// the whole grid if no SubLevels are defined, keeping older
+        /// single-puzzle levels framed exactly as before), using the
         /// grid's actual transform (position AND rotation) - not just its
         /// local cell coordinates - so it's correct for any grid
         /// orientation, not only an axis-aligned one.
         private Bounds ComputeGridWorldBounds()
         {
-            Vector3 c00 = grid.transform.TransformPoint(grid.CellToLocalPosition(new Vector2Int(0, 0)));
-            Vector3 c10 = grid.transform.TransformPoint(grid.CellToLocalPosition(new Vector2Int(grid.Width - 1, 0)));
-            Vector3 c01 = grid.transform.TransformPoint(grid.CellToLocalPosition(new Vector2Int(0, grid.Height - 1)));
-            Vector3 c11 = grid.transform.TransformPoint(grid.CellToLocalPosition(new Vector2Int(grid.Width - 1, grid.Height - 1)));
+            RectInt area = grid.ActiveSubLevelArea;
+            Vector2Int min = new Vector2Int(area.xMin, area.yMin);
+            Vector2Int max = new Vector2Int(area.xMax - 1, area.yMax - 1);
+
+            Vector3 c00 = grid.transform.TransformPoint(grid.CellToLocalPosition(min));
+            Vector3 c10 = grid.transform.TransformPoint(grid.CellToLocalPosition(new Vector2Int(max.x, min.y)));
+            Vector3 c01 = grid.transform.TransformPoint(grid.CellToLocalPosition(new Vector2Int(min.x, max.y)));
+            Vector3 c11 = grid.transform.TransformPoint(grid.CellToLocalPosition(max));
 
             Bounds bounds = new Bounds(c00, Vector3.zero);
             bounds.Encapsulate(c10);

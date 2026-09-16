@@ -2,7 +2,7 @@
 id: 0037
 title: Sound für Murmel-Bewegung einbinden
 type: Feature
-priority: Medium
+priority: Low
 status: Open
 area: Audio
 created: 2026-09-04

@@ -29,6 +29,14 @@ namespace MarbleOrchestra.Grid
     /// outward and checks whether any Goal pipe is reachable - one result
     /// per Start pipe, so a level can have several independent tracks.
     /// No rendering here.
+    /// Every SubLevel reached so far (see PathGrid.IsInUnlockedSubLevel)
+    /// is evaluated, not just the one currently being edited - once
+    /// unlocked, a SubLevel's track keeps validating/looping forever
+    /// alongside every later one (see 0046 follow-up: several concurrent
+    /// tracks are the point, layered musical voices rather than one
+    /// puzzle at a time). Each Start's own traversal still stays confined
+    /// to its own SubLevel's Area (see PathGrid.GetOwnSubLevelArea), so
+    /// two unlocked SubLevels can never bridge into one track.
     /// </summary>
     public static class PathValidator
     {
@@ -37,6 +45,7 @@ namespace MarbleOrchestra.Grid
             List<PathValidationResult> results = new List<PathValidationResult>();
             foreach (PathPipe start in grid.FindPipesByRole(PipeRole.Start))
             {
+                if (!grid.IsInUnlockedSubLevel(start.Coord)) continue;
                 results.Add(EvaluateFrom(grid, start));
             }
             return results;
@@ -44,6 +53,8 @@ namespace MarbleOrchestra.Grid
 
         private static PathValidationResult EvaluateFrom(PathGrid grid, PathPipe start)
         {
+            RectInt bounds = grid.GetOwnSubLevelArea(start.Coord);
+
             HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
             List<Vector2Int> orderedPath = new List<Vector2Int>();
 
@@ -64,7 +75,7 @@ namespace MarbleOrchestra.Grid
                     if ((connections & dir) == 0) continue;
 
                     Vector2Int neighborCoord = coord + dir.ToGridOffset();
-                    if (!grid.IsInBounds(neighborCoord) || visited.Contains(neighborCoord)) continue;
+                    if (!grid.IsInBounds(neighborCoord) || !bounds.Contains(neighborCoord) || visited.Contains(neighborCoord)) continue;
 
                     PathPipe neighbor = grid.GetPipe(neighborCoord);
                     if (neighbor == null || neighbor.Definition == null) continue;
@@ -78,7 +89,7 @@ namespace MarbleOrchestra.Grid
                 }
             }
 
-            PathPipe goal = FindReachedGoal(grid, visited);
+            PathPipe goal = FindReachedGoal(grid, visited, bounds);
             bool goalReached = goal != null;
 
             if (goalReached)
@@ -96,11 +107,11 @@ namespace MarbleOrchestra.Grid
             return new PathValidationResult(visited, goalReached, orderedPath);
         }
 
-        private static PathPipe FindReachedGoal(PathGrid grid, HashSet<Vector2Int> visited)
+        private static PathPipe FindReachedGoal(PathGrid grid, HashSet<Vector2Int> visited, RectInt bounds)
         {
             foreach (PathPipe goal in grid.FindPipesByRole(PipeRole.Goal))
             {
-                if (visited.Contains(goal.Coord)) return goal;
+                if (bounds.Contains(goal.Coord) && visited.Contains(goal.Coord)) return goal;
             }
             return null;
         }

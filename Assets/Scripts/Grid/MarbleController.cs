@@ -35,6 +35,7 @@ namespace MarbleOrchestra.Grid
 
         [SerializeField] private PathGrid grid;
         [SerializeField] private TrackBlockSpawner terrain;
+        [SerializeField] private CameraFitter cameraFitter;
         [SerializeField] private MovementMode movementMode = MovementMode.Kinematic2D;
         [SerializeField] private float cellsPerSecond = 3f;
         [SerializeField] private float marbleRadius = 0.15f;
@@ -62,18 +63,31 @@ namespace MarbleOrchestra.Grid
         public float MarbleRadius3D => marbleRadius3D;
 
         /// The marble a follow-camera (see CameraModeTransition) should
-        /// track: simply the first currently active one. Good enough for
-        /// the common single-track case; with multiple concurrent tracks
-        /// it's an arbitrary pick that can shift to a different track when
-        /// this one loops (RunTrack re-adds its fresh marble at the end of
-        /// the list each lap), rather than something worth tracking more
-        /// precisely for a first version.
-        public Transform PrimaryMarbleTransform => marbles.Count > 0 ? marbles[0].transform : null;
+        /// track: the first currently active one whose Start belongs to
+        /// the SubLevel being edited right now (see 0046) - with several
+        /// SubLevels unlocked and looping at once, an unscoped "first in
+        /// the list" pick could just as well land on an already-finished
+        /// earlier SubLevel's marble instead of the one the player is
+        /// actually working on. Null while the active SubLevel has no
+        /// marble running (e.g. its track isn't complete/playing yet) -
+        /// CameraModeTransition's FollowMarble already no-ops on null.
+        public Transform PrimaryMarbleTransform
+        {
+            get
+            {
+                foreach (Marble marble in marbles)
+                {
+                    if (grid.IsInActiveSubLevel(marble.StartCoord)) return marble.transform;
+                }
+                return null;
+            }
+        }
 
         private void Awake()
         {
             if (grid == null) grid = FindAnyObjectByType<PathGrid>();
             if (terrain == null) terrain = FindAnyObjectByType<TrackBlockSpawner>();
+            if (cameraFitter == null) cameraFitter = FindAnyObjectByType<CameraFitter>();
         }
 
         private void Update()
@@ -83,6 +97,7 @@ namespace MarbleOrchestra.Grid
             if (Keyboard.current.spaceKey.wasPressedThisFrame) TogglePlay();
             if (Keyboard.current.sKey.wasPressedThisFrame) Stop();
             if (Keyboard.current.rKey.wasPressedThisFrame) ResetMarble();
+            if (Keyboard.current.nKey.wasPressedThisFrame) TryAdvanceSubLevel();
         }
 
         /// Switches between planning (stopped, pipes editable) and
@@ -141,6 +156,34 @@ namespace MarbleOrchestra.Grid
             ClearMarbles();
         }
 
+        /// Progresses to the next SubLevel (see 0046) once the active one
+        /// has a completed track - the same gate as CanPlay, so "build a
+        /// valid track first" applies to advancing exactly as it does to
+        /// test-playing it. Stops/clears any running simulation, since a
+        /// SubLevel switch changes which tracks PathValidator resolves
+        /// next (see PathGrid.ActiveSubLevelArea), and re-fits the 2D
+        /// planning camera onto the newly active area right away - not
+        /// just on the next play/stop transition (see CameraModeTransition,
+        /// which only refits automatically when IsPlaying flips).
+        public bool TryAdvanceSubLevel()
+        {
+            if (!CanPlay)
+            {
+                Debug.LogWarning("MarbleController: Naechstes Sublevel ignoriert, aktuell existiert keine gueltige Bahn im aktiven Sublevel.");
+                return false;
+            }
+
+            if (!grid.AdvanceToNextSubLevel())
+            {
+                Debug.LogWarning("MarbleController: Es gibt kein weiteres Sublevel.");
+                return false;
+            }
+
+            ResetMarble();
+            cameraFitter?.Fit();
+            return true;
+        }
+
         private bool HasCompletedTrack()
         {
             IReadOnlyList<PathValidationResult> results = grid.LastValidations;
@@ -184,6 +227,7 @@ namespace MarbleOrchestra.Grid
             while (path != null)
             {
                 Marble marble = CreateMarbleForMode();
+                marble.SetStartCoord(startCoord);
                 marbles.Add(marble);
                 StartCoroutine(RunLap(marble, path, startBeat));
 

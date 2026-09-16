@@ -310,6 +310,14 @@ namespace MarbleOrchestra.Grid
         /// disappeared, or newly completed) are torn down/rebuilt - an
         /// unrelated pipe swap elsewhere in the grid leaves other tracks'
         /// blocks (and any marble currently running on them) untouched.
+        /// Every SubLevel reached so far keeps validating and appearing in
+        /// `paths` for as long as it's unlocked (see 0046 follow-up,
+        /// PathGrid.IsInUnlockedSubLevel) - once reached, its pipes are
+        /// also hidden/non-interactive (PathGrid's own visibility toggle),
+        /// so its path can't actually change any more either. That's what
+        /// keeps several SubLevels' tracks spawning marbles side by side
+        /// without any special-casing here: an earlier SubLevel's track
+        /// just keeps matching every frame like any other stable track.
         private void SyncTracks(List<IReadOnlyList<Vector2Int>> paths)
         {
             for (int i = tracks.Count - 1; i >= 0; i--)
@@ -507,11 +515,15 @@ namespace MarbleOrchestra.Grid
         }
 
         /// World-space bounds encapsulating every currently spawned block
-        /// across all tracks, from their MeshRenderer.bounds (already
-        /// reflecting each block's real position, yaw and staircase
-        /// height). Used by CameraModeTransition (see 0029) to frame the
-        /// 3D view so the whole track fits on screen. False (bounds left
-        /// at default) if no track is currently spawned.
+        /// of tracks belonging to the SubLevel being edited right now (see
+        /// 0046) - other SubLevels may well be unlocked and looping
+        /// alongside it (see PathGrid.IsInUnlockedSubLevel), but the
+        /// guided isometric camera (see CameraModeTransition) should only
+        /// ever frame the one the player is actually working on, not
+        /// every track ever built. From each block's MeshRenderer.bounds
+        /// (already reflecting its real position, yaw and staircase
+        /// height). False (bounds left at default) if the active
+        /// SubLevel's track isn't currently spawned.
         public bool TryGetTracksWorldBounds(out Bounds bounds)
         {
             bounds = default;
@@ -519,6 +531,8 @@ namespace MarbleOrchestra.Grid
 
             foreach (TrackInstance track in tracks)
             {
+                if (grid != null && !grid.IsInActiveSubLevel(track.Path[0])) continue;
+
                 foreach (TrackBlock block in track.Blocks)
                 {
                     if (block == null) continue;

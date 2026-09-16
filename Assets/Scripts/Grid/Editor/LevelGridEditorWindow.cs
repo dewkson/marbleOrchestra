@@ -14,7 +14,8 @@ namespace MarbleOrchestra.Grid.Editor
         private enum PaintLayer
         {
             Pipe,
-            Content
+            Content,
+            Blocked
         }
 
         private const float CellSize = 48f;
@@ -53,6 +54,20 @@ namespace MarbleOrchestra.Grid.Editor
         private AudioClip customClip;
         private Color customFlashColor = Color.white;
 
+        private bool subLevelsFoldout = true;
+        private int selectedSubLevelIndex = -1;
+        private Rect[,] cellRects;
+
+        private static readonly Color[] SubLevelPalette =
+        {
+            new Color(0.95f, 0.35f, 0.35f),
+            new Color(0.35f, 0.75f, 0.95f),
+            new Color(0.95f, 0.75f, 0.25f),
+            new Color(0.55f, 0.85f, 0.45f),
+            new Color(0.75f, 0.45f, 0.95f),
+            new Color(0.95f, 0.55f, 0.75f),
+        };
+
         private void OnEnable()
         {
             RefreshPalette();
@@ -85,9 +100,11 @@ namespace MarbleOrchestra.Grid.Editor
 
             pendingWidth = level.Width;
             pendingHeight = level.Height;
+            selectedSubLevelIndex = -1;
+            cellRects = null;
 
             int required = level.Width * level.Height;
-            if (level.Pipes.Count != required || level.Contents.Count != required)
+            if (level.Pipes.Count != required || level.Contents.Count != required || level.Blocked.Count != required)
             {
                 Undo.RecordObject(level, "Fix Level Grid List Sizes");
                 level.EnsureListSizes();
@@ -131,7 +148,10 @@ namespace MarbleOrchestra.Grid.Editor
             DrawResizeControls();
             EditorGUILayout.Space();
 
-            activeLayer = (PaintLayer)GUILayout.Toolbar((int)activeLayer, new[] { "Pipe", "Content" });
+            DrawSubLevelPanel();
+            EditorGUILayout.Space();
+
+            activeLayer = (PaintLayer)GUILayout.Toolbar((int)activeLayer, new[] { "Pipe", "Content", "Blocked" });
 
             if (activeLayer == PaintLayer.Pipe && GUILayout.Button("Randomize", GUILayout.Width(100)))
             {
@@ -162,9 +182,116 @@ namespace MarbleOrchestra.Grid.Editor
             EditorGUILayout.EndHorizontal();
         }
 
+        /// Lists every SubLevel (see 0046) as one row: a color swatch
+        /// matching its overlay on the grid (see DrawSubLevelOverlays),
+        /// name, area (x/y/w/h), reorder buttons (list order IS
+        /// progression order) and remove. Mutations that would change the
+        /// list while it's being iterated (reorder/remove) are collected
+        /// and applied after the loop instead, since IMGUI re-lays-out the
+        /// same frame it's drawn in.
+        private void DrawSubLevelPanel()
+        {
+            subLevelsFoldout = EditorGUILayout.Foldout(subLevelsFoldout, "SubLevels", true);
+            if (!subLevelsFoldout) return;
+
+            int removeIndex = -1;
+            int moveFrom = -1;
+            int moveTo = -1;
+
+            for (int i = 0; i < level.SubLevels.Count; i++)
+            {
+                SubLevelDefinition subLevel = level.SubLevels[i];
+                EditorGUILayout.BeginHorizontal(selectedSubLevelIndex == i ? EditorStyles.helpBox : GUIStyle.none);
+
+                Rect swatch = GUILayoutUtility.GetRect(14, 14, GUILayout.Width(14), GUILayout.Height(14));
+                EditorGUI.DrawRect(swatch, SubLevelColor(i));
+
+                if (GUILayout.Button("Select", GUILayout.Width(50)))
+                {
+                    selectedSubLevelIndex = i;
+                }
+
+                string newName = EditorGUILayout.TextField(subLevel.Name, GUILayout.Width(100));
+                if (newName != subLevel.Name)
+                {
+                    Undo.RecordObject(level, "Rename SubLevel");
+                    level.SetSubLevelName(i, newName);
+                    EditorUtility.SetDirty(level);
+                }
+
+                RectInt area = subLevel.Area;
+                EditorGUILayout.LabelField("x", GUILayout.Width(10));
+                int x = EditorGUILayout.IntField(area.x, GUILayout.Width(30));
+                EditorGUILayout.LabelField("y", GUILayout.Width(10));
+                int y = EditorGUILayout.IntField(area.y, GUILayout.Width(30));
+                EditorGUILayout.LabelField("w", GUILayout.Width(12));
+                int w = EditorGUILayout.IntField(area.width, GUILayout.Width(30));
+                EditorGUILayout.LabelField("h", GUILayout.Width(12));
+                int h = EditorGUILayout.IntField(area.height, GUILayout.Width(30));
+
+                RectInt newArea = new RectInt(x, y, Mathf.Max(1, w), Mathf.Max(1, h));
+                if (!newArea.Equals(area))
+                {
+                    Undo.RecordObject(level, "Resize SubLevel Area");
+                    level.SetSubLevelArea(i, newArea);
+                    EditorUtility.SetDirty(level);
+                }
+
+                GUILayout.FlexibleSpace();
+
+                GUI.enabled = i > 0;
+                if (GUILayout.Button("↑", GUILayout.Width(20))) { moveFrom = i; moveTo = i - 1; }
+                GUI.enabled = i < level.SubLevels.Count - 1;
+                if (GUILayout.Button("↓", GUILayout.Width(20))) { moveFrom = i; moveTo = i + 1; }
+                GUI.enabled = true;
+
+                if (GUILayout.Button("Remove", GUILayout.Width(60))) removeIndex = i;
+
+                EditorGUILayout.EndHorizontal();
+            }
+
+            if (moveFrom >= 0)
+            {
+                Undo.RecordObject(level, "Reorder SubLevels");
+                level.MoveSubLevel(moveFrom, moveTo);
+                selectedSubLevelIndex = moveTo;
+                EditorUtility.SetDirty(level);
+            }
+
+            if (removeIndex >= 0)
+            {
+                Undo.RecordObject(level, "Remove SubLevel");
+                level.RemoveSubLevelAt(removeIndex);
+                if (selectedSubLevelIndex >= level.SubLevels.Count) selectedSubLevelIndex = level.SubLevels.Count - 1;
+                EditorUtility.SetDirty(level);
+            }
+
+            if (GUILayout.Button("Add SubLevel", GUILayout.Width(120)))
+            {
+                Undo.RecordObject(level, "Add SubLevel");
+                level.AddSubLevel($"SubLevel {level.SubLevels.Count + 1}", new RectInt(0, 0, level.Width, level.Height));
+                selectedSubLevelIndex = level.SubLevels.Count - 1;
+                EditorUtility.SetDirty(level);
+            }
+        }
+
+        private static Color SubLevelColor(int index)
+        {
+            return SubLevelPalette[index % SubLevelPalette.Length];
+        }
+
         private void DrawPalette()
         {
             EditorGUILayout.BeginVertical(GUILayout.Width(190));
+
+            if (activeLayer == PaintLayer.Blocked)
+            {
+                EditorGUILayout.LabelField("Blocked", EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox("Click a cell to block it (clears its pipe/content), right-click to unblock.", MessageType.None);
+                EditorGUILayout.EndVertical();
+                return;
+            }
+
             EditorGUILayout.LabelField(activeLayer == PaintLayer.Pipe ? "Pipes" : "Contents", EditorStyles.boldLabel);
 
             paletteScroll = EditorGUILayout.BeginScrollView(paletteScroll, GUILayout.Height(160));
@@ -301,6 +428,11 @@ namespace MarbleOrchestra.Grid.Editor
 
         private void DrawGrid()
         {
+            if (cellRects == null || cellRects.GetLength(0) != level.Width || cellRects.GetLength(1) != level.Height)
+            {
+                cellRects = new Rect[level.Width, level.Height];
+            }
+
             EditorGUILayout.BeginVertical();
 
             for (int y = level.Height - 1; y >= 0; y--)
@@ -314,15 +446,19 @@ namespace MarbleOrchestra.Grid.Editor
             }
 
             EditorGUILayout.EndVertical();
+
+            DrawSubLevelOverlays();
         }
 
         private void DrawCell(int x, int y)
         {
             int index = y * level.Width + x;
             Rect rect = GUILayoutUtility.GetRect(CellSize, CellSize, GUILayout.Width(CellSize), GUILayout.Height(CellSize));
+            cellRects[x, y] = rect;
 
-            PipeDefinition pipe = index < level.Pipes.Count ? level.Pipes[index] : null;
-            CellContentDefinition content = index < level.Contents.Count ? level.Contents[index] : null;
+            bool isBlocked = level.IsBlockedAt(index);
+            PipeDefinition pipe = isBlocked || index >= level.Pipes.Count ? null : level.Pipes[index];
+            CellContentDefinition content = isBlocked || index >= level.Contents.Count ? null : level.Contents[index];
 
             Color background = pipe != null ? pipe.BackgroundColor : new Color(0.18f, 0.18f, 0.18f);
             EditorGUI.DrawRect(rect, background);
@@ -351,9 +487,73 @@ namespace MarbleOrchestra.Grid.Editor
                 GUI.Label(marker, content.Label, GetContentLabelStyle());
             }
 
+            if (isBlocked)
+            {
+                DrawBlockedOverlay(rect);
+            }
+
             DrawGridLines(rect);
 
             HandleCellEvents(rect, index);
+        }
+
+        private static void DrawBlockedOverlay(Rect rect)
+        {
+            EditorGUI.DrawRect(rect, new Color(0f, 0f, 0f, 0.6f));
+
+            Handles.BeginGUI();
+            Handles.color = new Color(1f, 0.2f, 0.2f, 0.8f);
+            Handles.DrawLine(new Vector3(rect.xMin, rect.yMin), new Vector3(rect.xMax, rect.yMax));
+            Handles.DrawLine(new Vector3(rect.xMax, rect.yMin), new Vector3(rect.xMin, rect.yMax));
+            Handles.EndGUI();
+        }
+
+        /// Draws a colored border + name label over each SubLevel's own
+        /// area (see 0046), using the cell rects DrawCell just stored -
+        /// drawn as a post-pass after the whole grid, so overlays never
+        /// get painted over by a later cell's own background.
+        private void DrawSubLevelOverlays()
+        {
+            for (int i = 0; i < level.SubLevels.Count; i++)
+            {
+                SubLevelDefinition subLevel = level.SubLevels[i];
+                RectInt area = ClampAreaToGrid(subLevel.Area);
+                if (area.width <= 0 || area.height <= 0) continue;
+
+                Rect bottomLeft = cellRects[area.xMin, area.yMin];
+                Rect topRight = cellRects[area.xMax - 1, area.yMax - 1];
+                Rect screenRect = Rect.MinMaxRect(bottomLeft.xMin, topRight.yMin, topRight.xMax, bottomLeft.yMax);
+
+                Color color = SubLevelColor(i);
+                DrawSubLevelBorder(screenRect, color, i == selectedSubLevelIndex ? 3f : 2f);
+                GUI.Label(new Rect(screenRect.x + 3, screenRect.y + 2, screenRect.width - 6, 16), subLevel.Name, BuildSubLevelLabelStyle(color));
+            }
+        }
+
+        private RectInt ClampAreaToGrid(RectInt area)
+        {
+            int xMin = Mathf.Clamp(area.xMin, 0, level.Width - 1);
+            int yMin = Mathf.Clamp(area.yMin, 0, level.Height - 1);
+            int xMax = Mathf.Clamp(area.xMax, xMin + 1, level.Width);
+            int yMax = Mathf.Clamp(area.yMax, yMin + 1, level.Height);
+            return new RectInt(xMin, yMin, xMax - xMin, yMax - yMin);
+        }
+
+        private static void DrawSubLevelBorder(Rect rect, Color color, float thickness)
+        {
+            EditorGUI.DrawRect(new Rect(rect.x, rect.y, rect.width, thickness), color);
+            EditorGUI.DrawRect(new Rect(rect.x, rect.yMax - thickness, rect.width, thickness), color);
+            EditorGUI.DrawRect(new Rect(rect.x, rect.y, thickness, rect.height), color);
+            EditorGUI.DrawRect(new Rect(rect.xMax - thickness, rect.y, thickness, rect.height), color);
+        }
+
+        private static GUIStyle BuildSubLevelLabelStyle(Color color)
+        {
+            return new GUIStyle(EditorStyles.miniBoldLabel)
+            {
+                alignment = TextAnchor.UpperLeft,
+                normal = { textColor = color }
+            };
         }
 
         private static void DrawGridLines(Rect rect)
@@ -463,6 +663,17 @@ namespace MarbleOrchestra.Grid.Editor
 
         private void ApplyBrush(int index)
         {
+            if (activeLayer == PaintLayer.Blocked)
+            {
+                Undo.RecordObject(level, "Block Cell");
+                level.SetBlockedAt(index, true);
+                EditorUtility.SetDirty(level);
+                Repaint();
+                return;
+            }
+
+            if (level.IsBlockedAt(index)) return;
+
             Undo.RecordObject(level, "Paint Cell");
             if (activeLayer == PaintLayer.Pipe)
             {
@@ -589,6 +800,8 @@ namespace MarbleOrchestra.Grid.Editor
 
             for (int i = 0; i < cellCount; i++)
             {
+                if (level.IsBlockedAt(i)) continue;
+
                 PipeDefinition pipe = i < level.Pipes.Count ? level.Pipes[i] : null;
                 if (pipe != null && pipe.Locked) continue;
 
@@ -617,7 +830,11 @@ namespace MarbleOrchestra.Grid.Editor
         private void ClearCell(int index)
         {
             Undo.RecordObject(level, "Clear Cell");
-            if (activeLayer == PaintLayer.Pipe)
+            if (activeLayer == PaintLayer.Blocked)
+            {
+                level.SetBlockedAt(index, false);
+            }
+            else if (activeLayer == PaintLayer.Pipe)
             {
                 level.SetPipeAt(index, null);
             }

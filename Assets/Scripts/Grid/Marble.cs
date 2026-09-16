@@ -7,6 +7,19 @@ namespace MarbleOrchestra.Grid
     /// </summary>
     public class Marble : MonoBehaviour
     {
+        /// The Start cell of the track this marble is running (see
+        /// MarbleController.RunTrack) - lets CameraModeTransition pick out
+        /// a marble belonging to the currently active SubLevel (see 0046)
+        /// among several concurrently running ones, rather than an
+        /// arbitrary "first in the list" marble that might belong to an
+        /// earlier, already-passed SubLevel.
+        public Vector2Int StartCoord { get; private set; }
+
+        public void SetStartCoord(Vector2Int startCoord)
+        {
+            StartCoord = startCoord;
+        }
+
         private static Sprite circleSprite;
 
         public static Marble Create(Transform parent, float radius, Color color)

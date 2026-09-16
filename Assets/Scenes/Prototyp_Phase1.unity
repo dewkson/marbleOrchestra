@@ -296,6 +296,11 @@ MonoBehaviour:
   followDistance: 3
   followOrthographicSize: 1.5
   followSmoothTime: 0.3
+  freeCamDragThresholdPixels: 8
+  scrollZoomSpeed: 0.1
+  pinchZoomSpeed: 0.11
+  minFreeOrthographicSize: 0.3
+  maxFreeOrthographicSize: 50
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -839,6 +844,53 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1700000040
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1700000041}
+  - component: {fileID: 1700000042}
+  m_Layer: 0
+  m_Name: FreeCameraReturnButtonUI
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1700000041
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1700000040}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1700000042
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1700000040}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cc60a172029051880c50535588a1c88c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.FreeCameraReturnButtonUI
+  cameraModeTransition: {fileID: 330585549}
+  marbleController: {fileID: 1612605612}
+  label: "Gef\xFChrte Kamera"
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -851,3 +903,4 @@ SceneRoots:
   - {fileID: 1700000011}
   - {fileID: 1700000021}
   - {fileID: 1700000031}
+  - {fileID: 1700000041}

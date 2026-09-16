@@ -3,7 +3,7 @@ id: 0043
 title: Globaler Beat-Takt und Loop-Länge pro Level
 type: Feature
 priority: Medium
-status: In Progress
+status: Done
 area: Audio
 created: 2026-09-11
 ---
@@ -69,3 +69,4 @@ Pfadlänge.
   0.144 der Trigger-Blöcke). Eigene Trigger-Geometrie für Start/Goal wäre
   ein separates Feature.
 - Noch nicht im Unity-Editor getestet.
+- 2026-09-16: Als abgeschlossen bestätigt.

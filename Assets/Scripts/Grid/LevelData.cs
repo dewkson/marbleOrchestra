@@ -5,6 +5,33 @@ using UnityEngine.Serialization;
 namespace MarbleOrchestra.Grid
 {
     /// <summary>
+    /// Names and bounds one SubLevel (see 0046): a rectangular area of the
+    /// parent LevelData's big grid, e.g. "Xylophon" or "Percussion". Order
+    /// in LevelData.SubLevels IS the progression order - there's no
+    /// separate index field. A plain serializable class rather than its
+    /// own ScriptableObject, since a SubLevel has no identity outside the
+    /// LevelData it's carved out of.
+    /// </summary>
+    [System.Serializable]
+    public class SubLevelDefinition
+    {
+        [SerializeField] private string subLevelName = "SubLevel";
+        [SerializeField] private RectInt area = new RectInt(0, 0, 1, 1);
+
+        public string Name => subLevelName;
+        public RectInt Area => area;
+
+        public SubLevelDefinition(string subLevelName, RectInt area)
+        {
+            this.subLevelName = subLevelName;
+            this.area = area;
+        }
+
+        public void SetName(string newName) => subLevelName = newName;
+        public void SetArea(RectInt newArea) => area = newArea;
+    }
+
+    /// <summary>
     /// Describes a level's grid size and its two independent layers:
     /// pipes (swappable) and contents (fixed to the cell, e.g. sound triggers).
     /// Both are stored row-major (index = y * width + x), y = 0 at the bottom row.
@@ -19,12 +46,18 @@ namespace MarbleOrchestra.Grid
         [FormerlySerializedAs("cards")]
         [SerializeField] private List<PipeDefinition> pipes = new List<PipeDefinition>();
         [SerializeField] private List<CellContentDefinition> contents = new List<CellContentDefinition>();
+        [Tooltip("Cells marked here can't hold a pipe or content and are impassable - lets a level use only part of a larger rectangular grid.")]
+        [SerializeField] private List<bool> blocked = new List<bool>();
+        [Tooltip("SubLevels (see 0046) carve this grid into named, ordered puzzle areas the player progresses through one at a time. Empty = the whole grid is a single implicit SubLevel.")]
+        [SerializeField] private List<SubLevelDefinition> subLevels = new List<SubLevelDefinition>();
 
         public int Width => width;
         public int Height => height;
         public int LoopLengthSteps => Mathf.Max(0, loopLengthSteps);
         public IReadOnlyList<PipeDefinition> Pipes => pipes;
         public IReadOnlyList<CellContentDefinition> Contents => contents;
+        public IReadOnlyList<bool> Blocked => blocked;
+        public IReadOnlyList<SubLevelDefinition> SubLevels => subLevels;
 
         public void SetPipeAt(int index, PipeDefinition pipe)
         {
@@ -38,11 +71,66 @@ namespace MarbleOrchestra.Grid
             contents[index] = content;
         }
 
+        public bool IsBlockedAt(int index)
+        {
+            return index >= 0 && index < blocked.Count && blocked[index];
+        }
+
+        /// Blocking a cell also clears any pipe/content it held - a
+        /// non-buildable cell can't carry either layer.
+        public void SetBlockedAt(int index, bool isBlocked)
+        {
+            if (index < 0 || index >= blocked.Count) return;
+            blocked[index] = isBlocked;
+            if (isBlocked)
+            {
+                SetPipeAt(index, null);
+                SetContentAt(index, null);
+            }
+        }
+
+        public void AddSubLevel(string subLevelName, RectInt area)
+        {
+            subLevels.Add(new SubLevelDefinition(subLevelName, area));
+        }
+
+        public void RemoveSubLevelAt(int index)
+        {
+            if (index < 0 || index >= subLevels.Count) return;
+            subLevels.RemoveAt(index);
+        }
+
+        public void SetSubLevelName(int index, string subLevelName)
+        {
+            if (index < 0 || index >= subLevels.Count) return;
+            subLevels[index].SetName(subLevelName);
+        }
+
+        public void SetSubLevelArea(int index, RectInt area)
+        {
+            if (index < 0 || index >= subLevels.Count) return;
+            subLevels[index].SetArea(area);
+        }
+
+        /// Reorders SubLevels - their list position IS their progression
+        /// order, so this is the only way to change it.
+        public void MoveSubLevel(int fromIndex, int toIndex)
+        {
+            if (fromIndex < 0 || fromIndex >= subLevels.Count) return;
+            if (toIndex < 0 || toIndex >= subLevels.Count) return;
+            if (fromIndex == toIndex) return;
+
+            SubLevelDefinition item = subLevels[fromIndex];
+            subLevels.RemoveAt(fromIndex);
+            subLevels.Insert(toIndex, item);
+        }
+
         public void EnsureListSizes()
         {
             int required = width * height;
             ResizeList(pipes, required);
             ResizeList(contents, required);
+            ResizeList(blocked, required);
         }
 
         public void ResizeGrid(int newWidth, int newHeight)
@@ -52,11 +140,13 @@ namespace MarbleOrchestra.Grid
 
             List<PipeDefinition> newPipes = RemapGrid(pipes, width, height, newWidth, newHeight);
             List<CellContentDefinition> newContents = RemapGrid(contents, width, height, newWidth, newHeight);
+            List<bool> newBlocked = RemapGrid(blocked, width, height, newWidth, newHeight);
 
             width = newWidth;
             height = newHeight;
             pipes = newPipes;
             contents = newContents;
+            blocked = newBlocked;
         }
 
         private static List<T> RemapGrid<T>(List<T> source, int oldWidth, int oldHeight, int newWidth, int newHeight)
@@ -110,6 +200,11 @@ namespace MarbleOrchestra.Grid
                 Debug.LogWarning($"{name}: expected {required} content slots for a {width}x{height} grid, but has {contents.Count}.", this);
             }
 
+            if (blocked.Count != required)
+            {
+                Debug.LogWarning($"{name}: expected {required} blocked flags for a {width}x{height} grid, but has {blocked.Count}.", this);
+            }
+
             int startCount = 0;
             int goalCount = 0;
             for (int i = 0; i < pipes.Count; i++)
@@ -124,6 +219,11 @@ namespace MarbleOrchestra.Grid
                 {
                     Debug.LogWarning($"{name}: cell {i % width},{i / width} holds a {pipe.Role} pipe and trigger content - Start/Goal are always silent, the content is ignored there.", this);
                 }
+
+                if (i < blocked.Count && blocked[i])
+                {
+                    Debug.LogWarning($"{name}: cell {i % width},{i / width} is marked blocked but still holds a pipe.", this);
+                }
             }
 
             if (startCount < 1)
@@ -134,6 +234,15 @@ namespace MarbleOrchestra.Grid
             if (startCount != goalCount)
             {
                 Debug.LogWarning($"{name}: expected the same number of Start and Goal pipes, found {startCount} Start and {goalCount} Goal.", this);
+            }
+
+            for (int i = 0; i < subLevels.Count; i++)
+            {
+                RectInt area = subLevels[i].Area;
+                if (area.width <= 0 || area.height <= 0 || area.xMin < 0 || area.yMin < 0 || area.xMax > width || area.yMax > height)
+                {
+                    Debug.LogWarning($"{name}: SubLevel '{subLevels[i].Name}' has an area outside the {width}x{height} grid.", this);
+                }
             }
         }
     }

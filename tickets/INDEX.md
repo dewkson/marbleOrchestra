@@ -15,10 +15,10 @@ Priorität (Critical → High → Medium → Low) sortiert.
 |----|-------|-----|-----------|--------|------|----------|
 | 0030 | 2D-Karten optisch aufwerten | Idea | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-04 |
 | 0031 | Instrumente abstrakt im 2D-Grid visualisieren | Idea | 🟡 Medium | ⚪ Open | Level Editor | 2026-09-04 |
-| 0033 | Licht und Schatten optimieren | Idea | 🟡 Medium | ⚪ Open | Other | 2026-09-04 |
-| 0036 | Instrumentenreaktionen in 3D mit Partikeleffekt anreichern | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-04 |
-| 0037 | Sound für Murmel-Bewegung einbinden | Feature | 🟡 Medium | ⚪ Open | Audio | 2026-09-04 |
-| 0043 | Globaler Beat-Takt und Loop-Länge pro Level | Feature | 🟡 Medium | 🟡 In Progress | Audio | 2026-09-11 |
+| 0047 | Umgebende Blöcke mit interpolierter Höhe | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-16 |
+| 0033 | Licht und Schatten optimieren | Idea | 🔵 Low | ⚪ Open | Other | 2026-09-04 |
+| 0036 | Instrumentenreaktionen in 3D mit Partikeleffekt anreichern | Feature | 🔵 Low | ⚪ Open | Gameplay | 2026-09-04 |
+| 0037 | Sound für Murmel-Bewegung einbinden | Feature | 🔵 Low | ⚪ Open | Audio | 2026-09-04 |
 
 ## Alle Tickets
 
@@ -56,14 +56,18 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0030 | 2D-Karten optisch aufwerten | Idea | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-04 |
 | 0031 | Instrumente abstrakt im 2D-Grid visualisieren | Idea | 🟡 Medium | ⚪ Open | Level Editor | 2026-09-04 |
 | 0032 | Erstes Default-Terrain (Gras/Moos) definieren | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-04 |
-| 0033 | Licht und Schatten optimieren | Idea | 🟡 Medium | ⚪ Open | Other | 2026-09-04 |
+| 0033 | Licht und Schatten optimieren | Idea | 🔵 Low | ⚪ Open | Other | 2026-09-04 |
 | 0034 | Kugel optisch aufwerten mit passendem Material | Idea | 🟡 Medium | ✅ Done | Gameplay | 2026-09-04 |
 | 0035 | Sanfter Kamera-Follow in 3D statt fixierter Kamera | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-04 |
-| 0036 | Instrumentenreaktionen in 3D mit Partikeleffekt anreichern | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-04 |
-| 0037 | Sound für Murmel-Bewegung einbinden | Feature | 🟡 Medium | ⚪ Open | Audio | 2026-09-04 |
+| 0036 | Instrumentenreaktionen in 3D mit Partikeleffekt anreichern | Feature | 🔵 Low | ⚪ Open | Gameplay | 2026-09-04 |
+| 0037 | Sound für Murmel-Bewegung einbinden | Feature | 🔵 Low | ⚪ Open | Audio | 2026-09-04 |
 | 0038 | Kinematischer Bewegungs-Trace pro Block-Variante definierbar | Feature | 🟡 Medium | ✅ Done | Physics | 2026-09-04 |
 | 0039 | TrackBlock-Typen und Verbindungslogik vereinheitlichen | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-09 |
 | 0040 | Gebogene Rillen-Geometrie für 90°-Kurven-Blocks | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-09 |
 | 0041 | Korrekte Kinematic3D-Bewegung bei Kurven und Trigger-Fall verifizieren | Task | 🟡 Medium | ✅ Done | Physics | 2026-09-09 |
 | 0042 | Visuelles Trigger-Feedback auf Xylophon-Geometrie | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-10 |
-| 0043 | Globaler Beat-Takt und Loop-Länge pro Level | Feature | 🟡 Medium | 🟡 In Progress | Audio | 2026-09-11 |
+| 0043 | Globaler Beat-Takt und Loop-Länge pro Level | Feature | 🟡 Medium | ✅ Done | Audio | 2026-09-11 |
+| 0044 | Freie Kamera per Drag und Zoom | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-16 |
+| 0045 | Nicht bebaubare Zellen für variable Grid-Formen | Feature | 🟡 Medium | ✅ Done | Level Editor | 2026-09-16 |
+| 0046 | Sublevels auf einem Grid definieren | Feature | 🟡 Medium | ✅ Done | Level Editor | 2026-09-16 |
+| 0047 | Umgebende Blöcke mit interpolierter Höhe | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-16 |

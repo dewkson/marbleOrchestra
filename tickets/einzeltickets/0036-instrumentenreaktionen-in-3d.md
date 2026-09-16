@@ -2,7 +2,7 @@
 id: 0036
 title: Instrumentenreaktionen in 3D mit Partikeleffekt anreichern
 type: Feature
-priority: Medium
+priority: Low
 status: Open
 area: Gameplay
 created: 2026-09-04

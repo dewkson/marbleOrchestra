@@ -2,7 +2,7 @@
 id: 0033
 title: Licht und Schatten optimieren
 type: Idea
-priority: Medium
+priority: Low
 status: Open
 area: Other
 created: 2026-09-04
