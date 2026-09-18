@@ -3,7 +3,7 @@ id: 0049
 title: Pipe-Editor per Drag & Drop aus Richtungsmustern statt Kartenliste
 type: Feature
 priority: Medium
-status: In Progress
+status: Done
 area: Level Editor
 created: 2026-09-18
 ---
@@ -133,4 +133,6 @@ Akzeptanzkriterien (aus der Beschreibung abgeleitet):
   "Block Empty Cells" (`FillEmptyCellsWithBlocked`) - blockiert alle
   Zellen ohne Pipe und ohne Content über das gesamte Grid (nicht auf ein
   SubLevel beschränkt, anders als Randomize).
+- 2026-09-18: Vom User im Editor geprüft und für gut befunden - Status auf
+  Done gesetzt.
 

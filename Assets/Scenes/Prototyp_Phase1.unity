@@ -293,7 +293,7 @@ MonoBehaviour:
   padding: 1
   nearMargin: 2
   transitionDuration: 1.1
-  followDistance: 3
+  followDistance: 20
   followOrthographicSize: 1.5
   followSmoothTime: 0.3
   freeCamDragThresholdPixels: 8
@@ -554,8 +554,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.MarbleController
   grid: {fileID: 1612605610}
   terrain: {fileID: 1612605614}
+  cameraFitter: {fileID: 0}
   movementMode: 1
-  cellsPerSecond: 2
+  cellsPerSecond: 3
   marbleRadius: 0.15
   marbleRadius3D: 0.1
   marbleColor: {r: 0.1, g: 0.1, b: 0.1, a: 1}
@@ -686,6 +687,8 @@ MonoBehaviour:
   grooveColor: {r: 0.50980395, g: 0.38431376, b: 0.31764707, a: 1}
   tunnelColor: {r: 0.05, g: 0.05, b: 0.06, a: 1}
   terrainDecorationSettings: {fileID: 11400000, guid: 633d6e6723f7de842abb672850f7c0f0, type: 2}
+  fillerSmoothingIterations: 8
+  fillerSmoothingStrength: 0.5
 --- !u!114 &1612605617
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -59,3 +59,11 @@ Akzeptanzkriterien:
   auch ein EventSystem + InputSystemUIInputModule zur Laufzeit auf, da das
   Projekt nur das neue Input System nutzt). In `Prototyp_Phase1.unity` als
   neues GameObject verdrahtet.
+- 2026-09-18: User-Feedback - freie Kamera klippte an einigen Blöcken (v.a.
+  vorderste Ecke), da sie beim Wechsel in den freien Modus von der engen
+  `followDistance` (3) aus startet und nur seitlich pannt, nie in der Tiefe
+  nachjustiert. `followDistance` in `CameraModeTransition.cs` und im
+  serialisierten Wert in `Prototyp_Phase1.unity` schrittweise auf 6, dann auf
+  20 erhöht (Far Clip Plane liegt bei 1000, also reichlich Puffer) - da die
+  Kamera orthographisch ist, ändert der Abstand nichts an Zoom/Framing,
+  nur am Clipping-Spielraum.

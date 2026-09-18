@@ -58,7 +58,7 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private float nearMargin = 2f; // extra room between the camera and the nearest block, so it never pokes through the near clip plane
         [SerializeField] private float transitionDuration = 1.1f;
 
-        [SerializeField] private float followDistance = 3f; // camera-to-marble distance along the isometric forward axis while following - closer than the whole-track fit, so the marble reads as the focus
+        [SerializeField] private float followDistance = 20f; // camera-to-marble distance along the isometric forward axis while following - orthographic, so this has no effect on apparent zoom/framing, only on clipping headroom. Also the free camera's (see 0044) starting distance, since it only pans along right/up from wherever FollowMarble left it - kept generous so panning never clips through taller blocks
         [SerializeField] private float followOrthographicSize = 1.5f; // tighter zoom used once following starts, replacing the whole-track framing
         [SerializeField] private float followSmoothTime = 0.3f; // SmoothDamp time constant - the "sanft" in sanfter Kamera-Follow
 
