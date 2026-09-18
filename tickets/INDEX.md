@@ -19,7 +19,7 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0036 | Instrumentenreaktionen in 3D mit Partikeleffekt anreichern | Feature | 🔵 Low | ⚪ Open | Gameplay | 2026-09-04 |
 | 0037 | Sound für Murmel-Bewegung einbinden | Feature | 🔵 Low | ⚪ Open | Audio | 2026-09-04 |
 | 0048 | 2D-Karten wachsen beim Play-Wechsel zu 3D-Blöcken | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-18 |
-| 0049 | Pipe-Editor per Drag & Drop aus Richtungsmustern statt Kartenliste | Feature | 🟡 Medium | ⚪ Open | Level Editor | 2026-09-18 |
+| 0049 | Pipe-Editor per Drag & Drop aus Richtungsmustern statt Kartenliste | Feature | 🟡 Medium | 🟡 In Progress | Level Editor | 2026-09-18 |
 
 ## Alle Tickets
 
@@ -73,4 +73,4 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0046 | Sublevels auf einem Grid definieren | Feature | 🟡 Medium | ✅ Done | Level Editor | 2026-09-16 |
 | 0047 | Umgebende Blöcke mit interpolierter Höhe | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-16 |
 | 0048 | 2D-Karten wachsen beim Play-Wechsel zu 3D-Blöcken | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-18 |
-| 0049 | Pipe-Editor per Drag & Drop aus Richtungsmustern statt Kartenliste | Feature | 🟡 Medium | ⚪ Open | Level Editor | 2026-09-18 |
+| 0049 | Pipe-Editor per Drag & Drop aus Richtungsmustern statt Kartenliste | Feature | 🟡 Medium | 🟡 In Progress | Level Editor | 2026-09-18 |

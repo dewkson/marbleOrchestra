@@ -5,18 +5,22 @@ using UnityEngine;
 namespace MarbleOrchestra.Grid.Editor
 {
     /// <summary>
-    /// Tilemap-style painter for LevelData: pick a layer (Pipe or Content),
-    /// pick a brush from the palette of existing assets, click cells to paint,
-    /// right-click to erase. Replaces authoring via the flat Inspector list.
+    /// Tilemap-style painter for LevelData: pick a layer (Pipe or Content).
+    /// Pipe layer: drag a pattern (one of the 15 usable direction
+    /// combinations, or the Blocked pattern, see 0049) from the palette
+    /// onto a grid cell to place it; drag an already-placed cell onto
+    /// another cell to swap their pipes; click a cell to select it and
+    /// toggle its Locked/Start/Goal attributes; right-click to erase (a
+    /// blocked cell unblocks). Content layer: pick a brush from the
+    /// palette of existing assets, click cells to paint, right-click to
+    /// erase. Replaces authoring via the flat Inspector list.
     /// </summary>
     public class LevelGridEditorWindow : EditorWindow
     {
         private enum PaintLayer
         {
             Pipe,
-            Content,
-            Blocked,
-            Swap
+            Content
         }
 
         private const float CellSize = 48f;
@@ -35,21 +39,33 @@ namespace MarbleOrchestra.Grid.Editor
 
         private const string GeneratedPipeFolder = "Assets/Levels/Pipes";
         private const string GeneratedContentFolder = "Assets/Levels/Contents";
+        private const string PipePatternDragKey = "MarbleOrchestra.PipePattern";
+        private const string PipeCellDragKey = "MarbleOrchestra.PipeCellSwap";
+        private const string PipeBlockDragKey = "MarbleOrchestra.PipeBlock";
+
+        /// The 15 connection combinations with at least one open side (the
+        /// all-closed "None" pattern isn't a usable pipe), in a fixed
+        /// 5-row x 3-column layout specified by the user rather than a
+        /// derived/sorted order (see 0049 follow-up).
+        private static readonly Direction[] AllDirectionPatterns =
+        {
+            Direction.Up, Direction.Left, Direction.Down,
+            Direction.Right, Direction.Left | Direction.Right, Direction.Up | Direction.Down,
+            Direction.Down | Direction.Right, Direction.Left | Direction.Down | Direction.Right, Direction.Left | Direction.Down,
+            Direction.Up | Direction.Right | Direction.Down, Direction.Up | Direction.Right | Direction.Down | Direction.Left, Direction.Up | Direction.Left | Direction.Down,
+            Direction.Up | Direction.Right, Direction.Left | Direction.Up | Direction.Right, Direction.Left | Direction.Up,
+        };
 
         private LevelData level;
         private PaintLayer activeLayer;
         private PipeDefinition[] availablePipes = new PipeDefinition[0];
         private CellContentDefinition[] availableContents = new CellContentDefinition[0];
-        private Object selectedBrush;
+        private UnityEngine.Object selectedBrush;
         private int pendingWidth;
         private int pendingHeight;
         private Vector2 paletteScroll;
 
-        private bool useCustomBrush;
-        private Direction customConnections = Direction.None;
         private Color customBackgroundColor = new Color(0.15f, 0.15f, 0.15f);
-        private PipeRole customRole = PipeRole.Normal;
-        private bool customLocked;
 
         private bool useCustomContent;
         private AudioClip customClip;
@@ -58,7 +74,8 @@ namespace MarbleOrchestra.Grid.Editor
         private bool subLevelsFoldout = true;
         private int selectedSubLevelIndex = -1;
         private Rect[,] cellRects;
-        private int? pendingSwapIndex; // first cell picked in the Swap layer, awaiting its partner - see ApplyBrush
+        private int? selectedCellIndex; // cell picked in the Pipe layer, awaiting attribute toggles - see DrawCellAttributesPanel
+        private int? pipeDragCandidateIndex; // cell pressed in the Pipe layer, may turn into a swap-drag - see HandlePipeCellDragStart
 
         private static readonly Color[] SubLevelPalette =
         {
@@ -104,7 +121,8 @@ namespace MarbleOrchestra.Grid.Editor
             pendingHeight = level.Height;
             selectedSubLevelIndex = -1;
             cellRects = null;
-            pendingSwapIndex = null;
+            selectedCellIndex = null;
+            pipeDragCandidateIndex = null;
 
             int required = level.Width * level.Height;
             if (level.Pipes.Count != required || level.Contents.Count != required || level.Blocked.Count != required)
@@ -121,7 +139,7 @@ namespace MarbleOrchestra.Grid.Editor
             availableContents = LoadAllAssets<CellContentDefinition>();
         }
 
-        private static T[] LoadAllAssets<T>() where T : Object
+        private static T[] LoadAllAssets<T>() where T : UnityEngine.Object
         {
             string[] guids = AssetDatabase.FindAssets($"t:{typeof(T).Name}");
             List<T> results = new List<T>(guids.Length);
@@ -154,8 +172,14 @@ namespace MarbleOrchestra.Grid.Editor
             DrawSubLevelPanel();
             EditorGUILayout.Space();
 
-            activeLayer = (PaintLayer)GUILayout.Toolbar((int)activeLayer, new[] { "Pipe", "Content", "Blocked", "Swap" });
-            if (activeLayer != PaintLayer.Swap) pendingSwapIndex = null;
+            activeLayer = (PaintLayer)GUILayout.Toolbar((int)activeLayer, new[] { "Pipe", "Content" });
+            if (activeLayer != PaintLayer.Pipe)
+            {
+                selectedCellIndex = null;
+                pipeDragCandidateIndex = null;
+            }
+
+            HandlePipeCellDragStart();
 
             EditorGUILayout.Space();
 
@@ -310,126 +334,240 @@ namespace MarbleOrchestra.Grid.Editor
         {
             EditorGUILayout.BeginVertical(GUILayout.Width(190));
 
-            if (activeLayer == PaintLayer.Blocked)
+            if (activeLayer == PaintLayer.Pipe)
             {
-                EditorGUILayout.LabelField("Blocked", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox("Click a cell to block it (clears its pipe/content), right-click to unblock.", MessageType.None);
+                DrawPipePalette();
                 EditorGUILayout.EndVertical();
                 return;
             }
 
-            if (activeLayer == PaintLayer.Swap)
-            {
-                EditorGUILayout.LabelField("Swap", EditorStyles.boldLabel);
-                string hint = pendingSwapIndex.HasValue
-                    ? "Click a second cell to swap its pipe with the highlighted one - right-click to cancel."
-                    : "Click a cell, then click another to swap their pipes.";
-                EditorGUILayout.HelpBox(hint, MessageType.None);
-                EditorGUILayout.EndVertical();
-                return;
-            }
-
-            EditorGUILayout.LabelField(activeLayer == PaintLayer.Pipe ? "Pipes" : "Contents", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Contents", EditorStyles.boldLabel);
 
             paletteScroll = EditorGUILayout.BeginScrollView(paletteScroll, GUILayout.Height(160));
 
-            bool eraserSelected = !useCustomBrush && selectedBrush == null;
+            bool eraserSelected = !useCustomContent && selectedBrush == null;
             if (DrawPaletteEntry("Eraser", Color.clear, eraserSelected))
             {
                 selectedBrush = null;
-                useCustomBrush = false;
+                useCustomContent = false;
             }
 
-            if (activeLayer == PaintLayer.Pipe)
+            foreach (CellContentDefinition content in availableContents)
             {
-                foreach (PipeDefinition pipe in availablePipes)
+                bool selected = !useCustomContent && selectedBrush == content;
+                string label = $"{content.ContentId} ({content.GetType().Name})";
+                if (DrawPaletteEntry(label, new Color(0.4f, 0.6f, 0.9f), selected))
                 {
-                    bool selected = !useCustomBrush && selectedBrush == pipe;
-                    if (DrawPaletteEntry(pipe.PipeId, pipe.Color, selected))
-                    {
-                        selectedBrush = pipe;
-                        useCustomBrush = false;
-                    }
-                }
-            }
-            else
-            {
-                foreach (CellContentDefinition content in availableContents)
-                {
-                    bool selected = !useCustomContent && selectedBrush == content;
-                    string label = $"{content.ContentId} ({content.GetType().Name})";
-                    if (DrawPaletteEntry(label, new Color(0.4f, 0.6f, 0.9f), selected))
-                    {
-                        selectedBrush = content;
-                        useCustomContent = false;
-                    }
+                    selectedBrush = content;
+                    useCustomContent = false;
                 }
             }
 
             EditorGUILayout.EndScrollView();
 
-            if (activeLayer == PaintLayer.Pipe)
-            {
-                DrawCustomPipeBuilder();
-            }
-            else
-            {
-                DrawCustomContentBuilder();
-            }
+            DrawCustomContentBuilder();
 
             EditorGUILayout.EndVertical();
         }
 
-        private void DrawCustomPipeBuilder()
+        /// Palette + workflow for the Pipe layer (see 0049): all direction
+        /// patterns (plus the Blocked pattern, see follow-up) are listed as
+        /// drag sources instead of a flat list of existing PipeDefinition
+        /// assets, shown in full (no scrolling - there's room for all of
+        /// them at once); Locked/Start/Goal are edited per-selected-cell
+        /// afterwards instead of being baked into the brush before
+        /// painting; and swapping two cells is a drag directly on the grid
+        /// instead of a separate layer/tab.
+        private void DrawPipePalette()
+        {
+            EditorGUILayout.LabelField("Pipe Patterns", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox("Drag a pattern onto a cell to place it, or the Blocked tile to mark it unbuildable. Drag an already-placed cell onto another to swap them. Click a cell to select it and toggle its attributes below. Right-click a cell to clear it (a blocked cell unblocks).", MessageType.None);
+
+            customBackgroundColor = EditorGUILayout.ColorField("New Pipe Color", customBackgroundColor);
+
+            DrawPatternGrid();
+
+            EditorGUILayout.Space();
+            DrawBlockedPatternRow();
+
+            EditorGUILayout.Space();
+            if (GUILayout.Button("Block Empty Cells")) FillEmptyCellsWithBlocked();
+
+            DrawCellAttributesPanel();
+        }
+
+        private void DrawPatternGrid()
+        {
+            const float boxSize = 44f;
+            const int columns = 3;
+
+            for (int i = 0; i < AllDirectionPatterns.Length; i += columns)
+            {
+                EditorGUILayout.BeginHorizontal();
+                for (int c = 0; c < columns; c++)
+                {
+                    int patternIndex = i + c;
+                    if (patternIndex >= AllDirectionPatterns.Length)
+                    {
+                        GUILayout.FlexibleSpace();
+                        continue;
+                    }
+                    DrawPatternEntry(AllDirectionPatterns[patternIndex], boxSize);
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+        }
+
+        private void DrawPatternEntry(Direction pattern, float boxSize)
+        {
+            Rect rect = GUILayoutUtility.GetRect(boxSize, boxSize, GUILayout.Width(boxSize), GUILayout.Height(boxSize));
+            EditorGUI.DrawRect(rect, customBackgroundColor);
+
+            Rect hub = new Rect(rect.x + rect.width * 0.35f, rect.y + rect.height * 0.35f, rect.width * 0.3f, rect.height * 0.3f);
+            EditorGUI.DrawRect(hub, Color.white);
+            DrawConnectionArms(rect, pattern, Color.white);
+            DrawGridLines(rect);
+
+            HandlePatternDragSource(rect, pattern);
+        }
+
+        /// Starts an in-window drag carrying the pattern's Direction combo
+        /// as generic data - picked up by HandlePipeDrop on whichever grid
+        /// cell the drag is released over.
+        private static void HandlePatternDragSource(Rect rect, Direction pattern)
+        {
+            Event e = Event.current;
+            if (e.type != EventType.MouseDown || e.button != 0 || !rect.Contains(e.mousePosition)) return;
+
+            DragAndDrop.PrepareStartDrag();
+            DragAndDrop.SetGenericData(PipePatternDragKey, pattern);
+            DragAndDrop.StartDrag("Pipe Pattern");
+            e.Use();
+        }
+
+        /// The Blocked "pattern" (see 0049 follow-up): drawn apart from
+        /// the direction-pattern grid since it isn't a connections
+        /// combination, but dragged onto a cell the same way to mark it
+        /// unbuildable - replaces the old dedicated Blocked layer/tab.
+        private void DrawBlockedPatternRow()
+        {
+            const float boxSize = 44f;
+
+            EditorGUILayout.BeginHorizontal();
+            DrawBlockedPatternEntry(boxSize);
+            EditorGUILayout.LabelField("Blocked", EditorStyles.miniLabel);
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawBlockedPatternEntry(float boxSize)
+        {
+            Rect rect = GUILayoutUtility.GetRect(boxSize, boxSize, GUILayout.Width(boxSize), GUILayout.Height(boxSize));
+            EditorGUI.DrawRect(rect, new Color(0.18f, 0.18f, 0.18f));
+            DrawBlockedOverlay(rect);
+            DrawGridLines(rect);
+
+            HandleBlockedPatternDragSource(rect);
+        }
+
+        /// Starts an in-window drag carrying no payload beyond the
+        /// PipeBlockDragKey's presence - picked up by HandlePipeDrop on
+        /// whichever grid cell the drag is released over.
+        private static void HandleBlockedPatternDragSource(Rect rect)
+        {
+            Event e = Event.current;
+            if (e.type != EventType.MouseDown || e.button != 0 || !rect.Contains(e.mousePosition)) return;
+
+            DragAndDrop.PrepareStartDrag();
+            DragAndDrop.SetGenericData(PipeBlockDragKey, true);
+            DragAndDrop.StartDrag("Block Cell");
+            e.Use();
+        }
+
+        /// Bulk action requested alongside dropping the dedicated Blocked
+        /// layer/tab (see 0049 follow-up): blocks every cell that has
+        /// neither a pipe nor content yet, across the whole grid (not
+        /// scoped to a SubLevel - unlike Randomize, blocking is a one-off
+        /// setup step rather than something done per-puzzle-area).
+        private void FillEmptyCellsWithBlocked()
+        {
+            bool changed = false;
+            int cellCount = level.Width * level.Height;
+
+            for (int index = 0; index < cellCount; index++)
+            {
+                if (level.IsBlockedAt(index)) continue;
+
+                bool hasPipe = index < level.Pipes.Count && level.Pipes[index] != null;
+                bool hasContent = index < level.Contents.Count && level.Contents[index] != null;
+                if (hasPipe || hasContent) continue;
+
+                if (!changed)
+                {
+                    Undo.RecordObject(level, "Block Empty Cells");
+                    changed = true;
+                }
+                level.SetBlockedAt(index, true);
+            }
+
+            if (!changed) return;
+            EditorUtility.SetDirty(level);
+            Repaint();
+        }
+
+        /// Shown below the pattern palette while the Pipe layer is active:
+        /// lets the user flip Locked/Start/Goal for whichever cell was
+        /// last clicked (see HandleCellClick), by resolving/creating a
+        /// PipeDefinition variant with the same connections+color but the
+        /// new attributes (same mechanism as GetOrCreateCustomPipe already
+        /// used for brush painting).
+        private void DrawCellAttributesPanel()
         {
             EditorGUILayout.Space();
-            EditorGUILayout.BeginVertical(useCustomBrush ? EditorStyles.helpBox : GUIStyle.none);
-            EditorGUILayout.LabelField("Custom Pipe", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Selected Cell", EditorStyles.boldLabel);
 
-            DrawDirectionToggles();
-            customBackgroundColor = EditorGUILayout.ColorField("Background", customBackgroundColor);
-            customRole = (PipeRole)EditorGUILayout.EnumPopup("Role", customRole);
-            customLocked = EditorGUILayout.Toggle("Locked", customLocked);
-
-            if (GUILayout.Button(useCustomBrush ? "Custom (active)" : "Use Custom"))
+            if (!selectedCellIndex.HasValue)
             {
-                useCustomBrush = true;
-                selectedBrush = null;
+                EditorGUILayout.HelpBox("Click a cell to select it.", MessageType.None);
+                return;
             }
 
-            EditorGUILayout.EndVertical();
-        }
+            int index = selectedCellIndex.Value;
+            if (level.IsBlockedAt(index) || index >= level.Pipes.Count || level.Pipes[index] == null)
+            {
+                EditorGUILayout.HelpBox("Selected cell has no pipe - drag a pattern onto it first.", MessageType.None);
+                return;
+            }
 
-        private void DrawDirectionToggles()
-        {
-            bool up = (customConnections & Direction.Up) != 0;
-            bool right = (customConnections & Direction.Right) != 0;
-            bool down = (customConnections & Direction.Down) != 0;
-            bool left = (customConnections & Direction.Left) != 0;
+            PipeDefinition pipe = level.Pipes[index];
+            bool wasLocked = pipe.Locked;
+            bool wasStart = pipe.Role == PipeRole.Start;
+            bool wasGoal = pipe.Role == PipeRole.Goal;
 
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.FlexibleSpace();
-            up = GUILayout.Toggle(up, "U", EditorStyles.miniButton, GUILayout.Width(28));
-            GUILayout.FlexibleSpace();
-            EditorGUILayout.EndHorizontal();
+            bool nowLocked = GUILayout.Toggle(wasLocked, "Locked", EditorStyles.miniButton);
 
             EditorGUILayout.BeginHorizontal();
-            left = GUILayout.Toggle(left, "L", EditorStyles.miniButton, GUILayout.Width(28));
-            GUILayout.FlexibleSpace();
-            right = GUILayout.Toggle(right, "R", EditorStyles.miniButton, GUILayout.Width(28));
+            bool nowStart = GUILayout.Toggle(wasStart, "Start", EditorStyles.miniButton);
+            bool nowGoal = GUILayout.Toggle(wasGoal, "Goal", EditorStyles.miniButton);
             EditorGUILayout.EndHorizontal();
 
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.FlexibleSpace();
-            down = GUILayout.Toggle(down, "D", EditorStyles.miniButton, GUILayout.Width(28));
-            GUILayout.FlexibleSpace();
-            EditorGUILayout.EndHorizontal();
+            // Only one of Start/Goal toggles can have actually changed
+            // this frame (a single click), so whichever one just turned on
+            // wins the (mutually exclusive) Role; turning the active one
+            // off falls back to Normal.
+            PipeRole newRole = pipe.Role;
+            if (nowStart && !wasStart) newRole = PipeRole.Start;
+            else if (nowGoal && !wasGoal) newRole = PipeRole.Goal;
+            else if (wasStart && !nowStart) newRole = PipeRole.Normal;
+            else if (wasGoal && !nowGoal) newRole = PipeRole.Normal;
 
-            customConnections = Direction.None;
-            if (up) customConnections |= Direction.Up;
-            if (right) customConnections |= Direction.Right;
-            if (down) customConnections |= Direction.Down;
-            if (left) customConnections |= Direction.Left;
+            if (nowLocked != wasLocked || newRole != pipe.Role)
+            {
+                PipeDefinition updated = GetOrCreateCustomPipe(pipe.Connections, pipe.BackgroundColor, newRole, nowLocked);
+                Undo.RecordObject(level, "Set Pipe Attributes");
+                level.SetPipeAt(index, updated);
+                EditorUtility.SetDirty(level);
+                Repaint();
+            }
         }
 
         private void DrawCustomContentBuilder()
@@ -504,7 +642,7 @@ namespace MarbleOrchestra.Grid.Editor
             {
                 Rect hub = new Rect(rect.x + rect.width * 0.35f, rect.y + rect.height * 0.35f, rect.width * 0.3f, rect.height * 0.3f);
                 EditorGUI.DrawRect(hub, pipe.Color);
-                DrawConnectionArms(rect, pipe);
+                DrawConnectionArms(rect, pipe.Connections, pipe.Color);
 
                 if (pipe.Role != PipeRole.Normal)
                 {
@@ -529,9 +667,9 @@ namespace MarbleOrchestra.Grid.Editor
                 DrawBlockedOverlay(rect);
             }
 
-            if (activeLayer == PaintLayer.Swap && pendingSwapIndex == index)
+            if (activeLayer == PaintLayer.Pipe && selectedCellIndex == index)
             {
-                DrawSwapPendingBorder(rect);
+                DrawSelectedCellBorder(rect);
             }
 
             DrawGridLines(rect);
@@ -550,13 +688,13 @@ namespace MarbleOrchestra.Grid.Editor
             Handles.EndGUI();
         }
 
-        /// Highlights the first cell picked in the Swap layer while it's
-        /// waiting for its partner (see ApplyBrush) - a distinct cyan so
-        /// it doesn't read as Locked (orange) or Blocked (red X).
-        private static void DrawSwapPendingBorder(Rect rect)
+        /// Highlights the cell currently selected for attribute toggling
+        /// (see DrawCellAttributesPanel) - a distinct magenta so it reads
+        /// apart from Locked (orange) and Blocked (red X).
+        private static void DrawSelectedCellBorder(Rect rect)
         {
             const float thickness = 3f;
-            Color color = new Color(0.3f, 0.75f, 1f);
+            Color color = new Color(1f, 0.3f, 0.85f);
 
             EditorGUI.DrawRect(new Rect(rect.x, rect.y, rect.width, thickness), color);
             EditorGUI.DrawRect(new Rect(rect.x, rect.yMax - thickness, rect.width, thickness), color);
@@ -671,9 +809,8 @@ namespace MarbleOrchestra.Grid.Editor
             EditorGUI.DrawRect(new Rect(rect.xMax - thickness, rect.y, thickness, rect.height), color);
         }
 
-        private static void DrawConnectionArms(Rect rect, PipeDefinition pipe)
+        private static void DrawConnectionArms(Rect rect, Direction connections, Color armColor)
         {
-            Direction connections = pipe.Connections;
             if (connections == Direction.None) return;
 
             float thickness = rect.width * 0.16f;
@@ -681,22 +818,22 @@ namespace MarbleOrchestra.Grid.Editor
 
             if ((connections & Direction.Up) != 0)
             {
-                EditorGUI.DrawRect(new Rect(rect.x + rect.width * 0.5f - thickness * 0.5f, rect.y, thickness, armLength), pipe.Color);
+                EditorGUI.DrawRect(new Rect(rect.x + rect.width * 0.5f - thickness * 0.5f, rect.y, thickness, armLength), armColor);
             }
 
             if ((connections & Direction.Down) != 0)
             {
-                EditorGUI.DrawRect(new Rect(rect.x + rect.width * 0.5f - thickness * 0.5f, rect.yMax - armLength, thickness, armLength), pipe.Color);
+                EditorGUI.DrawRect(new Rect(rect.x + rect.width * 0.5f - thickness * 0.5f, rect.yMax - armLength, thickness, armLength), armColor);
             }
 
             if ((connections & Direction.Left) != 0)
             {
-                EditorGUI.DrawRect(new Rect(rect.x, rect.y + rect.height * 0.5f - thickness * 0.5f, armLength, thickness), pipe.Color);
+                EditorGUI.DrawRect(new Rect(rect.x, rect.y + rect.height * 0.5f - thickness * 0.5f, armLength, thickness), armColor);
             }
 
             if ((connections & Direction.Right) != 0)
             {
-                EditorGUI.DrawRect(new Rect(rect.xMax - armLength, rect.y + rect.height * 0.5f - thickness * 0.5f, armLength, thickness), pipe.Color);
+                EditorGUI.DrawRect(new Rect(rect.xMax - armLength, rect.y + rect.height * 0.5f - thickness * 0.5f, armLength, thickness), armColor);
             }
         }
 
@@ -705,9 +842,11 @@ namespace MarbleOrchestra.Grid.Editor
             Event e = Event.current;
             if (!rect.Contains(e.mousePosition)) return;
 
+            if (activeLayer == PaintLayer.Pipe && HandlePipeDrop(e, index)) return;
+
             if (e.type == EventType.MouseDown && e.button == 0)
             {
-                ApplyBrush(index);
+                HandleCellClick(index);
                 e.Use();
             }
             else if (e.type == EventType.MouseDown && e.button == 1)
@@ -717,49 +856,141 @@ namespace MarbleOrchestra.Grid.Editor
             }
         }
 
+        /// Drop target side of both Pipe-layer drags: a pattern dropped
+        /// from the palette (see HandlePatternDragSource) places a fresh
+        /// pipe, a cell dropped from elsewhere on the grid (see
+        /// HandlePipeCellDragStart) swaps the two cells' pipes. Returns
+        /// true once it has consumed the event (drag hover or drop), so
+        /// HandleCellEvents skips the normal click handling for that event.
+        private bool HandlePipeDrop(Event e, int index)
+        {
+            if (e.type != EventType.DragUpdated && e.type != EventType.DragPerform) return false;
+
+            if (DragAndDrop.GetGenericData(PipePatternDragKey) is Direction pattern)
+            {
+                if (level.IsBlockedAt(index))
+                {
+                    DragAndDrop.visualMode = DragAndDropVisualMode.Rejected;
+                    e.Use();
+                    return true;
+                }
+
+                DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
+                if (e.type == EventType.DragPerform)
+                {
+                    DragAndDrop.AcceptDrag();
+                    PlacePipePattern(index, pattern);
+                }
+                e.Use();
+                return true;
+            }
+
+            if (DragAndDrop.GetGenericData(PipeCellDragKey) is int sourceIndex)
+            {
+                if (sourceIndex == index || level.IsBlockedAt(index))
+                {
+                    DragAndDrop.visualMode = DragAndDropVisualMode.Rejected;
+                    e.Use();
+                    return true;
+                }
+
+                DragAndDrop.visualMode = DragAndDropVisualMode.Move;
+                if (e.type == EventType.DragPerform)
+                {
+                    DragAndDrop.AcceptDrag();
+                    SwapPipes(sourceIndex, index);
+                    selectedCellIndex = index;
+                    Repaint();
+                }
+                e.Use();
+                return true;
+            }
+
+            if (DragAndDrop.GetGenericData(PipeBlockDragKey) != null)
+            {
+                DragAndDrop.visualMode = DragAndDropVisualMode.Move;
+                if (e.type == EventType.DragPerform)
+                {
+                    DragAndDrop.AcceptDrag();
+                    Undo.RecordObject(level, "Block Cell");
+                    level.SetBlockedAt(index, true);
+                    EditorUtility.SetDirty(level);
+                    if (selectedCellIndex == index) selectedCellIndex = null;
+                    Repaint();
+                }
+                e.Use();
+                return true;
+            }
+
+            return false;
+        }
+
+        private void HandleCellClick(int index)
+        {
+            if (activeLayer == PaintLayer.Pipe)
+            {
+                selectedCellIndex = index;
+                pipeDragCandidateIndex = !level.IsBlockedAt(index) && index < level.Pipes.Count && level.Pipes[index] != null
+                    ? index
+                    : (int?)null;
+                Repaint();
+                return;
+            }
+
+            ApplyBrush(index);
+        }
+
+        /// Turns a pressed Pipe cell (see HandleCellClick) into a swap-drag
+        /// once the mouse actually moves - called once per OnGUI (not per
+        /// cell) since the resulting MouseDrag event is only visible to
+        /// whichever cell rect currently contains the pointer, which by
+        /// then is no longer the source cell. The drop side lives in
+        /// HandlePipeDrop, which does run per-cell since DragUpdated/
+        /// DragPerform need the target cell's index.
+        private void HandlePipeCellDragStart()
+        {
+            if (!pipeDragCandidateIndex.HasValue) return;
+
+            Event e = Event.current;
+            if (e.type == EventType.MouseDrag)
+            {
+                DragAndDrop.PrepareStartDrag();
+                DragAndDrop.SetGenericData(PipeCellDragKey, pipeDragCandidateIndex.Value);
+                DragAndDrop.StartDrag("Swap Pipe");
+                pipeDragCandidateIndex = null;
+                e.Use();
+            }
+            else if (e.type == EventType.MouseUp)
+            {
+                pipeDragCandidateIndex = null;
+            }
+        }
+
+        /// Places a fresh Normal/unlocked pipe of the dropped pattern
+        /// (re-dropping onto an already-placed cell resets its attributes -
+        /// use DrawCellAttributesPanel afterwards to set Locked/Start/Goal).
+        private void PlacePipePattern(int index, Direction pattern)
+        {
+            if (level.IsBlockedAt(index)) return;
+
+            PipeDefinition pipe = GetOrCreateCustomPipe(pattern, customBackgroundColor, PipeRole.Normal, false);
+
+            Undo.RecordObject(level, "Place Pipe");
+            level.SetPipeAt(index, pipe);
+            EditorUtility.SetDirty(level);
+            selectedCellIndex = index;
+            Repaint();
+        }
+
         private void ApplyBrush(int index)
         {
-            if (activeLayer == PaintLayer.Blocked)
-            {
-                Undo.RecordObject(level, "Block Cell");
-                level.SetBlockedAt(index, true);
-                EditorUtility.SetDirty(level);
-                Repaint();
-                return;
-            }
-
-            if (activeLayer == PaintLayer.Swap)
-            {
-                if (pendingSwapIndex.HasValue)
-                {
-                    SwapPipes(pendingSwapIndex.Value, index);
-                    pendingSwapIndex = null;
-                }
-                else
-                {
-                    pendingSwapIndex = index;
-                }
-                Repaint();
-                return;
-            }
-
             if (level.IsBlockedAt(index)) return;
 
             Undo.RecordObject(level, "Paint Cell");
-            if (activeLayer == PaintLayer.Pipe)
-            {
-                PipeDefinition pipe = useCustomBrush
-                    ? GetOrCreateCustomPipe(customConnections, customBackgroundColor, customRole, customLocked)
-                    : selectedBrush as PipeDefinition;
-                level.SetPipeAt(index, pipe);
-            }
-            else
-            {
-                CellContentDefinition content = useCustomContent
-                    ? GetOrCreateCustomContent(customClip, customFlashColor)
-                    : selectedBrush as CellContentDefinition;
-                level.SetContentAt(index, content);
-            }
+            CellContentDefinition content = useCustomContent
+                ? GetOrCreateCustomContent(customClip, customFlashColor)
+                : selectedBrush as CellContentDefinition;
+            level.SetContentAt(index, content);
             EditorUtility.SetDirty(level);
             Repaint();
         }
@@ -895,7 +1126,7 @@ namespace MarbleOrchestra.Grid.Editor
 
             for (int i = freeSlots.Count - 1; i > 0; i--)
             {
-                int j = Random.Range(0, i + 1);
+                int j = UnityEngine.Random.Range(0, i + 1);
                 (freeSlots[i], freeSlots[j]) = (freeSlots[j], freeSlots[i]);
             }
 
@@ -909,17 +1140,13 @@ namespace MarbleOrchestra.Grid.Editor
             Repaint();
         }
 
+        /// Right-click erase: a blocked cell always unblocks first (there's
+        /// no separate Blocked layer any more to target it directly, see
+        /// 0049 follow-up), otherwise clears whatever the active layer owns.
         private void ClearCell(int index)
         {
-            if (activeLayer == PaintLayer.Swap)
-            {
-                pendingSwapIndex = null;
-                Repaint();
-                return;
-            }
-
             Undo.RecordObject(level, "Clear Cell");
-            if (activeLayer == PaintLayer.Blocked)
+            if (level.IsBlockedAt(index))
             {
                 level.SetBlockedAt(index, false);
             }
@@ -935,10 +1162,11 @@ namespace MarbleOrchestra.Grid.Editor
             Repaint();
         }
 
-        /// Quick way to swap two specific cells' pipes directly in the
-        /// editor (see 0047 follow-up) - the level-editor equivalent of
-        /// GridInputHandler's runtime click-click swap, without needing to
-        /// enter Play mode to test a reorder.
+        /// Swaps two cells' pipes - triggered by dragging one Pipe cell
+        /// onto another on the grid (see HandlePipeDrop/
+        /// HandlePipeCellDragStart, 0049 follow-up), the level-editor
+        /// equivalent of GridInputHandler's runtime click-click swap,
+        /// without needing to enter Play mode to test a reorder.
         private void SwapPipes(int indexA, int indexB)
         {
             if (indexA == indexB) return;
