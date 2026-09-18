@@ -17,18 +17,22 @@ namespace MarbleOrchestra.Grid
     {
         [SerializeField] private string subLevelName = "SubLevel";
         [SerializeField] private RectInt area = new RectInt(0, 0, 1, 1);
+        [SerializeField] private float startHeight = 1f; // world/spawner-local Y of THIS SubLevel's own Start block - see TrackBlockSpawner.ResolveStartHeight (0047 follow-up); falls back to the spawner's own global startHeight field when no SubLevel owns a given cell at all
 
         public string Name => subLevelName;
         public RectInt Area => area;
+        public float StartHeight => startHeight;
 
-        public SubLevelDefinition(string subLevelName, RectInt area)
+        public SubLevelDefinition(string subLevelName, RectInt area, float startHeight = 1f)
         {
             this.subLevelName = subLevelName;
             this.area = area;
+            this.startHeight = startHeight;
         }
 
         public void SetName(string newName) => subLevelName = newName;
         public void SetArea(RectInt newArea) => area = newArea;
+        public void SetStartHeight(float newStartHeight) => startHeight = newStartHeight;
     }
 
     /// <summary>
@@ -110,6 +114,12 @@ namespace MarbleOrchestra.Grid
         {
             if (index < 0 || index >= subLevels.Count) return;
             subLevels[index].SetArea(area);
+        }
+
+        public void SetSubLevelStartHeight(int index, float startHeight)
+        {
+            if (index < 0 || index >= subLevels.Count) return;
+            subLevels[index].SetStartHeight(startHeight);
         }
 
         /// Reorders SubLevels - their list position IS their progression

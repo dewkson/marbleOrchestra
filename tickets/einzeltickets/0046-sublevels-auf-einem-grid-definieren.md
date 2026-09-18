@@ -182,3 +182,31 @@ Jetzt bezieht sie sich konsequent nur noch auf das gerade bearbeitete
   frühere Bahn gewesen. Liefert `null`, solange im aktiven Sublevel gerade
   keine Kugel unterwegs ist - `FollowMarble()` behandelte einen Null-Target
   bereits vorher als No-op.
+
+### Follow-up 4: Randomize im Level Grid Editor auf das jeweilige Sublevel begrenzt
+
+Vierter Nachtrag: der "Randomize"-Button im Level Grid Editor (neben der
+Pipe/Content/Blocked-Toolbar) hat bisher Pipes über das GESAMTE Grid
+gemischt, ohne Rücksicht auf Sublevel-Grenzen - dadurch konnte eine Pipe
+aus Sublevel A im Bereich von Sublevel B landen, obwohl Sublevels
+unabhängige Rätsel sein sollen.
+
+Behoben: `RandomizePipes()` wurde zu `RandomizePipesInArea(RectInt area)`
+und mischt jetzt nur noch innerhalb eines einzelnen Bereichs. Der Button
+ist dafür aus der Toolbar ins neue SubLevels-Panel gewandert: jede
+Sublevel-Zeile hat jetzt ihren eigenen "Randomize"-Button, der nur deren
+eigenen Bereich mischt. Für Level-Assets ganz ohne Sublevels (z.B.
+`Level_Prototype.asset`) gibt es dort zusätzlich einen
+"Randomize (whole grid)"-Button, der wie bisher das gesamte Grid mischt -
+dieselbe Konvention wie zur Laufzeit (kein Sublevel definiert = das ganze
+Grid ist ein einziges implizites Sublevel).
+
+### Follow-up 5: schneller Pipe-Swap direkt im Level Grid Editor
+
+Neue Funktion (kein Bug-Fix): ein vierter Toolbar-Layer "Swap" neben
+Pipe/Content/Blocked. Klick auf eine Zelle markiert sie (cyanfarbener
+Rahmen) als ersten Swap-Partner, Klick auf eine zweite Zelle tauscht
+beider Pipes direkt (Undo-fähig); Rechtsklick bricht die Auswahl ab. Das
+ist das Editor-Pendant zum bestehenden Klick-Klick-Tausch von
+`GridInputHandler` zur Laufzeit, aber nutzbar ohne in den Play-Modus zu
+wechseln.

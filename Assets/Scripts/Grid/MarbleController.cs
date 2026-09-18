@@ -124,6 +124,13 @@ namespace MarbleOrchestra.Grid
                 return false;
             }
 
+            // Builds the 3D blocks synchronously right here, before
+            // anything below reads them - see TrackBlockSpawner.RebuildNow
+            // - so the 3D representation only ever exists from this exact
+            // switch onward, never throughout 2D planning (see 0047
+            // follow-up).
+            terrain?.RebuildNow();
+
             ClearMarbles();
             activeRunCount = 0;
 
@@ -144,10 +151,16 @@ namespace MarbleOrchestra.Grid
 
         /// Stops every track loop and every lap still in flight (see
         /// RunLap) - they're the only coroutines this component runs.
+        /// Also tears down the 3D blocks (see TrackBlockSpawner.ClearAll) -
+        /// IsPlaying flipping false always sends CameraModeTransition back
+        /// to the 2D view anyway, so nothing of the 3D representation
+        /// should still be sitting around once back in 2D planning (see
+        /// 0047 follow-up).
         public void Stop()
         {
             StopAllCoroutines();
             activeRunCount = 0;
+            terrain?.ClearAll();
         }
 
         public void ResetMarble()

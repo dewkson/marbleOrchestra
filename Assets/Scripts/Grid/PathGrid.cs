@@ -80,7 +80,10 @@ namespace MarbleOrchestra.Grid
             return new RectInt(coord.x, coord.y, 1, 1);
         }
 
-        private bool TryGetSubLevelIndexAt(Vector2Int coord, out int index)
+        /// Which SubLevel (by list index) owns this cell, if any - used by
+        /// TrackBlockSpawner (see ResolveStartHeight/0047 follow-up) to
+        /// look up a Start block's own SubLevel-specific height.
+        public bool TryGetSubLevelIndexAt(Vector2Int coord, out int index)
         {
             for (int i = 0; i < level.SubLevels.Count; i++)
             {

@@ -69,7 +69,7 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private TrackBlock trackBlockPrefab;
         [SerializeField] private float grooveRadius = 0f; // <= 0: derive from the 3D marble radius; always clamped to at most half the cell size (see Awake)
         [SerializeField] private int grooveArcSegments = 8; // resolution of the semicircular U profile
-        [SerializeField] private float startHeight = 1f; // world/spawner-local Y of the groove floor at Start's own entry point - the baseline the whole height chain hangs from (see 0039)
+        [SerializeField] private float startHeight = 1f; // world/spawner-local Y of the groove floor at Start's own entry point - the baseline the whole height chain hangs from (see 0039); only used as a fallback for a cell that belongs to no SubLevel at all - each SubLevel has its own configurable StartHeight instead (see ResolveStartHeight/0047 follow-up)
         [SerializeField] private float minBlockHeight = 0.05f; // safety floor for TrackBlock.Height, so a long chain of Trigger falls can never shrink a block to a degenerate/near-zero or negative thickness
         [SerializeField, Range(0f, 15f)] private float normalInclinationDegrees = 3f; // continuous downhill slope every straight Normal block's own surface has, in its travel direction - see 0039 follow-up. Curved Normal blocks stay flat (0) - a sloped curve is out of scope for now, see TrackBlock.SetCurve/0040
         [SerializeField, Range(0.05f, 0.9f)] private float triggerFallBeatFraction = 0.5f; // how much of a Trigger block's own beat the marble's fall onto its pad takes - the SAME for every Trigger block regardless of FallHeight, so all notes sound at the same phase and the music stays on the grid (see TriggerFallMarbleTrace/0038)
@@ -78,6 +78,8 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private Color grooveColor = new Color(0.40f, 0.27f, 0.15f); // earthy brown for the rollable groove itself, distinct from the grass shoulders (see 0032)
         [SerializeField] private Color tunnelColor = new Color(0.05f, 0.05f, 0.06f); // near-black interior of the Start/Goal tunnel portal (see TunnelPortalDecoration)
         [SerializeField] private TerrainDecorationSettings terrainDecorationSettings; // moss-clump count/size/color/clustering - see TerrainDecoration.Scatter; null falls back to TerrainDecorationSettings.Default
+        [SerializeField, Range(0, 20)] private int fillerSmoothingIterations = 8; // see 0047 follow-up/SmoothFillerHeights - softens sharp local steps (e.g. right beside a Trigger's own big FallHeight drop) left over from SolveFillerHeights' per-axis rules; 0 disables smoothing entirely
+        [SerializeField, Range(0f, 1f)] private float fillerSmoothingStrength = 0.5f; // how far each smoothing iteration nudges a filler cell toward its neighbours' average - 0 disables smoothing, 1 snaps straight to it (can oscillate); actual track cell heights are never touched by this
 
         public float GrooveRadius => grooveRadius;
 
@@ -113,10 +115,42 @@ namespace MarbleOrchestra.Grid
             sharedTunnelMaterial = CreateMaterial(tunnelColor);
         }
 
-        private void Update()
+        /// Builds (or refreshes) the whole 3D visualization - every
+        /// currently completed track's blocks plus the surrounding filler
+        /// terrain (see 0047) - in one synchronous call, rather than
+        /// continuously in Update() as it used to: the 3D representation
+        /// should only ever exist from the moment the player actually
+        /// switches into the 3D view, not throughout 2D planning too (see
+        /// 0047 follow-up - filler terrain made the old always-on
+        /// building far more visible than the odd track block ever was).
+        /// MarbleController.Play() calls this synchronously right before
+        /// starting any track coroutines, so both the marble's own
+        /// HasTrackFor wait (see RunAlongPath3D) and CameraModeTransition's
+        /// bounds-based framing always find the blocks already built -
+        /// no per-frame Update() ordering to race against any more.
+        public void RebuildNow()
         {
             SyncTracks(FindCompletedPaths());
             SyncFillerBlocks();
+        }
+
+        /// Tears down every currently spawned 3D block - real track
+        /// blocks and filler terrain alike - so nothing of the 3D
+        /// visualization lingers once back in 2D planning (see 0047
+        /// follow-up). MarbleController.Stop() calls this whenever
+        /// IsPlaying flips back to false. Safe to call repeatedly/when
+        /// already empty.
+        public void ClearAll()
+        {
+            foreach (TrackInstance track in tracks)
+            {
+                if (track.Root != null) Destroy(track.Root.gameObject);
+            }
+            tracks.Clear();
+
+            if (fillerRoot != null) Destroy(fillerRoot);
+            fillerRoot = null;
+            lastTrackHeights.Clear();
         }
 
         /// True once this exact path's blocks actually exist - false in
@@ -430,9 +464,15 @@ namespace MarbleOrchestra.Grid
         /// wins over an arbitrary flat guess wherever one is available,
         /// regardless of which cell happens to be processed first. A cell
         /// no pass in either tier ever reaches (an isolated blocked/unused
-        /// region with no path back to any track cell) settles at
-        /// startHeight, the same baseline the track's own height chain
-        /// hangs from.
+        /// region with no path back to any track cell) settles at that
+        /// cell's own resolved start height (see ResolveStartHeight) - the
+        /// same baseline its own SubLevel's track chain hangs from.
+        /// Only cells in an UNLOCKED SubLevel (see PathGrid.
+        /// IsInUnlockedSubLevel/0046) are considered at all - a SubLevel
+        /// not reached yet gets no filler (or track) blocks whatsoever,
+        /// so the 3D terrain reveals itself progressively alongside the
+        /// player's own progress instead of the whole grid's worth of
+        /// surrounding terrain existing from the very first SubLevel on.
         private Dictionary<Vector2Int, float> SolveFillerHeights(Dictionary<Vector2Int, float> trackHeights)
         {
             Dictionary<Vector2Int, float> resolved = new Dictionary<Vector2Int, float>(trackHeights);
@@ -443,7 +483,9 @@ namespace MarbleOrchestra.Grid
                 for (int x = 0; x < grid.Width; x++)
                 {
                     Vector2Int coord = new Vector2Int(x, y);
-                    if (!resolved.ContainsKey(coord)) pending.Add(coord);
+                    if (resolved.ContainsKey(coord)) continue;
+                    if (!grid.IsInUnlockedSubLevel(coord)) continue;
+                    pending.Add(coord);
                 }
             }
 
@@ -453,7 +495,9 @@ namespace MarbleOrchestra.Grid
             ResolveFillerPasses(resolved, pending, maxPasses, allowFlatFallback: false);
             ResolveFillerPasses(resolved, pending, maxPasses, allowFlatFallback: true);
 
-            foreach (Vector2Int coord in pending) resolved[coord] = startHeight;
+            foreach (Vector2Int coord in pending) resolved[coord] = ResolveStartHeight(coord);
+
+            resolved = SmoothFillerHeights(resolved, trackHeights);
 
             Dictionary<Vector2Int, float> fillerHeights = new Dictionary<Vector2Int, float>();
             foreach (KeyValuePair<Vector2Int, float> entry in resolved)
@@ -461,6 +505,55 @@ namespace MarbleOrchestra.Grid
                 if (!trackHeights.ContainsKey(entry.Key)) fillerHeights[entry.Key] = entry.Value;
             }
             return fillerHeights;
+        }
+
+        /// Softens any locally sharp step SolveFillerHeights' per-axis
+        /// rules can leave behind - most visibly right beside a track
+        /// cell whose own height jumps a lot from its neighbour (e.g. a
+        /// Trigger's own FallHeight drop): the slope-extrapolation rule
+        /// would otherwise mirror that SAME jump at full strength into
+        /// the very next filler cell, reading as an artificial cliff
+        /// rather than the gentle surrounding terrain the ticket asked
+        /// for. Standard Laplacian relaxation - each filler cell is
+        /// repeatedly nudged (by fillerSmoothingStrength per iteration,
+        /// so it converges gradually instead of overshooting) toward the
+        /// average of whichever of its four grid neighbours are already
+        /// resolved. Actual track cells are never part of `fillerCells`
+        /// and so never move - they stay the fixed anchors every filler
+        /// height still has to reach, just via a gentler curve now.
+        private Dictionary<Vector2Int, float> SmoothFillerHeights(Dictionary<Vector2Int, float> resolved, Dictionary<Vector2Int, float> trackHeights)
+        {
+            if (fillerSmoothingIterations <= 0 || fillerSmoothingStrength <= 0f) return resolved;
+
+            List<Vector2Int> fillerCells = new List<Vector2Int>();
+            foreach (Vector2Int coord in resolved.Keys)
+            {
+                if (!trackHeights.ContainsKey(coord)) fillerCells.Add(coord);
+            }
+
+            for (int iteration = 0; iteration < fillerSmoothingIterations; iteration++)
+            {
+                Dictionary<Vector2Int, float> next = new Dictionary<Vector2Int, float>(resolved);
+
+                foreach (Vector2Int coord in fillerCells)
+                {
+                    float sum = 0f;
+                    int count = 0;
+
+                    foreach (Vector2Int axis in FillerAxisOffsets)
+                    {
+                        if (resolved.TryGetValue(coord - axis, out float negative)) { sum += negative; count++; }
+                        if (resolved.TryGetValue(coord + axis, out float positive)) { sum += positive; count++; }
+                    }
+
+                    if (count == 0) continue;
+                    next[coord] = Mathf.Lerp(resolved[coord], sum / count, fillerSmoothingStrength);
+                }
+
+                resolved = next;
+            }
+
+            return resolved;
         }
 
         private static void ResolveFillerPasses(Dictionary<Vector2Int, float> resolved, List<Vector2Int> pending, int maxPasses, bool allowFlatFallback)
@@ -563,6 +656,23 @@ namespace MarbleOrchestra.Grid
             TerrainDecoration.Scatter(block, cell, BlockDefinition.DefaultBiome, 0f, blockSize.x * 0.5f, blockSize, terrainDecorationSettings);
         }
 
+        /// The baseline height a track/filler chain should hang from at
+        /// this cell: the SubLevel that owns it, via its own configurable
+        /// StartHeight (see SubLevelDefinition/0047 follow-up - editable
+        /// per SubLevel in the Level Grid Editor's SubLevels panel), or
+        /// this spawner's own global startHeight field when the cell
+        /// belongs to no SubLevel at all (a level that doesn't use
+        /// SubLevels is a single implicit one - same convention as
+        /// PathGrid.ActiveSubLevelArea).
+        private float ResolveStartHeight(Vector2Int coord)
+        {
+            if (grid.Level != null && grid.TryGetSubLevelIndexAt(coord, out int index))
+            {
+                return grid.Level.SubLevels[index].StartHeight;
+            }
+            return startHeight;
+        }
+
         private TrackInstance BuildTrack(IReadOnlyList<Vector2Int> path)
         {
             Vector2Int start = path[0];
@@ -579,7 +689,7 @@ namespace MarbleOrchestra.Grid
             // it never collides with the block's own true edge.
             float railExtension = Mathf.Min(grooveRadius * 1.5f, blockSize.y * 0.5f * 0.6f);
 
-            float runningExitY = startHeight; // world/spawner-local Y of the groove floor the next block's entry must match, unless it's a Trigger block
+            float runningExitY = ResolveStartHeight(start); // world/spawner-local Y of the groove floor the next block's entry must match, unless it's a Trigger block
 
             for (int i = 0; i < path.Count; i++)
             {

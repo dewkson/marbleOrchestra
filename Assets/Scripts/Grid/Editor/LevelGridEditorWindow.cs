@@ -15,7 +15,8 @@ namespace MarbleOrchestra.Grid.Editor
         {
             Pipe,
             Content,
-            Blocked
+            Blocked,
+            Swap
         }
 
         private const float CellSize = 48f;
@@ -57,6 +58,7 @@ namespace MarbleOrchestra.Grid.Editor
         private bool subLevelsFoldout = true;
         private int selectedSubLevelIndex = -1;
         private Rect[,] cellRects;
+        private int? pendingSwapIndex; // first cell picked in the Swap layer, awaiting its partner - see ApplyBrush
 
         private static readonly Color[] SubLevelPalette =
         {
@@ -102,6 +104,7 @@ namespace MarbleOrchestra.Grid.Editor
             pendingHeight = level.Height;
             selectedSubLevelIndex = -1;
             cellRects = null;
+            pendingSwapIndex = null;
 
             int required = level.Width * level.Height;
             if (level.Pipes.Count != required || level.Contents.Count != required || level.Blocked.Count != required)
@@ -151,12 +154,8 @@ namespace MarbleOrchestra.Grid.Editor
             DrawSubLevelPanel();
             EditorGUILayout.Space();
 
-            activeLayer = (PaintLayer)GUILayout.Toolbar((int)activeLayer, new[] { "Pipe", "Content", "Blocked" });
-
-            if (activeLayer == PaintLayer.Pipe && GUILayout.Button("Randomize", GUILayout.Width(100)))
-            {
-                RandomizePipes();
-            }
+            activeLayer = (PaintLayer)GUILayout.Toolbar((int)activeLayer, new[] { "Pipe", "Content", "Blocked", "Swap" });
+            if (activeLayer != PaintLayer.Swap) pendingSwapIndex = null;
 
             EditorGUILayout.Space();
 
@@ -237,7 +236,22 @@ namespace MarbleOrchestra.Grid.Editor
                     EditorUtility.SetDirty(level);
                 }
 
+                EditorGUILayout.LabelField(new GUIContent("Y0", "World/spawner-local height of this SubLevel's own Start block (TrackBlockSpawner.ResolveStartHeight)"), GUILayout.Width(20));
+                float startHeight = EditorGUILayout.FloatField(subLevel.StartHeight, GUILayout.Width(40));
+                if (!Mathf.Approximately(startHeight, subLevel.StartHeight))
+                {
+                    Undo.RecordObject(level, "Set SubLevel Start Height");
+                    level.SetSubLevelStartHeight(i, startHeight);
+                    EditorUtility.SetDirty(level);
+                }
+
                 GUILayout.FlexibleSpace();
+
+                // Scoped to this SubLevel's own Area only (see
+                // RandomizePipesInArea) - shuffling across the whole grid
+                // would mix pipes between SubLevels that are meant to be
+                // independent puzzles.
+                if (GUILayout.Button("Randomize", GUILayout.Width(80))) RandomizePipesInArea(area);
 
                 GUI.enabled = i > 0;
                 if (GUILayout.Button("↑", GUILayout.Width(20))) { moveFrom = i; moveTo = i - 1; }
@@ -266,6 +280,7 @@ namespace MarbleOrchestra.Grid.Editor
                 EditorUtility.SetDirty(level);
             }
 
+            EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button("Add SubLevel", GUILayout.Width(120)))
             {
                 Undo.RecordObject(level, "Add SubLevel");
@@ -273,6 +288,17 @@ namespace MarbleOrchestra.Grid.Editor
                 selectedSubLevelIndex = level.SubLevels.Count - 1;
                 EditorUtility.SetDirty(level);
             }
+
+            // No SubLevels defined at all: the whole grid acts as a single
+            // implicit one (same convention as PathGrid.ActiveSubLevelArea
+            // at runtime), so Randomize still needs a home here rather
+            // than just disappearing for these simpler, un-sublevel'd
+            // level assets.
+            if (level.SubLevels.Count == 0 && GUILayout.Button("Randomize (whole grid)", GUILayout.Width(150)))
+            {
+                RandomizePipesInArea(new RectInt(0, 0, level.Width, level.Height));
+            }
+            EditorGUILayout.EndHorizontal();
         }
 
         private static Color SubLevelColor(int index)
@@ -288,6 +314,17 @@ namespace MarbleOrchestra.Grid.Editor
             {
                 EditorGUILayout.LabelField("Blocked", EditorStyles.boldLabel);
                 EditorGUILayout.HelpBox("Click a cell to block it (clears its pipe/content), right-click to unblock.", MessageType.None);
+                EditorGUILayout.EndVertical();
+                return;
+            }
+
+            if (activeLayer == PaintLayer.Swap)
+            {
+                EditorGUILayout.LabelField("Swap", EditorStyles.boldLabel);
+                string hint = pendingSwapIndex.HasValue
+                    ? "Click a second cell to swap its pipe with the highlighted one - right-click to cancel."
+                    : "Click a cell, then click another to swap their pipes.";
+                EditorGUILayout.HelpBox(hint, MessageType.None);
                 EditorGUILayout.EndVertical();
                 return;
             }
@@ -492,6 +529,11 @@ namespace MarbleOrchestra.Grid.Editor
                 DrawBlockedOverlay(rect);
             }
 
+            if (activeLayer == PaintLayer.Swap && pendingSwapIndex == index)
+            {
+                DrawSwapPendingBorder(rect);
+            }
+
             DrawGridLines(rect);
 
             HandleCellEvents(rect, index);
@@ -506,6 +548,20 @@ namespace MarbleOrchestra.Grid.Editor
             Handles.DrawLine(new Vector3(rect.xMin, rect.yMin), new Vector3(rect.xMax, rect.yMax));
             Handles.DrawLine(new Vector3(rect.xMax, rect.yMin), new Vector3(rect.xMin, rect.yMax));
             Handles.EndGUI();
+        }
+
+        /// Highlights the first cell picked in the Swap layer while it's
+        /// waiting for its partner (see ApplyBrush) - a distinct cyan so
+        /// it doesn't read as Locked (orange) or Blocked (red X).
+        private static void DrawSwapPendingBorder(Rect rect)
+        {
+            const float thickness = 3f;
+            Color color = new Color(0.3f, 0.75f, 1f);
+
+            EditorGUI.DrawRect(new Rect(rect.x, rect.y, rect.width, thickness), color);
+            EditorGUI.DrawRect(new Rect(rect.x, rect.yMax - thickness, rect.width, thickness), color);
+            EditorGUI.DrawRect(new Rect(rect.x, rect.y, thickness, rect.height), color);
+            EditorGUI.DrawRect(new Rect(rect.xMax - thickness, rect.y, thickness, rect.height), color);
         }
 
         /// Draws a colored border + name label over each SubLevel's own
@@ -672,6 +728,21 @@ namespace MarbleOrchestra.Grid.Editor
                 return;
             }
 
+            if (activeLayer == PaintLayer.Swap)
+            {
+                if (pendingSwapIndex.HasValue)
+                {
+                    SwapPipes(pendingSwapIndex.Value, index);
+                    pendingSwapIndex = null;
+                }
+                else
+                {
+                    pendingSwapIndex = index;
+                }
+                Repaint();
+                return;
+            }
+
             if (level.IsBlockedAt(index)) return;
 
             Undo.RecordObject(level, "Paint Cell");
@@ -792,21 +863,32 @@ namespace MarbleOrchestra.Grid.Editor
             return contentId.Length > 0 ? contentId.Substring(0, 1).ToUpperInvariant() : "?";
         }
 
-        private void RandomizePipes()
+        /// Shuffles pipes among the free (unblocked, unlocked) cells of a
+        /// single SubLevel's own Area (or the whole grid, for a level that
+        /// doesn't use SubLevels at all - see DrawSubLevelPanel) - never
+        /// across the whole grid regardless of SubLevel boundaries, since
+        /// that would mix pipes between SubLevels meant to be independent
+        /// puzzles.
+        private void RandomizePipesInArea(RectInt area)
         {
-            int cellCount = level.Width * level.Height;
             List<int> freeSlots = new List<int>();
             List<PipeDefinition> pipesToShuffle = new List<PipeDefinition>();
 
-            for (int i = 0; i < cellCount; i++)
+            for (int y = area.yMin; y < area.yMax; y++)
             {
-                if (level.IsBlockedAt(i)) continue;
+                for (int x = area.xMin; x < area.xMax; x++)
+                {
+                    if (x < 0 || x >= level.Width || y < 0 || y >= level.Height) continue;
 
-                PipeDefinition pipe = i < level.Pipes.Count ? level.Pipes[i] : null;
-                if (pipe != null && pipe.Locked) continue;
+                    int index = y * level.Width + x;
+                    if (level.IsBlockedAt(index)) continue;
 
-                freeSlots.Add(i);
-                if (pipe != null) pipesToShuffle.Add(pipe);
+                    PipeDefinition pipe = index < level.Pipes.Count ? level.Pipes[index] : null;
+                    if (pipe != null && pipe.Locked) continue;
+
+                    freeSlots.Add(index);
+                    if (pipe != null) pipesToShuffle.Add(pipe);
+                }
             }
 
             if (pipesToShuffle.Count == 0 || freeSlots.Count < 2) return;
@@ -829,6 +911,13 @@ namespace MarbleOrchestra.Grid.Editor
 
         private void ClearCell(int index)
         {
+            if (activeLayer == PaintLayer.Swap)
+            {
+                pendingSwapIndex = null;
+                Repaint();
+                return;
+            }
+
             Undo.RecordObject(level, "Clear Cell");
             if (activeLayer == PaintLayer.Blocked)
             {
@@ -844,6 +933,23 @@ namespace MarbleOrchestra.Grid.Editor
             }
             EditorUtility.SetDirty(level);
             Repaint();
+        }
+
+        /// Quick way to swap two specific cells' pipes directly in the
+        /// editor (see 0047 follow-up) - the level-editor equivalent of
+        /// GridInputHandler's runtime click-click swap, without needing to
+        /// enter Play mode to test a reorder.
+        private void SwapPipes(int indexA, int indexB)
+        {
+            if (indexA == indexB) return;
+
+            PipeDefinition pipeA = indexA < level.Pipes.Count ? level.Pipes[indexA] : null;
+            PipeDefinition pipeB = indexB < level.Pipes.Count ? level.Pipes[indexB] : null;
+
+            Undo.RecordObject(level, "Swap Pipes");
+            level.SetPipeAt(indexA, pipeB);
+            level.SetPipeAt(indexB, pipeA);
+            EditorUtility.SetDirty(level);
         }
     }
 }
