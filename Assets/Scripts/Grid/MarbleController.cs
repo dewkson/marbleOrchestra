@@ -51,13 +51,23 @@ namespace MarbleOrchestra.Grid
         private BeatClock clock;
         private int stepsPerLoop;
 
+        /// True from the moment Play() is called until PlayRoutine has
+        /// actually spawned the marble coroutines - keeps IsPlaying (and
+        /// everything that polls it: CameraModeTransition's 2D->isometric
+        /// swing, GridInputHandler's edit lock, PlaybackHintUI) true
+        /// throughout TrackBlockSpawner.GrowToGameplay's height animation,
+        /// even though no marble is moving yet (see 0048, simplified
+        /// scope) - the camera swing and the block growth should read as
+        /// one synchronized moment, not two.
+        private bool starting;
+
         /// How long the marble may wait for TrackBlockSpawner to actually
         /// spawn a just-completed track's blocks before this lap is given
         /// up on - the two components' Update order is undefined, so the
         /// very frame Play() was pressed the blocks may not exist yet.
         private const float TrackSpawnTimeoutSeconds = 1f;
 
-        public bool IsPlaying => activeRunCount > 0;
+        public bool IsPlaying => starting || activeRunCount > 0;
         public bool CanPlay => HasCompletedTrack();
         public float MarbleRadius => marbleRadius;
         public float MarbleRadius3D => marbleRadius3D;
@@ -124,6 +134,31 @@ namespace MarbleOrchestra.Grid
                 return false;
             }
 
+            starting = true;
+            StartCoroutine(PlayRoutine());
+            return true;
+        }
+
+        /// Builds the 3D blocks, grows them from TrackBlockSpawner's flat
+        /// starting height up to their real gameplay heights (see
+        /// TrackBlockSpawner.GrowToGameplay/0048), and only then starts the
+        /// actual marble laps - a Kinematic3D marble samples its trace at
+        /// each block's FINAL local geometry regardless of the block's
+        /// current Y position, so letting it roll before the grow animation
+        /// finishes would visibly run it through/above a track that hasn't
+        /// reached its own shape yet.
+        private IEnumerator PlayRoutine()
+        {
+            // Hide the 2D planning grid the moment Play is committed to,
+            // in step with CameraModeTransition already starting to swing
+            // away from the top-down pose - otherwise Start/Goal (and every
+            // other pipe) keep showing through in the 3D view underneath
+            // the growing track (see 0048). Disabling the GameObject only
+            // stops rendering/Update/input - PathGrid's own data (LastValidations,
+            // CellToLocalPosition, ...) stays fully readable while inactive,
+            // which TrackBlockSpawner/this routine still rely on below.
+            if (grid != null) grid.gameObject.SetActive(false);
+
             // Builds the 3D blocks synchronously right here, before
             // anything below reads them - see TrackBlockSpawner.RebuildNow
             // - so the 3D representation only ever exists from this exact
@@ -131,10 +166,14 @@ namespace MarbleOrchestra.Grid
             // follow-up).
             terrain?.RebuildNow();
 
+            if (terrain != null) yield return StartCoroutine(terrain.GrowToGameplay());
+
             ClearMarbles();
             activeRunCount = 0;
 
-            // Beat 0 is now - every track's first lap starts on it.
+            // Beat 0 is now - every track's first lap starts on it, right
+            // as the grow animation finishes rather than when Play() was
+            // first pressed.
             clock = new BeatClock(cellsPerSecond);
             stepsPerLoop = grid.Level != null ? grid.Level.LoopLengthSteps : 0;
 
@@ -146,7 +185,7 @@ namespace MarbleOrchestra.Grid
                 StartCoroutine(RunTrack(result.OrderedPath[0]));
             }
 
-            return true;
+            starting = false;
         }
 
         /// Stops every track loop and every lap still in flight (see
@@ -158,9 +197,11 @@ namespace MarbleOrchestra.Grid
         /// 0047 follow-up).
         public void Stop()
         {
-            StopAllCoroutines();
+            StopAllCoroutines(); // also cancels PlayRoutine/GrowToGameplay if Stop() lands mid-animation
+            starting = false;
             activeRunCount = 0;
             terrain?.ClearAll();
+            if (grid != null) grid.gameObject.SetActive(true);
         }
 
         public void ResetMarble()

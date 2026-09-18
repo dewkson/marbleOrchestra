@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -71,6 +72,8 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private int grooveArcSegments = 8; // resolution of the semicircular U profile
         [SerializeField] private float startHeight = 1f; // world/spawner-local Y of the groove floor at Start's own entry point - the baseline the whole height chain hangs from (see 0039); only used as a fallback for a cell that belongs to no SubLevel at all - each SubLevel has its own configurable StartHeight instead (see ResolveStartHeight/0047 follow-up)
         [SerializeField] private float minBlockHeight = 0.05f; // safety floor for TrackBlock.Height, so a long chain of Trigger falls can never shrink a block to a degenerate/near-zero or negative thickness
+        [SerializeField] private float flatStartHeight = 0.1f; // world/spawner-local Y every block's own top surface starts at for the 2D->3D grow transition (see 0048, simplified scope) - should roughly match the 2D PathGrid's own scene height so the 3D track visually rises from about where the flat 2D view left off
+        [SerializeField] private float growDuration = 1.1f; // seconds the grow-to-gameplay lerp takes - matches CameraModeTransition's own transitionDuration default so the height animation and the camera's 2D->isometric swing read as one synchronized moment, even though the two aren't code-coupled
         [SerializeField, Range(0f, 15f)] private float normalInclinationDegrees = 3f; // continuous downhill slope every straight Normal block's own surface has, in its travel direction - see 0039 follow-up. Curved Normal blocks stay flat (0) - a sloped curve is out of scope for now, see TrackBlock.SetCurve/0040
         [SerializeField, Range(0.05f, 0.9f)] private float triggerFallBeatFraction = 0.5f; // how much of a Trigger block's own beat the marble's fall onto its pad takes - the SAME for every Trigger block regardless of FallHeight, so all notes sound at the same phase and the music stays on the grid (see TriggerFallMarbleTrace/0038)
         [SerializeField] private float triggerBounceHeight = 0.06f; // how high the marble hops off a Trigger block's pad before dropping into the groove; 0 = no bounce, it just drops on
@@ -132,6 +135,80 @@ namespace MarbleOrchestra.Grid
         {
             SyncTracks(FindCompletedPaths());
             SyncFillerBlocks();
+        }
+
+        /// The 2D-to-3D "grow" transition (see 0048, simplified scope):
+        /// every currently spawned block - track blocks AND filler terrain
+        /// alike - is first snapped to the SAME flat surface height
+        /// (flatStartHeight), then their Y position is lerped from there up
+        /// to each block's own real, already-solved height (TrackBlock.Height -
+        /// always exactly equal to the Y position BuildTrack/BuildFillerBlock
+        /// gave it, see their own comments on the shared-floor invariant, so
+        /// no separate bookkeeping of "final height" is needed here). Pure
+        /// Transform.position changes - no Rebuild()/re-meshing at any point
+        /// during the animation, since TrackBlock.Rebuild() allocates a new
+        /// Mesh and re-cooks a MeshCollider every call and is not meant to
+        /// run every frame. Call this right after RebuildNow() has built
+        /// the final track (see MarbleController.Play) - the blocks it
+        /// finds already reflect their true target shape/height, this only
+        /// re-animates their starting position.
+        public IEnumerator GrowToGameplay()
+        {
+            List<TrackBlock> blocks = CollectAllBlocks();
+
+            foreach (TrackBlock block in blocks)
+            {
+                Vector3 p = block.transform.localPosition;
+                p.y = flatStartHeight;
+                block.transform.localPosition = p;
+            }
+
+            float elapsed = 0f;
+            while (elapsed < growDuration)
+            {
+                elapsed += Time.deltaTime;
+                float f = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / growDuration));
+
+                foreach (TrackBlock block in blocks)
+                {
+                    Vector3 p = block.transform.localPosition;
+                    p.y = Mathf.Lerp(flatStartHeight, block.Height, f);
+                    block.transform.localPosition = p;
+                }
+
+                yield return null;
+            }
+
+            foreach (TrackBlock block in blocks)
+            {
+                Vector3 p = block.transform.localPosition;
+                p.y = block.Height;
+                block.transform.localPosition = p;
+            }
+        }
+
+        private List<TrackBlock> CollectAllBlocks()
+        {
+            List<TrackBlock> result = new List<TrackBlock>();
+
+            foreach (TrackInstance track in tracks)
+            {
+                foreach (TrackBlock block in track.Blocks)
+                {
+                    if (block != null) result.Add(block);
+                }
+            }
+
+            if (fillerRoot != null)
+            {
+                foreach (Transform child in fillerRoot.transform)
+                {
+                    TrackBlock block = child.GetComponent<TrackBlock>();
+                    if (block != null) result.Add(block);
+                }
+            }
+
+            return result;
         }
 
         /// Tears down every currently spawned 3D block - real track
