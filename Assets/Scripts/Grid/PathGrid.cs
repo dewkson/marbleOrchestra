@@ -194,6 +194,16 @@ namespace MarbleOrchestra.Grid
             return !IsInBounds(coord) || blocked[coord.x, coord.y];
         }
 
+        /// This cell's manually-set height override (see 0050,
+        /// LevelData.GetHeightOverrideAt) - null if none was set. Used by
+        /// TrackBlockSpawner.ResolveStartHeight, which falls back to the
+        /// owning SubLevel's own Start Height when this is null.
+        public float? GetHeightOverride(Vector2Int coord)
+        {
+            if (level == null || !IsInBounds(coord)) return null;
+            return level.GetHeightOverrideAt(coord.y * Width + coord.x);
+        }
+
         public IReadOnlyList<PathPipe> FindPipesByRole(PipeRole role)
         {
             List<PathPipe> result = new List<PathPipe>();

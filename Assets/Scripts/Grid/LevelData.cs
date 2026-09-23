@@ -17,7 +17,7 @@ namespace MarbleOrchestra.Grid
     {
         [SerializeField] private string subLevelName = "SubLevel";
         [SerializeField] private RectInt area = new RectInt(0, 0, 1, 1);
-        [SerializeField] private float startHeight = 1f; // world/spawner-local Y of THIS SubLevel's own Start block - see TrackBlockSpawner.ResolveStartHeight (0047 follow-up); falls back to the spawner's own global startHeight field when no SubLevel owns a given cell at all
+        [SerializeField] private float startHeight = 1f; // world/spawner-local Y of THIS SubLevel's own Start block - see TrackBlockSpawner.ResolveStartHeight (0047 follow-up). Now only a FALLBACK (0050): a per-cell height override set directly on the Start pipe or a blocked cell (LevelData.SetHeightOverrideAt) takes priority; this only applies when no such override exists, and this spawner's own global startHeight field is the next fallback when no SubLevel owns a given cell at all
 
         public string Name => subLevelName;
         public RectInt Area => area;
@@ -52,6 +52,8 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private List<CellContentDefinition> contents = new List<CellContentDefinition>();
         [Tooltip("Cells marked here can't hold a pipe or content and are impassable - lets a level use only part of a larger rectangular grid.")]
         [SerializeField] private List<bool> blocked = new List<bool>();
+        [Tooltip("Per-cell height override for a Start pipe or a blocked cell (see 0050) - editable per-cell in the Level Grid Editor's Selected Cell panel. NaN means \"not set\": TrackBlockSpawner.ResolveStartHeight then falls back to the owning SubLevel's own Start Height (or this spawner's global startHeight with no SubLevels at all).")]
+        [SerializeField] private List<float> heightOverrides = new List<float>();
         [Tooltip("SubLevels (see 0046) carve this grid into named, ordered puzzle areas the player progresses through one at a time. Empty = the whole grid is a single implicit SubLevel.")]
         [SerializeField] private List<SubLevelDefinition> subLevels = new List<SubLevelDefinition>();
 
@@ -61,6 +63,7 @@ namespace MarbleOrchestra.Grid
         public IReadOnlyList<PipeDefinition> Pipes => pipes;
         public IReadOnlyList<CellContentDefinition> Contents => contents;
         public IReadOnlyList<bool> Blocked => blocked;
+        public IReadOnlyList<float> HeightOverrides => heightOverrides;
         public IReadOnlyList<SubLevelDefinition> SubLevels => subLevels;
 
         public void SetPipeAt(int index, PipeDefinition pipe)
@@ -91,6 +94,24 @@ namespace MarbleOrchestra.Grid
                 SetPipeAt(index, null);
                 SetContentAt(index, null);
             }
+        }
+
+        /// This cell's manually-set height override (see 0050) - null if
+        /// none was set, in which case TrackBlockSpawner.ResolveStartHeight
+        /// falls back to the owning SubLevel's own Start Height. Only
+        /// meaningful for a Start pipe or a blocked cell (see the Level
+        /// Grid Editor's Selected Cell panel), but not enforced here.
+        public float? GetHeightOverrideAt(int index)
+        {
+            if (index < 0 || index >= heightOverrides.Count) return null;
+            float value = heightOverrides[index];
+            return float.IsNaN(value) ? (float?)null : value;
+        }
+
+        public void SetHeightOverrideAt(int index, float? height)
+        {
+            if (index < 0 || index >= heightOverrides.Count) return;
+            heightOverrides[index] = height ?? float.NaN;
         }
 
         public void AddSubLevel(string subLevelName, RectInt area)
@@ -141,6 +162,7 @@ namespace MarbleOrchestra.Grid
             ResizeList(pipes, required);
             ResizeList(contents, required);
             ResizeList(blocked, required);
+            ResizeList(heightOverrides, required, float.NaN);
         }
 
         public void ResizeGrid(int newWidth, int newHeight)
@@ -151,17 +173,21 @@ namespace MarbleOrchestra.Grid
             List<PipeDefinition> newPipes = RemapGrid(pipes, width, height, newWidth, newHeight);
             List<CellContentDefinition> newContents = RemapGrid(contents, width, height, newWidth, newHeight);
             List<bool> newBlocked = RemapGrid(blocked, width, height, newWidth, newHeight);
+            List<float> newHeightOverrides = RemapGrid(heightOverrides, width, height, newWidth, newHeight, float.NaN);
 
             width = newWidth;
             height = newHeight;
             pipes = newPipes;
             contents = newContents;
             blocked = newBlocked;
+            heightOverrides = newHeightOverrides;
         }
 
-        private static List<T> RemapGrid<T>(List<T> source, int oldWidth, int oldHeight, int newWidth, int newHeight)
+        private static List<T> RemapGrid<T>(List<T> source, int oldWidth, int oldHeight, int newWidth, int newHeight, T fillValue = default)
         {
-            List<T> result = new List<T>(new T[newWidth * newHeight]);
+            T[] cells = new T[newWidth * newHeight];
+            for (int i = 0; i < cells.Length; i++) cells[i] = fillValue;
+            List<T> result = new List<T>(cells);
 
             int copyWidth = Mathf.Min(oldWidth, newWidth);
             int copyHeight = Mathf.Min(oldHeight, newHeight);
@@ -182,7 +208,7 @@ namespace MarbleOrchestra.Grid
             return result;
         }
 
-        private static void ResizeList<T>(List<T> list, int required)
+        private static void ResizeList<T>(List<T> list, int required, T fillValue = default)
         {
             if (list.Count > required)
             {
@@ -192,7 +218,7 @@ namespace MarbleOrchestra.Grid
             {
                 while (list.Count < required)
                 {
-                    list.Add(default);
+                    list.Add(fillValue);
                 }
             }
         }

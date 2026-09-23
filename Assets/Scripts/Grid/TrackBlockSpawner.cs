@@ -734,15 +734,26 @@ namespace MarbleOrchestra.Grid
         }
 
         /// The baseline height a track/filler chain should hang from at
-        /// this cell: the SubLevel that owns it, via its own configurable
-        /// StartHeight (see SubLevelDefinition/0047 follow-up - editable
-        /// per SubLevel in the Level Grid Editor's SubLevels panel), or
-        /// this spawner's own global startHeight field when the cell
-        /// belongs to no SubLevel at all (a level that doesn't use
-        /// SubLevels is a single implicit one - same convention as
-        /// PathGrid.ActiveSubLevelArea).
+        /// this cell, highest-priority source first (see 0050):
+        /// 1. This cell's own manually-set height override - set directly
+        ///    on a Start pipe or a blocked cell in the Level Grid Editor's
+        ///    Selected Cell panel (LevelData.SetHeightOverrideAt).
+        /// 2. The SubLevel that owns this cell, via its own configurable
+        ///    StartHeight (see SubLevelDefinition/0047 follow-up).
+        /// 3. This spawner's own global startHeight field, when the cell
+        ///    belongs to no SubLevel at all (a level that doesn't use
+        ///    SubLevels is a single implicit one - same convention as
+        ///    PathGrid.ActiveSubLevelArea).
+        /// Called both for an actual track's Start block and, via
+        /// SolveFillerHeights, as the settling height for an isolated
+        /// blocked/unused region no interpolation pass ever reaches - that
+        /// second case is exactly what the per-cell override on a blocked
+        /// cell is for.
         private float ResolveStartHeight(Vector2Int coord)
         {
+            float? cellOverride = grid.GetHeightOverride(coord);
+            if (cellOverride.HasValue) return cellOverride.Value;
+
             if (grid.Level != null && grid.TryGetSubLevelIndexAt(coord, out int index))
             {
                 return grid.Level.SubLevels[index].StartHeight;

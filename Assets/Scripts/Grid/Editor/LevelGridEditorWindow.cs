@@ -125,7 +125,7 @@ namespace MarbleOrchestra.Grid.Editor
             pipeDragCandidateIndex = null;
 
             int required = level.Width * level.Height;
-            if (level.Pipes.Count != required || level.Contents.Count != required || level.Blocked.Count != required)
+            if (level.Pipes.Count != required || level.Contents.Count != required || level.Blocked.Count != required || level.HeightOverrides.Count != required)
             {
                 Undo.RecordObject(level, "Fix Level Grid List Sizes");
                 level.EnsureListSizes();
@@ -260,7 +260,7 @@ namespace MarbleOrchestra.Grid.Editor
                     EditorUtility.SetDirty(level);
                 }
 
-                EditorGUILayout.LabelField(new GUIContent("Y0", "World/spawner-local height of this SubLevel's own Start block (TrackBlockSpawner.ResolveStartHeight)"), GUILayout.Width(20));
+                EditorGUILayout.LabelField(new GUIContent("Y0", "Fallback world/spawner-local height for this SubLevel's cells (TrackBlockSpawner.ResolveStartHeight) - a per-cell Custom Height set on a Start pipe or blocked cell (Selected Cell panel) takes priority over this."), GUILayout.Width(20));
                 float startHeight = EditorGUILayout.FloatField(subLevel.StartHeight, GUILayout.Width(40));
                 if (!Mathf.Approximately(startHeight, subLevel.StartHeight))
                 {
@@ -519,7 +519,10 @@ namespace MarbleOrchestra.Grid.Editor
         /// last clicked (see HandleCellClick), by resolving/creating a
         /// PipeDefinition variant with the same connections+color but the
         /// new attributes (same mechanism as GetOrCreateCustomPipe already
-        /// used for brush painting).
+        /// used for brush painting). A Start pipe or a blocked cell also
+        /// gets a Custom Height field here (see 0050) - the per-cell
+        /// override TrackBlockSpawner.ResolveStartHeight now prefers over
+        /// the owning SubLevel's own Start Height.
         private void DrawCellAttributesPanel()
         {
             EditorGUILayout.Space();
@@ -532,7 +535,15 @@ namespace MarbleOrchestra.Grid.Editor
             }
 
             int index = selectedCellIndex.Value;
-            if (level.IsBlockedAt(index) || index >= level.Pipes.Count || level.Pipes[index] == null)
+
+            if (level.IsBlockedAt(index))
+            {
+                EditorGUILayout.HelpBox("Blocked cell. Isolated blocked/unused regions the surrounding terrain can't interpolate a height for settle at the height below, falling back to the SubLevel's own Start Height if none is set.", MessageType.None);
+                DrawHeightOverrideField(index);
+                return;
+            }
+
+            if (index >= level.Pipes.Count || level.Pipes[index] == null)
             {
                 EditorGUILayout.HelpBox("Selected cell has no pipe - drag a pattern onto it first.", MessageType.None);
                 return;
@@ -567,6 +578,42 @@ namespace MarbleOrchestra.Grid.Editor
                 level.SetPipeAt(index, updated);
                 EditorUtility.SetDirty(level);
                 Repaint();
+            }
+
+            if (newRole == PipeRole.Start)
+            {
+                DrawHeightOverrideField(index);
+            }
+        }
+
+        /// A toggle-gated float field for one cell's height override (see
+        /// LevelData.SetHeightOverrideAt/0050): off leaves the cell at
+        /// "not set" (null), so ResolveStartHeight falls back to the
+        /// owning SubLevel's own Start Height.
+        private void DrawHeightOverrideField(int index)
+        {
+            float? current = level.GetHeightOverrideAt(index);
+            bool hadOverride = current.HasValue;
+
+            bool wantsOverride = EditorGUILayout.Toggle("Custom Height", hadOverride);
+
+            if (!wantsOverride)
+            {
+                if (hadOverride)
+                {
+                    Undo.RecordObject(level, "Clear Cell Height");
+                    level.SetHeightOverrideAt(index, null);
+                    EditorUtility.SetDirty(level);
+                }
+                return;
+            }
+
+            float newValue = EditorGUILayout.FloatField("Height", current ?? 0f);
+            if (!hadOverride || !Mathf.Approximately(newValue, current.Value))
+            {
+                Undo.RecordObject(level, "Set Cell Height");
+                level.SetHeightOverrideAt(index, newValue);
+                EditorUtility.SetDirty(level);
             }
         }
 
