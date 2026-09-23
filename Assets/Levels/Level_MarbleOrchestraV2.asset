@@ -1,0 +1,130 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0aa83a5d77470874ab782e44c644ae6b, type: 3}
+  m_Name: Level_MarbleOrchestraV2
+  m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.LevelData
+  width: 6
+  height: 6
+  loopLengthSteps: 16
+  pipes:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: f4ae79fc787b4ea46af142b5dfedfe62, type: 2}
+  - {fileID: 11400000, guid: ae93e6e983db0d241be6dc3f170d9fed, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: 8f47d152a8d1e484fa73f93459211196, type: 2}
+  - {fileID: 11400000, guid: 27cfed944490f9c4fa1dea891414e54c, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: 27cfed944490f9c4fa1dea891414e54c, type: 2}
+  - {fileID: 11400000, guid: f998b56ef0e6c0f40a9425bf404ff078, type: 2}
+  - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
+  - {fileID: 11400000, guid: ae93e6e983db0d241be6dc3f170d9fed, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: f998b56ef0e6c0f40a9425bf404ff078, type: 2}
+  - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
+  - {fileID: 11400000, guid: ae93e6e983db0d241be6dc3f170d9fed, type: 2}
+  - {fileID: 11400000, guid: f998b56ef0e6c0f40a9425bf404ff078, type: 2}
+  - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
+  - {fileID: 11400000, guid: ae93e6e983db0d241be6dc3f170d9fed, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: f998b56ef0e6c0f40a9425bf404ff078, type: 2}
+  - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
+  - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
+  - {fileID: 11400000, guid: 06138dfe9d2e7e24d975b8c250c45273, type: 2}
+  contents:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: b02d0a61a06244442b915b8c263bb5f5, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: b56b2ba782cff144088371c896f80731, type: 2}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: 1b184cefc3019034eb76765b4d4b30b5, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: 701393b5affea374e96831fcf271e59a, type: 2}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: 1b184cefc3019034eb76765b4d4b30b5, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: eb17afb3d96d1164c8809f855d9545b7, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: b02d0a61a06244442b915b8c263bb5f5, type: 2}
+  - {fileID: 11400000, guid: eb17afb3d96d1164c8809f855d9545b7, type: 2}
+  - {fileID: 11400000, guid: b56b2ba782cff144088371c896f80731, type: 2}
+  blocked: 010101010101000001010101000001010101000000000101000000000000010100000000
+  heightOverrides:
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - 4
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - 6
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  subLevels: []
