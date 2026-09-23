@@ -60,6 +60,8 @@ namespace MarbleOrchestra.Grid
         public int Width => width;
         public int Height => height;
         public int LoopLengthSteps => Mathf.Max(0, loopLengthSteps);
+
+        public void SetLoopLengthSteps(int steps) => loopLengthSteps = Mathf.Max(0, steps);
         public IReadOnlyList<PipeDefinition> Pipes => pipes;
         public IReadOnlyList<CellContentDefinition> Contents => contents;
         public IReadOnlyList<bool> Blocked => blocked;

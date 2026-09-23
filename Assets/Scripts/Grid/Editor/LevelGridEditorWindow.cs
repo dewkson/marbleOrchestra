@@ -169,6 +169,9 @@ namespace MarbleOrchestra.Grid.Editor
             DrawResizeControls();
             EditorGUILayout.Space();
 
+            DrawLoopLengthControl();
+            EditorGUILayout.Space();
+
             DrawSubLevelPanel();
             EditorGUILayout.Space();
 
@@ -203,6 +206,25 @@ namespace MarbleOrchestra.Grid.Editor
                 pendingHeight = level.Height;
             }
             EditorGUILayout.EndHorizontal();
+        }
+
+        /// Global Takt for this level (see LevelData.loopLengthSteps/0043):
+        /// how many beats the shared loop covers before every track
+        /// restarts on the same downbeat. 0 = each track loops with its
+        /// own step count instead of a shared Takt.
+        private void DrawLoopLengthControl()
+        {
+            int newLoopLength = EditorGUILayout.IntField(
+                new GUIContent("Takt (Loop Length Steps)", "Wie viele Beats der gemeinsame Loop hat, bevor alle Bahnen wieder auf demselben Downbeat neu starten. 0 = jede Bahn loopt mit ihrer eigenen Schrittzahl."),
+                level.LoopLengthSteps);
+            newLoopLength = Mathf.Max(0, newLoopLength);
+
+            if (newLoopLength != level.LoopLengthSteps)
+            {
+                Undo.RecordObject(level, "Set Loop Length Steps");
+                level.SetLoopLengthSteps(newLoopLength);
+                EditorUtility.SetDirty(level);
+            }
         }
 
         /// Lists every SubLevel (see 0046) as one row: a color swatch
