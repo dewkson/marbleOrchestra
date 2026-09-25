@@ -21,11 +21,11 @@ namespace MarbleOrchestra.Grid
             visual = GetComponent<PipeVisual>();
         }
 
-        public void Initialize(PipeDefinition definition, Vector2Int coord)
+        public void Initialize(PipeDefinition definition, Vector2Int coord, LevelData levelStyle)
         {
             Definition = definition;
             Coord = coord;
-            visual.Refresh(definition);
+            visual.Refresh(definition, levelStyle);
         }
 
         public void SetCoord(Vector2Int coord)

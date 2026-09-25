@@ -5,6 +5,24 @@ using UnityEngine.Serialization;
 namespace MarbleOrchestra.Grid
 {
     /// <summary>
+    /// A card picture with a frame (see 0030) - used for blocked cells,
+    /// whose look can't live on a PipeDefinition since they hold no pipe.
+    /// A null Image means "no picture".
+    /// </summary>
+    [System.Serializable]
+    public class CardLook
+    {
+        [SerializeField] private Sprite image;
+
+        public Sprite Image => image;
+
+        public CardLook(Sprite image)
+        {
+            this.image = image;
+        }
+    }
+
+    /// <summary>
     /// Names and bounds one SubLevel (see 0046): a rectangular area of the
     /// parent LevelData's big grid, e.g. "Xylophon" or "Percussion". Order
     /// in LevelData.SubLevels IS the progression order - there's no
@@ -54,11 +72,43 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private List<bool> blocked = new List<bool>();
         [Tooltip("Per-cell height override for a Start pipe or a blocked cell (see 0050) - editable per-cell in the Level Grid Editor's Selected Cell panel. NaN means \"not set\": TrackBlockSpawner.ResolveStartHeight then falls back to the owning SubLevel's own Start Height (or this spawner's global startHeight with no SubLevels at all).")]
         [SerializeField] private List<float> heightOverrides = new List<float>();
+        [Tooltip("Frame width of every card picture in this level, as a fraction of the card's edge length (see 0030).")]
+        [Range(0f, 0.3f)]
+        [SerializeField] private float cardBorderThickness = 0.07f;
+        [Tooltip("Card frame color (see 0030) - the default state.")]
+        [SerializeField] private Color cardBorderColor = Color.white;
+        [Tooltip("Card frame color of locked (fixed) cards.")]
+        [SerializeField] private Color lockedBorderColor = new Color(1f, 0.45f, 0f);
+        [Tooltip("Card frame color of a pipe that is correctly connected to the path from a Start.")]
+        [SerializeField] private Color connectedBorderColor = new Color(0.35f, 0.65f, 1f);
+        [Tooltip("Card frame color of every pipe on a valid route (Start connected to Goal).")]
+        [SerializeField] private Color pathCompleteBorderColor = new Color(0.35f, 0.9f, 0.45f);
+        [Tooltip("Draw the white pipe arms/hub on top of card pictures (see 0030). Turn off when the pictures already show the pipes themselves. Cards without a picture always show them.")]
+        [SerializeField] private bool showPipesOnImageCards = true;
+        [Tooltip("Optional picture + frame per blocked cell (see 0030), shown in the 2D planning view. Entries for non-blocked cells are ignored.")]
+        [SerializeField] private List<CardLook> blockedLooks = new List<CardLook>();
         [Tooltip("SubLevels (see 0046) carve this grid into named, ordered puzzle areas the player progresses through one at a time. Empty = the whole grid is a single implicit SubLevel.")]
         [SerializeField] private List<SubLevelDefinition> subLevels = new List<SubLevelDefinition>();
 
         public int Width => width;
         public int Height => height;
+        public Color CardBorderColor => cardBorderColor;
+        public Color LockedBorderColor => lockedBorderColor;
+        public Color ConnectedBorderColor => connectedBorderColor;
+        public Color PathCompleteBorderColor => pathCompleteBorderColor;
+
+        public void SetCardBorderColors(Color normal, Color locked, Color connected, Color pathComplete)
+        {
+            cardBorderColor = normal;
+            lockedBorderColor = locked;
+            connectedBorderColor = connected;
+            pathCompleteBorderColor = pathComplete;
+        }
+
+        public bool ShowPipesOnImageCards => showPipesOnImageCards;
+        public void SetShowPipesOnImageCards(bool show) => showPipesOnImageCards = show;
+        public float CardBorderThickness => Mathf.Clamp(cardBorderThickness, 0f, 0.3f);
+        public void SetCardBorderThickness(float thickness) => cardBorderThickness = Mathf.Clamp(thickness, 0f, 0.3f);
         public int LoopLengthSteps => Mathf.Max(0, loopLengthSteps);
 
         public void SetLoopLengthSteps(int steps) => loopLengthSteps = Mathf.Max(0, steps);
@@ -66,6 +116,7 @@ namespace MarbleOrchestra.Grid
         public IReadOnlyList<CellContentDefinition> Contents => contents;
         public IReadOnlyList<bool> Blocked => blocked;
         public IReadOnlyList<float> HeightOverrides => heightOverrides;
+        public IReadOnlyList<CardLook> BlockedLooks => blockedLooks;
         public IReadOnlyList<SubLevelDefinition> SubLevels => subLevels;
 
         public void SetPipeAt(int index, PipeDefinition pipe)
@@ -114,6 +165,20 @@ namespace MarbleOrchestra.Grid
         {
             if (index < 0 || index >= heightOverrides.Count) return;
             heightOverrides[index] = height ?? float.NaN;
+        }
+
+        /// This blocked cell's picture + frame, or null if none was set.
+        public CardLook GetBlockedLookAt(int index)
+        {
+            if (index < 0 || index >= blockedLooks.Count) return null;
+            CardLook look = blockedLooks[index];
+            return look != null && look.Image != null ? look : null;
+        }
+
+        public void SetBlockedLookAt(int index, Sprite image)
+        {
+            if (index < 0 || index >= blockedLooks.Count) return;
+            blockedLooks[index] = image != null ? new CardLook(image) : null;
         }
 
         public void AddSubLevel(string subLevelName, RectInt area)
@@ -165,6 +230,7 @@ namespace MarbleOrchestra.Grid
             ResizeList(contents, required);
             ResizeList(blocked, required);
             ResizeList(heightOverrides, required, float.NaN);
+            ResizeList(blockedLooks, required);
         }
 
         public void ResizeGrid(int newWidth, int newHeight)
@@ -176,6 +242,7 @@ namespace MarbleOrchestra.Grid
             List<CellContentDefinition> newContents = RemapGrid(contents, width, height, newWidth, newHeight);
             List<bool> newBlocked = RemapGrid(blocked, width, height, newWidth, newHeight);
             List<float> newHeightOverrides = RemapGrid(heightOverrides, width, height, newWidth, newHeight, float.NaN);
+            List<CardLook> newBlockedLooks = RemapGrid(blockedLooks, width, height, newWidth, newHeight);
 
             width = newWidth;
             height = newHeight;
@@ -183,6 +250,7 @@ namespace MarbleOrchestra.Grid
             contents = newContents;
             blocked = newBlocked;
             heightOverrides = newHeightOverrides;
+            blockedLooks = newBlockedLooks;
         }
 
         private static List<T> RemapGrid<T>(List<T> source, int oldWidth, int oldHeight, int newWidth, int newHeight, T fillValue = default)

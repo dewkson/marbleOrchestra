@@ -166,4 +166,60 @@ MonoBehaviour:
   - NaN
   - NaN
   - NaN
+  cardBorderThickness: 0.07
+  cardBorderColor: {r: 1, g: 1, b: 1, a: 1}
+  lockedBorderColor: {r: 1, g: 0.45, b: 0, a: 1}
+  connectedBorderColor: {r: 0.35, g: 0.65, b: 1, a: 1}
+  pathCompleteBorderColor: {r: 0.35, g: 0.9, b: 0.45, a: 1}
+  showPipesOnImageCards: 1
+  blockedLooks:
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
   subLevels: []

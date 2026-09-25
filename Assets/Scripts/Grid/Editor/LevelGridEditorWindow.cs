@@ -125,7 +125,7 @@ namespace MarbleOrchestra.Grid.Editor
             pipeDragCandidateIndex = null;
 
             int required = level.Width * level.Height;
-            if (level.Pipes.Count != required || level.Contents.Count != required || level.Blocked.Count != required || level.HeightOverrides.Count != required)
+            if (level.Pipes.Count != required || level.Contents.Count != required || level.Blocked.Count != required || level.HeightOverrides.Count != required || level.BlockedLooks.Count != required)
             {
                 Undo.RecordObject(level, "Fix Level Grid List Sizes");
                 level.EnsureListSizes();
@@ -170,6 +170,7 @@ namespace MarbleOrchestra.Grid.Editor
             EditorGUILayout.Space();
 
             DrawLoopLengthControl();
+            DrawCardStylePanel();
             EditorGUILayout.Space();
 
             DrawSubLevelPanel();
@@ -225,6 +226,63 @@ namespace MarbleOrchestra.Grid.Editor
                 level.SetLoopLengthSteps(newLoopLength);
                 EditorUtility.SetDirty(level);
             }
+        }
+
+        private bool cardStyleFoldout = true;
+
+        /// Level-wide card look (see 0030): frame width, whether pipes are
+        /// drawn over pictures, and the frame colors that carry all state
+        /// feedback in the 2D planning view (see PipeVisual.UpdateFrameColor).
+        private void DrawCardStylePanel()
+        {
+            cardStyleFoldout = EditorGUILayout.Foldout(cardStyleFoldout, "Card Style", true);
+            if (!cardStyleFoldout) return;
+
+            EditorGUI.indentLevel++;
+            DrawCardBorderWidthControl();
+            DrawShowPipesOnImagesControl();
+
+            Color normal = EditorGUILayout.ColorField("Border", level.CardBorderColor);
+            Color locked = EditorGUILayout.ColorField("Border (Locked)", level.LockedBorderColor);
+            Color connected = EditorGUILayout.ColorField("Border (Connected)", level.ConnectedBorderColor);
+            Color complete = EditorGUILayout.ColorField("Border (Valid Path)", level.PathCompleteBorderColor);
+
+            if (normal != level.CardBorderColor || locked != level.LockedBorderColor ||
+                connected != level.ConnectedBorderColor || complete != level.PathCompleteBorderColor)
+            {
+                Undo.RecordObject(level, "Set Card Border Colors");
+                level.SetCardBorderColors(normal, locked, connected, complete);
+                EditorUtility.SetDirty(level);
+            }
+            EditorGUI.indentLevel--;
+        }
+
+        private void DrawShowPipesOnImagesControl()
+        {
+            bool show = EditorGUILayout.Toggle(
+                new GUIContent("Show Pipes On Images", "Weiße Rohre (Hub/Arme) über den Kartenbildern anzeigen. Ausschalten, wenn die Rohre schon auf den Sprites zu sehen sind."),
+                level.ShowPipesOnImageCards);
+
+            if (show == level.ShowPipesOnImageCards) return;
+
+            Undo.RecordObject(level, "Toggle Show Pipes On Images");
+            level.SetShowPipesOnImageCards(show);
+            EditorUtility.SetDirty(level);
+        }
+
+        /// Frame width shared by every card picture in this level (see
+        /// 0030) - one setting for the whole level instead of per card.
+        private void DrawCardBorderWidthControl()
+        {
+            float newThickness = EditorGUILayout.Slider(
+                new GUIContent("Card Border Width", "Rahmenbreite aller Karten mit Bild in diesem Level, als Anteil der Kartenkante."),
+                level.CardBorderThickness, 0f, 0.3f);
+
+            if (Mathf.Approximately(newThickness, level.CardBorderThickness)) return;
+
+            Undo.RecordObject(level, "Set Card Border Width");
+            level.SetCardBorderThickness(newThickness);
+            EditorUtility.SetDirty(level);
         }
 
         /// Lists every SubLevel (see 0046) as one row: a color swatch
@@ -562,6 +620,7 @@ namespace MarbleOrchestra.Grid.Editor
             {
                 EditorGUILayout.HelpBox("Blocked cell. Isolated blocked/unused regions the surrounding terrain can't interpolate a height for settle at the height below, falling back to the SubLevel's own Start Height if none is set.", MessageType.None);
                 DrawHeightOverrideField(index);
+                DrawBlockedLookFields(index);
                 return;
             }
 
@@ -595,7 +654,7 @@ namespace MarbleOrchestra.Grid.Editor
 
             if (nowLocked != wasLocked || newRole != pipe.Role)
             {
-                PipeDefinition updated = GetOrCreateCustomPipe(pipe.Connections, pipe.BackgroundColor, newRole, nowLocked);
+                PipeDefinition updated = GetOrCreateCustomPipe(pipe.Connections, pipe.BackgroundColor, newRole, nowLocked, pipe.CardImage);
                 Undo.RecordObject(level, "Set Pipe Attributes");
                 level.SetPipeAt(index, updated);
                 EditorUtility.SetDirty(level);
@@ -606,6 +665,47 @@ namespace MarbleOrchestra.Grid.Editor
             {
                 DrawHeightOverrideField(index);
             }
+
+            DrawCardLookFields(index, level.Pipes[index]);
+        }
+
+        /// Per-cell card picture + frame color (see 0030), shown in the
+        /// 2D planning view. Stored on the PipeDefinition variant so the
+        /// look travels with the card when it's swapped.
+        private void DrawCardLookFields(int index, PipeDefinition pipe)
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Card Look", EditorStyles.boldLabel);
+
+            Sprite newImage = (Sprite)EditorGUILayout.ObjectField("Image", pipe.CardImage, typeof(Sprite), false);
+
+            if (newImage == pipe.CardImage) return;
+
+            PipeDefinition updated = GetOrCreateCustomPipe(pipe.Connections, pipe.BackgroundColor, pipe.Role, pipe.Locked, newImage);
+            Undo.RecordObject(level, "Set Card Look");
+            level.SetPipeAt(index, updated);
+            EditorUtility.SetDirty(level);
+            Repaint();
+        }
+
+        /// Picture + frame for a blocked cell (see 0030), stored directly on
+        /// the LevelData since a blocked cell holds no PipeDefinition.
+        private void DrawBlockedLookFields(int index)
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Card Look", EditorStyles.boldLabel);
+
+            CardLook look = level.GetBlockedLookAt(index);
+            Sprite image = look != null ? look.Image : null;
+
+            Sprite newImage = (Sprite)EditorGUILayout.ObjectField("Image", image, typeof(Sprite), false);
+
+            if (newImage == image) return;
+
+            Undo.RecordObject(level, "Set Blocked Card Look");
+            level.SetBlockedLookAt(index, newImage);
+            EditorUtility.SetDirty(level);
+            Repaint();
         }
 
         /// A toggle-gated float field for one cell's height override (see
@@ -705,22 +805,33 @@ namespace MarbleOrchestra.Grid.Editor
             CellContentDefinition content = isBlocked || index >= level.Contents.Count ? null : level.Contents[index];
 
             Color background = pipe != null ? pipe.BackgroundColor : new Color(0.18f, 0.18f, 0.18f);
-            EditorGUI.DrawRect(rect, background);
 
             if (pipe != null)
             {
-                Rect hub = new Rect(rect.x + rect.width * 0.35f, rect.y + rect.height * 0.35f, rect.width * 0.3f, rect.height * 0.3f);
-                EditorGUI.DrawRect(hub, pipe.Color);
-                DrawConnectionArms(rect, pipe.Connections, pipe.Color);
+                // Frame in the level's configured color (locked cards use
+                // their own), the card face inset by the border width.
+                EditorGUI.DrawRect(rect, pipe.Locked ? level.LockedBorderColor : level.CardBorderColor);
+                Rect face = InsetRect(rect, level.CardBorderThickness);
+                EditorGUI.DrawRect(face, background);
+                if (pipe.CardImage != null) DrawSpriteInRect(face, pipe.CardImage);
+            }
+            else
+            {
+                EditorGUI.DrawRect(rect, background);
+            }
+
+            if (pipe != null)
+            {
+                if (pipe.CardImage == null || level.ShowPipesOnImageCards)
+                {
+                    Rect hub = new Rect(rect.x + rect.width * 0.35f, rect.y + rect.height * 0.35f, rect.width * 0.3f, rect.height * 0.3f);
+                    EditorGUI.DrawRect(hub, pipe.Color);
+                    DrawConnectionArms(rect, pipe.Connections, pipe.Color);
+                }
 
                 if (pipe.Role != PipeRole.Normal)
                 {
                     DrawRoleBadge(rect, pipe.Role);
-                }
-
-                if (pipe.Locked)
-                {
-                    DrawLockedBorder(rect);
                 }
             }
 
@@ -733,7 +844,13 @@ namespace MarbleOrchestra.Grid.Editor
 
             if (isBlocked)
             {
-                DrawBlockedOverlay(rect);
+                CardLook blockedLook = level.GetBlockedLookAt(index);
+                if (blockedLook != null)
+                {
+                    EditorGUI.DrawRect(rect, level.CardBorderColor);
+                    DrawSpriteInRect(InsetRect(rect, level.CardBorderThickness), blockedLook.Image);
+                }
+                DrawBlockedOverlay(rect, blockedLook != null ? 0.25f : 0.6f);
             }
 
             if (activeLayer == PaintLayer.Pipe && selectedCellIndex == index)
@@ -746,9 +863,24 @@ namespace MarbleOrchestra.Grid.Editor
             HandleCellEvents(rect, index);
         }
 
-        private static void DrawBlockedOverlay(Rect rect)
+        /// Card picture inset in a frame of the cell's border color (see 0030).
+        private static Rect InsetRect(Rect rect, float borderThickness)
         {
-            EditorGUI.DrawRect(rect, new Color(0f, 0f, 0f, 0.6f));
+            float frame = rect.width * Mathf.Clamp(borderThickness, 0f, 0.45f);
+            return new Rect(rect.x + frame, rect.y + frame, rect.width - frame * 2f, rect.height - frame * 2f);
+        }
+
+        private static void DrawSpriteInRect(Rect inner, Sprite sprite)
+        {
+            Texture2D texture = sprite.texture;
+            Rect r = sprite.textureRect;
+            Rect uv = new Rect(r.x / texture.width, r.y / texture.height, r.width / texture.width, r.height / texture.height);
+            GUI.DrawTextureWithTexCoords(inner, texture, uv);
+        }
+
+        private static void DrawBlockedOverlay(Rect rect, float dimAlpha = 0.6f)
+        {
+            EditorGUI.DrawRect(rect, new Color(0f, 0f, 0f, dimAlpha));
 
             Handles.BeginGUI();
             Handles.color = new Color(1f, 0.2f, 0.2f, 0.8f);
@@ -865,17 +997,6 @@ namespace MarbleOrchestra.Grid.Editor
             Color badgeColor = role == PipeRole.Start ? new Color(0.2f, 0.8f, 0.3f) : new Color(1f, 0.84f, 0.2f);
             EditorGUI.DrawRect(badge, badgeColor);
             GUI.Label(badge, role == PipeRole.Start ? "S" : "G", GetRoleLabelStyle());
-        }
-
-        private static void DrawLockedBorder(Rect rect)
-        {
-            const float thickness = 3f;
-            Color color = new Color(1f, 0.45f, 0f);
-
-            EditorGUI.DrawRect(new Rect(rect.x, rect.y, rect.width, thickness), color);
-            EditorGUI.DrawRect(new Rect(rect.x, rect.yMax - thickness, rect.width, thickness), color);
-            EditorGUI.DrawRect(new Rect(rect.x, rect.y, thickness, rect.height), color);
-            EditorGUI.DrawRect(new Rect(rect.xMax - thickness, rect.y, thickness, rect.height), color);
         }
 
         private static void DrawConnectionArms(Rect rect, Direction connections, Color armColor)
@@ -1042,7 +1163,9 @@ namespace MarbleOrchestra.Grid.Editor
         {
             if (level.IsBlockedAt(index)) return;
 
-            PipeDefinition pipe = GetOrCreateCustomPipe(pattern, customBackgroundColor, PipeRole.Normal, false);
+            PipeDefinition previous = index < level.Pipes.Count ? level.Pipes[index] : null;
+            PipeDefinition pipe = GetOrCreateCustomPipe(pattern, customBackgroundColor, PipeRole.Normal, false,
+                previous != null ? previous.CardImage : null);
 
             Undo.RecordObject(level, "Place Pipe");
             level.SetPipeAt(index, pipe);
@@ -1064,23 +1187,25 @@ namespace MarbleOrchestra.Grid.Editor
             Repaint();
         }
 
-        private PipeDefinition GetOrCreateCustomPipe(Direction connections, Color backgroundColor, PipeRole role, bool locked)
+        private PipeDefinition GetOrCreateCustomPipe(Direction connections, Color backgroundColor, PipeRole role, bool locked, Sprite cardImage = null)
         {
+
             foreach (PipeDefinition existing in availablePipes)
             {
                 if (existing.Connections == connections &&
                     existing.BackgroundColor == backgroundColor &&
                     existing.Role == role &&
-                    existing.Locked == locked)
+                    existing.Locked == locked &&
+                    existing.CardImage == cardImage)
                 {
                     return existing;
                 }
             }
 
-            return CreateCustomPipeAsset(connections, backgroundColor, role, locked);
+            return CreateCustomPipeAsset(connections, backgroundColor, role, locked, cardImage);
         }
 
-        private PipeDefinition CreateCustomPipeAsset(Direction connections, Color backgroundColor, PipeRole role, bool locked)
+        private PipeDefinition CreateCustomPipeAsset(Direction connections, Color backgroundColor, PipeRole role, bool locked, Sprite cardImage)
         {
             PipeDefinition asset = CreateInstance<PipeDefinition>();
 
@@ -1089,7 +1214,9 @@ namespace MarbleOrchestra.Grid.Editor
             serialized.FindProperty("backgroundColor").colorValue = backgroundColor;
             serialized.FindProperty("role").enumValueIndex = (int)role;
             serialized.FindProperty("locked").boolValue = locked;
+            serialized.FindProperty("cardImage").objectReferenceValue = cardImage;
             string pipeId = BuildPipeId(connections, role, locked);
+            if (cardImage != null) pipeId += $"_{cardImage.name}";
             serialized.FindProperty("pipeId").stringValue = pipeId;
             serialized.ApplyModifiedPropertiesWithoutUndo();
 

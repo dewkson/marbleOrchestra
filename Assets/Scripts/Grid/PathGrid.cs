@@ -18,6 +18,7 @@ namespace MarbleOrchestra.Grid
         private PathPipe[,] pipes;
         private CellContentDefinition[,] contents;
         private bool[,] blocked;
+        private PipeVisual[,] blockedVisuals; // only for blocked cells with a picture (see 0030) - purely decorative, no collider
         private int activeSubLevelIndex;
 
         public int Width { get; private set; }
@@ -130,9 +131,14 @@ namespace MarbleOrchestra.Grid
             {
                 for (int x = 0; x < Width; x++)
                 {
+                    bool active = IsInActiveSubLevel(new Vector2Int(x, y));
+
+                    PipeVisual blockedVisual = blockedVisuals != null ? blockedVisuals[x, y] : null;
+                    if (blockedVisual != null) blockedVisual.gameObject.SetActive(active);
+
                     PathPipe pipe = pipes[x, y];
                     if (pipe == null) continue;
-                    pipe.gameObject.SetActive(IsInActiveSubLevel(new Vector2Int(x, y)));
+                    pipe.gameObject.SetActive(active);
                 }
             }
         }
@@ -154,6 +160,7 @@ namespace MarbleOrchestra.Grid
             pipes = new PathPipe[Width, Height];
             contents = new CellContentDefinition[Width, Height];
             blocked = new bool[Width, Height];
+            blockedVisuals = new PipeVisual[Width, Height];
 
             for (int y = 0; y < Height; y++)
             {
@@ -162,7 +169,11 @@ namespace MarbleOrchestra.Grid
                     int index = y * Width + x;
                     bool isBlocked = levelData.IsBlockedAt(index);
                     blocked[x, y] = isBlocked;
-                    if (isBlocked) continue;
+                    if (isBlocked)
+                    {
+                        blockedVisuals[x, y] = CreateBlockedVisual(new Vector2Int(x, y), levelData.GetBlockedLookAt(index));
+                        continue;
+                    }
 
                     PipeDefinition definition = index < levelData.Pipes.Count ? levelData.Pipes[index] : null;
                     pipes[x, y] = CreatePipe(new Vector2Int(x, y), definition);
@@ -273,6 +284,20 @@ namespace MarbleOrchestra.Grid
             return new Vector3(coord.x * cellSize, coord.y * cellSize, 0f);
         }
 
+        private PipeVisual CreateBlockedVisual(Vector2Int coord, CardLook look)
+        {
+            if (look == null) return null;
+
+            GameObject go = new GameObject($"Blocked_{coord.x}_{coord.y}");
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = CellToLocalPosition(coord);
+            go.transform.localScale = Vector3.one * cardScale;
+
+            PipeVisual visual = go.AddComponent<PipeVisual>();
+            visual.RefreshBlocked(look, level);
+            return visual;
+        }
+
         private PathPipe CreatePipe(Vector2Int coord, PipeDefinition definition)
         {
             GameObject go = new GameObject($"Pipe_{coord.x}_{coord.y}");
@@ -291,7 +316,7 @@ namespace MarbleOrchestra.Grid
             collider.size = new Vector3(1f, 1f, 0.1f);
 
             PathPipe pipe = go.AddComponent<PathPipe>();
-            pipe.Initialize(definition, coord);
+            pipe.Initialize(definition, coord, level);
             return pipe;
         }
     }

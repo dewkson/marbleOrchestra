@@ -31,7 +31,7 @@ namespace MarbleOrchestra.Grid
             SpriteRenderer renderer = go.AddComponent<SpriteRenderer>();
             renderer.sprite = GetCircleSprite();
             renderer.color = color;
-            renderer.sortingOrder = 3;
+            renderer.sortingOrder = 4;
 
             return go.AddComponent<Marble>();
         }

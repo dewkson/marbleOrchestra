@@ -5,19 +5,17 @@ namespace MarbleOrchestra.Grid
     /// <summary>
     /// Draws a pipe purely from its Direction flags (a "+" of arms towards
     /// each connected side). No hand-authored art needed per pipe type.
-    /// "Highlighted" (click-click selection, and drag-and-drop's dragged/
-    /// hovered pipes - see 0004) is shown as a white border sprite that
-    /// peeks out from behind the card background, rather than tinting the
-    /// small center hub - the hub always just shows the pipe's own color.
+    /// Every card sits in a frame (see 0030) whose color carries all the
+    /// state feedback - level default, locked, correctly connected, path
+    /// complete (start reaches goal), and the click/drag selection
+    /// highlight (see 0004) - using the colors and width configured once
+    /// on the LevelData, instead of tinting the card face.
     /// </summary>
     public class PipeVisual : MonoBehaviour
     {
         [SerializeField] private float armThickness = 0.15f;
         [SerializeField] private float hubSize = 0.2f;
-        [SerializeField] private Color borderColor = Color.white;
-        [SerializeField] private float borderScale = 1.1f; // relative to the 1x1 background - how far the border peeks out on each side
-        [SerializeField] private Color connectedTint = new Color(0.35f, 0.65f, 1f);
-        [SerializeField] private Color pathCompleteTint = new Color(0.35f, 0.9f, 0.45f);
+        [SerializeField] private Color highlightColor = new Color(1f, 0.85f, 0.1f); // frame color while selected/dragged/hovered
         [SerializeField] private Color roleLabelColor = Color.white;
         [SerializeField] private float roleLabelCharacterSize = 0.05f;
         [SerializeField] private int roleLabelFontSize = 32;
@@ -26,32 +24,42 @@ namespace MarbleOrchestra.Grid
 
         private static Sprite pixelSprite;
 
-        private SpriteRenderer borderRenderer;
+        private SpriteRenderer frameRenderer;
         private SpriteRenderer backgroundRenderer;
+        private SpriteRenderer imageRenderer;
         private SpriteRenderer hubRenderer;
         private readonly SpriteRenderer[] armRenderers = new SpriteRenderer[4];
         private TextMesh roleLabel;
         private MeshRenderer roleLabelRenderer;
         private Color baseColor = Color.white;
-        private Color baseBackgroundColor = Color.gray;
+        private LevelData style;
+        private bool locked;
+        private bool highlighted;
+        private CellConnectivity connectivity = CellConnectivity.Disconnected;
         private bool dragElevated;
 
-        public void Refresh(PipeDefinition definition)
+        public void Refresh(PipeDefinition definition, LevelData levelStyle)
         {
             EnsureBuilt();
+            style = levelStyle;
 
             Direction connections = definition != null ? definition.Connections : Direction.None;
             baseColor = definition != null ? definition.Color : Color.white;
-            baseBackgroundColor = definition != null ? definition.BackgroundColor : Color.gray;
-            backgroundRenderer.color = baseBackgroundColor;
+            locked = definition != null && definition.Locked;
+            backgroundRenderer.color = definition != null ? definition.BackgroundColor : Color.gray;
+
+            Sprite image = definition != null ? definition.CardImage : null;
+            ApplyFrameAndImage(image);
+
+            bool showPipes = image == null || style.ShowPipesOnImageCards;
 
             hubRenderer.color = baseColor;
-            hubRenderer.enabled = connections != Direction.None;
+            hubRenderer.enabled = showPipes && connections != Direction.None;
 
             for (int i = 0; i < DirectionExtensions.All.Length; i++)
             {
                 bool connected = (connections & DirectionExtensions.All[i]) != 0;
-                armRenderers[i].enabled = connected;
+                armRenderers[i].enabled = showPipes && connected;
                 armRenderers[i].color = baseColor;
             }
 
@@ -62,18 +70,76 @@ namespace MarbleOrchestra.Grid
                 PipeRole.Goal => "Ziel",
                 _ => string.Empty
             };
+
+            UpdateFrameColor();
         }
 
-        public void SetHighlighted(bool highlighted)
+        /// Static, non-interactive card for a blocked cell that has a
+        /// picture assigned (see 0030): no hub/arms, just the framed image.
+        public void RefreshBlocked(CardLook look, LevelData levelStyle)
         {
-            if (borderRenderer == null) return;
-            borderRenderer.enabled = highlighted;
+            EnsureBuilt();
+            style = levelStyle;
+            locked = false;
+
+            backgroundRenderer.color = new Color(0.18f, 0.18f, 0.18f);
+            hubRenderer.enabled = false;
+            foreach (SpriteRenderer arm in armRenderers) arm.enabled = false;
+            roleLabel.text = string.Empty;
+
+            ApplyFrameAndImage(look.Image);
+            UpdateFrameColor();
+        }
+
+        /// The frame always exists (its width is the level's card border
+        /// width); the background - and the picture on top of it, if any -
+        /// is inset by that width.
+        private void ApplyFrameAndImage(Sprite image)
+        {
+            float inset = 1f - 2f * style.CardBorderThickness;
+            backgroundRenderer.transform.localScale = Vector3.one * inset;
+
+            imageRenderer.enabled = image != null;
+            if (image == null) return;
+
+            imageRenderer.sprite = image;
+            Vector2 size = image.bounds.size;
+            imageRenderer.transform.localScale = new Vector3(
+                size.x > 0f ? inset / size.x : 1f,
+                size.y > 0f ? inset / size.y : 1f,
+                1f);
+        }
+
+        public void SetHighlighted(bool isHighlighted)
+        {
+            highlighted = isHighlighted;
+            UpdateFrameColor();
+        }
+
+        public void SetConnectivity(CellConnectivity newConnectivity)
+        {
+            connectivity = newConnectivity;
+            UpdateFrameColor();
+        }
+
+        /// Highlight beats connectivity beats locked beats the default
+        /// frame color - a locked Start/Goal is usually connected too, and
+        /// that live state is the more useful thing to show.
+        private void UpdateFrameColor()
+        {
+            if (frameRenderer == null || style == null) return;
+
+            if (highlighted) frameRenderer.color = highlightColor;
+            else if (connectivity == CellConnectivity.PathComplete) frameRenderer.color = style.PathCompleteBorderColor;
+            else if (connectivity == CellConnectivity.Connected) frameRenderer.color = style.ConnectedBorderColor;
+            else if (locked) frameRenderer.color = style.LockedBorderColor;
+            else frameRenderer.color = style.CardBorderColor;
         }
 
         /// While dragged (see 0004's GridInputHandler), the card should
         /// visually cover every other pipe it passes over, regardless of
         /// draw order - bump every one of this pipe's renderers well above
-        /// the sortingOrder range any other pipe uses (max 4, see
+        /// the sortingOrder range any other pipe uses (max 5, see
         /// EnsureBuilt), then restore exactly on release.
         public void SetDragElevated(bool elevated)
         {
@@ -81,29 +147,12 @@ namespace MarbleOrchestra.Grid
             dragElevated = elevated;
 
             int delta = elevated ? dragSortingBoost : -dragSortingBoost;
+            frameRenderer.sortingOrder += delta;
             backgroundRenderer.sortingOrder += delta;
-            borderRenderer.sortingOrder += delta;
+            imageRenderer.sortingOrder += delta;
             hubRenderer.sortingOrder += delta;
             roleLabelRenderer.sortingOrder += delta;
             foreach (SpriteRenderer arm in armRenderers) arm.sortingOrder += delta;
-        }
-
-        public void SetConnectivity(CellConnectivity connectivity)
-        {
-            if (backgroundRenderer == null) return;
-
-            switch (connectivity)
-            {
-                case CellConnectivity.PathComplete:
-                    backgroundRenderer.color = pathCompleteTint;
-                    break;
-                case CellConnectivity.Connected:
-                    backgroundRenderer.color = connectedTint;
-                    break;
-                default:
-                    backgroundRenderer.color = baseBackgroundColor;
-                    break;
-            }
         }
 
         private void EnsureBuilt()
@@ -112,31 +161,31 @@ namespace MarbleOrchestra.Grid
 
             Sprite sprite = GetPixelSprite();
 
-            // Behind the background (lower sortingOrder) and slightly
-            // larger, so only a thin rim shows around the card's edges
-            // when enabled - a border made of the same 1x1 pixel sprite,
-            // no extra art needed.
-            GameObject border = new GameObject("SelectionBorder");
-            border.transform.SetParent(transform, false);
-            borderRenderer = border.AddComponent<SpriteRenderer>();
-            borderRenderer.sprite = sprite;
-            borderRenderer.sortingOrder = -1;
-            borderRenderer.color = borderColor;
-            borderRenderer.enabled = false;
-            border.transform.localScale = Vector3.one * borderScale;
+            // Full-size frame behind the (inset) background: only the rim
+            // shows, made of the same 1x1 pixel sprite - no extra art.
+            GameObject frame = new GameObject("CardFrame");
+            frame.transform.SetParent(transform, false);
+            frameRenderer = frame.AddComponent<SpriteRenderer>();
+            frameRenderer.sprite = sprite;
+            frameRenderer.sortingOrder = -1;
 
             GameObject background = new GameObject("Background");
             background.transform.SetParent(transform, false);
             backgroundRenderer = background.AddComponent<SpriteRenderer>();
             backgroundRenderer.sprite = sprite;
             backgroundRenderer.sortingOrder = 0;
-            background.transform.localScale = Vector3.one;
+
+            GameObject image = new GameObject("CardImage");
+            image.transform.SetParent(transform, false);
+            imageRenderer = image.AddComponent<SpriteRenderer>();
+            imageRenderer.sortingOrder = 1;
+            imageRenderer.enabled = false;
 
             GameObject hub = new GameObject("Hub");
             hub.transform.SetParent(transform, false);
             hubRenderer = hub.AddComponent<SpriteRenderer>();
             hubRenderer.sprite = sprite;
-            hubRenderer.sortingOrder = 2;
+            hubRenderer.sortingOrder = 3;
             hub.transform.localScale = new Vector3(hubSize, hubSize, 1f);
 
             for (int i = 0; i < DirectionExtensions.All.Length; i++)
@@ -147,7 +196,7 @@ namespace MarbleOrchestra.Grid
 
                 SpriteRenderer renderer = arm.AddComponent<SpriteRenderer>();
                 renderer.sprite = sprite;
-                renderer.sortingOrder = 1;
+                renderer.sortingOrder = 2;
 
                 Vector2 offset = (Vector2)dir.ToGridOffset() * 0.25f;
                 arm.transform.localPosition = offset;
@@ -173,7 +222,7 @@ namespace MarbleOrchestra.Grid
             roleLabel.color = roleLabelColor;
 
             roleLabelRenderer = label.GetComponent<MeshRenderer>();
-            roleLabelRenderer.sortingOrder = 4;
+            roleLabelRenderer.sortingOrder = 5;
         }
 
         private static Sprite GetPixelSprite()
