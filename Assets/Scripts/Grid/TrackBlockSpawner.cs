@@ -770,11 +770,13 @@ namespace MarbleOrchestra.Grid
             List<TrackBlock> blocks = new List<TrackBlock>(path.Count);
             Vector2 blockSize = new Vector2(grid.CellSize, grid.CellSize); // square footprint - see SideWidth
 
-            // How far the Start/Goal/Trigger groove reaches past the block's
+            // How far the Start/Goal groove reaches past the block's
             // center into its closed half, so it visibly runs into a
-            // TunnelPortalDecoration's/pad's mouth instead of dead-ending
-            // right at the frame - clamped well inside the closed half so
-            // it never collides with the block's own true edge.
+            // TunnelPortalDecoration's mouth instead of dead-ending right
+            // at the frame - clamped well inside the closed half so it
+            // never collides with the block's own true edge. Also reused
+            // (unrelated to any wall now, see 0052) as the Trigger block's
+            // bounce-landing distance past its own center in CreateTrace.
             float railExtension = Mathf.Min(grooveRadius * 1.5f, blockSize.y * 0.5f * 0.6f);
 
             float runningExitY = ResolveStartHeight(start); // world/spawner-local Y of the groove floor the next block's entry must match, unless it's a Trigger block
@@ -795,10 +797,15 @@ namespace MarbleOrchestra.Grid
                 Direction outputDir = ComputeOutputDirection(path, i);
 
                 // A curved groove (see 0040) only ever makes sense for a
-                // Normal block whose path actually turns 90° - Start/Goal/
-                // Trigger blocks' entry half is always capped
+                // Normal block whose path actually turns 90° - Start/Goal
+                // blocks' entry/exit half is always capped
                 // (IClosedEndBlockProfile), never a through-rolling groove
                 // that could turn (see TrackBlock.SetCurve's remarks).
+                // Trigger blocks use a plain, uncapped groove too (see
+                // 0052 - the rail runs the full block, under the
+                // XylophoneBlockDecoration pad, instead of dead-ending at
+                // the block's center) but never turn either, since isTurn
+                // below only ever allows a Normal block through.
                 // Straight-through means InputDirection == OutputDirection
                 // (the marble keeps travelling the same way, e.g. Up->Up) -
                 // NOT Opposite() (that would be a 180° reversal, which
@@ -806,9 +813,14 @@ namespace MarbleOrchestra.Grid
                 bool isTurn = type == BlockType.Normal && inputDir != Direction.None && outputDir != Direction.None
                     && inputDir != outputDir;
 
+                // Trigger uses the same plain, uncapped groove as Normal
+                // (see 0052): its rail runs the full block length, under
+                // the XylophoneBlockDecoration pad, rather than being
+                // capped like Start/Goal - the marble never rolls through
+                // its entry half anyway (see TriggerFallMarbleTrace), so
+                // there's nothing physical the cap ever protected.
                 IBlockProfile profile = type == BlockType.Start ? new ClosedEndGrooveBlockProfile(grooveRadius, SideWidth, grooveArcSegments, closedAtEntry: true, railExtension)
                     : type == BlockType.Goal ? new ClosedEndGrooveBlockProfile(grooveRadius, SideWidth, grooveArcSegments, closedAtEntry: false, railExtension)
-                    : type == BlockType.Trigger ? new ClosedEndGrooveBlockProfile(grooveRadius, SideWidth, grooveArcSegments, closedAtEntry: true, railExtension)
                     : new GrooveBlockProfile(grooveRadius, SideWidth, grooveArcSegments);
 
                 float requestedFallHeight = type == BlockType.Trigger ? triggerContent.FallHeight : 0f;

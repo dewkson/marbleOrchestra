@@ -53,12 +53,12 @@ namespace MarbleOrchestra.Grid
         /// XylophoneBlockDecoration puts the bar on). padTopY/
         /// padCenterOffset: that bar's own top height and distance from the
         /// block's center. grooveLandingZ: local Z the bounce comes down
-        /// at - a groove radius PAST the mouth where the sealed entry half
-        /// opens up (IClosedEndBlockProfile.WallZ), so the marble drops
-        /// into open groove rather than clipping the solid rim right at
-        /// its edge. fallBeatFraction: how much of this block's beat the
-        /// fall takes - the same for every Trigger block, see the class
-        /// remarks.
+        /// at, past the pad and on into the block's own groove (the
+        /// groove now runs the full block, see 0052 - this is simply a
+        /// fixed distance past center that reads as a natural hop off the
+        /// pad, not tied to any wall). fallBeatFraction: how much of this
+        /// block's beat the fall takes - the same for every Trigger block,
+        /// see the class remarks.
         public TriggerFallMarbleTrace(TrackBlock block, Vector3 fallSideLocal, float fallHeight,
             float padTopY, float padCenterOffset, float grooveLandingZ, float fallBeatFraction, float bounceHeight)
         {

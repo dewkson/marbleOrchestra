@@ -17,8 +17,9 @@ namespace MarbleOrchestra.Grid
     /// box, elongated ACROSS whichever local axis (X or Z) fallSideLocal
     /// points along (like a real xylophone bar, laid crosswise to the
     /// direction the marble falls in), not the original horseshoe/capsule
-    /// shapes (see 0039 follow-ups). The groove geometry itself
-    /// (ClosedEndGrooveBlockProfile) is unaffected by this.
+    /// shapes (see 0039 follow-ups). The groove geometry itself (a plain,
+    /// full-length GrooveBlockProfile running under this bar - see 0052)
+    /// is unaffected by this.
     /// Built the same way as TerrainDecoration/TunnelPortalDecoration: a
     /// separate child GameObject with its own MeshFilter/MeshRenderer, no
     /// collider, parented to the block.

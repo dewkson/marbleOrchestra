@@ -19,6 +19,8 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0036 | Instrumentenreaktionen in 3D mit Partikeleffekt anreichern | Feature | 🔵 Low | ⚪ Open | Gameplay | 2026-09-04 |
 | 0037 | Sound für Murmel-Bewegung einbinden | Feature | 🔵 Low | ⚪ Open | Audio | 2026-09-04 |
 | 0048 | 2D-Karten wachsen beim Play-Wechsel zu 3D-Blöcken | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-18 |
+| 0050 | Separate Farbe pro Trackblock im Level-Editor | Feature | 🟡 Medium | ⚪ Open | Level Editor | 2026-09-28 |
+| 0051 | Multiselekt von Zellen im Level Grid Editor | Feature | 🟡 Medium | ⚪ Open | Level Editor | 2026-09-28 |
 
 ## Alle Tickets
 
@@ -73,3 +75,6 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0047 | Umgebende Blöcke mit interpolierter Höhe | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-16 |
 | 0048 | 2D-Karten wachsen beim Play-Wechsel zu 3D-Blöcken | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-18 |
 | 0049 | Pipe-Editor per Drag & Drop aus Richtungsmustern statt Kartenliste | Feature | 🟡 Medium | ✅ Done | Level Editor | 2026-09-18 |
+| 0050 | Separate Farbe pro Trackblock im Level-Editor | Feature | 🟡 Medium | ⚪ Open | Level Editor | 2026-09-28 |
+| 0051 | Multiselekt von Zellen im Level Grid Editor | Feature | 🟡 Medium | ⚪ Open | Level Editor | 2026-09-28 |
+| 0052 | Durchgängige Rail bei Music-Trigger-Blocks | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-28 |

@@ -92,7 +92,8 @@ namespace MarbleOrchestra.Grid
         /// YawDegrees at 0 rather than deriving it from a travel direction.
         /// Never meaningful together with an IClosedEndBlockProfile (see
         /// Rebuild's guard) - only a straight-through Normal-block groove
-        /// can turn; a Trigger's closed entry half never rolls through.
+        /// can turn; Start/Goal/Trigger never turn either way (see
+        /// TrackBlockSpawner's isTurn, Normal-only).
         public void SetCurve(Vector3 inputDirectionLocal, Vector3 outputDirectionLocal)
         {
             isCurved = true;
@@ -232,10 +233,12 @@ namespace MarbleOrchestra.Grid
             List<int> grooveTriangles = new List<int>();
 
             // A curved sweep only ever makes sense for a plain through-
-            // rolling groove - an IClosedEndBlockProfile (Start/Goal/
-            // Trigger) never turns (see SetCurve's remarks and
-            // TrackBlockSpawner, which never calls SetCurve for those
-            // types), but this guard keeps Rebuild itself safe regardless.
+            // rolling groove - an IClosedEndBlockProfile (Start/Goal)
+            // never turns (see SetCurve's remarks and TrackBlockSpawner,
+            // which never calls SetCurve for those types), but this guard
+            // keeps Rebuild itself safe regardless. Trigger blocks use a
+            // plain groove too (see 0052) but never turn either, so they
+            // take the same straight-mesh path below.
             if (isCurved && !(profile is IClosedEndBlockProfile))
                 BuildCurvedMesh(vertices, mainTriangles, grooveTriangles);
             else
