@@ -215,6 +215,16 @@ namespace MarbleOrchestra.Grid
             return level.GetHeightOverrideAt(coord.y * Width + coord.x);
         }
 
+        /// This cell's manually-set 3D block color override (see 0050,
+        /// LevelData.GetBlockColorOverrideAt) - null if none was set. Used
+        /// by TrackBlockSpawner.ResolveBlockMaterial, which falls back to
+        /// its own global terrain color when this is null.
+        public Color? GetBlockColorOverride(Vector2Int coord)
+        {
+            if (level == null || !IsInBounds(coord)) return null;
+            return level.GetBlockColorOverrideAt(coord.y * Width + coord.x);
+        }
+
         public IReadOnlyList<PathPipe> FindPipesByRole(PipeRole role)
         {
             List<PathPipe> result = new List<PathPipe>();

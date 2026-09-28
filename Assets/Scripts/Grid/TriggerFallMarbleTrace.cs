@@ -16,7 +16,11 @@ namespace MarbleOrchestra.Grid
     /// 2. BOUNCE - a short hop off the bar that carries it on into the
     ///    mouth of the groove.
     /// 3. ROLL - it rolls out through the groove in the block's own
-    ///    OutputDirection, like any other block.
+    ///    OutputDirection, like any other block - following the block's
+    ///    real groove centerline (TrackBlock.SampleGroovePointLocal), so a
+    ///    Trigger block whose path turns 90° (see 0052 follow-up) rolls
+    ///    out along that curve exactly like a turning Normal block does,
+    ///    instead of cutting straight across it.
     /// TIMING is what makes this musical rather than physical: the fall
     /// always takes the SAME fraction of the beat (fallBeatFraction),
     /// whatever the block's FallHeight - a deeper fall simply falls
@@ -38,11 +42,13 @@ namespace MarbleOrchestra.Grid
     /// </summary>
     public class TriggerFallMarbleTrace : IMarbleTrace
     {
+        private readonly TrackBlock block;
         private readonly Vector3 fallStart;   // the previous block's exit, in THIS block's local space
         private readonly Vector3 padLanding;  // top of the pad bar, where the marble hits
-        private readonly Vector3 grooveEntry; // groove floor just past where the sealed entry half opens up - where the bounce comes down
-        private readonly Vector3 exit;        // this block's own exit point
+        private readonly Vector3 grooveEntry; // point on the block's own groove centerline where the bounce comes down
+        private readonly Vector3 exit;        // this block's own true exit point (curve-aware, see SampleGroovePointLocal)
 
+        private readonly float landingT; // where grooveEntry sits along the groove (0 = entry, 1 = exit) - the roll phase samples onward from here
         private readonly float fallShare;
         private readonly float bounceShare;
         private readonly float rollShare;
@@ -52,23 +58,28 @@ namespace MarbleOrchestra.Grid
         /// space, of the side the marble arrives FROM (the same vector
         /// XylophoneBlockDecoration puts the bar on). padTopY/
         /// padCenterOffset: that bar's own top height and distance from the
-        /// block's center. grooveLandingZ: local Z the bounce comes down
-        /// at, past the pad and on into the block's own groove (the
-        /// groove now runs the full block, see 0052 - this is simply a
-        /// fixed distance past center that reads as a natural hop off the
-        /// pad, not tied to any wall). fallBeatFraction: how much of this
-        /// block's beat the fall takes - the same for every Trigger block,
-        /// see the class remarks.
+        /// block's center. grooveLandingT: fraction (0 = entry, 1 = exit)
+        /// along the block's own groove centerline (TrackBlock.
+        /// SampleGroovePointLocal) where the bounce comes down - past the
+        /// pad, so it reads as a natural hop off the bar. Using this
+        /// block's real centerline (rather than a straight line to the
+        /// exit) is what makes the roll phase follow a curved Trigger
+        /// block's real 90° turn (see 0052 follow-up) instead of cutting
+        /// across it. fallBeatFraction: how much of this block's beat the
+        /// fall takes - the same for every Trigger block, see the class
+        /// remarks.
         public TriggerFallMarbleTrace(TrackBlock block, Vector3 fallSideLocal, float fallHeight,
-            float padTopY, float padCenterOffset, float grooveLandingZ, float fallBeatFraction, float bounceHeight)
+            float padTopY, float padCenterOffset, float grooveLandingT, float fallBeatFraction, float bounceHeight)
         {
+            this.block = block;
             this.bounceHeight = Mathf.Max(bounceHeight, 0f);
+            this.landingT = Mathf.Clamp01(grooveLandingT);
 
             Vector3 side = new Vector3(fallSideLocal.x, 0f, fallSideLocal.z);
             side = side.sqrMagnitude > 1e-6f ? side.normalized : Vector3.back; // no input direction at all (shouldn't happen on a Trigger block) - assume the usual straight-through entry side
 
-            Vector3 entry = block.EntryPointLocal;
-            exit = block.ExitPointLocal;
+            Vector3 entry = block.EntryPointLocal; // only .y is meaningful for a curved block - see EntryPointLocal's own remarks
+            exit = block.SampleGroovePointLocal(1f);
             float halfLength = block.Size.y * 0.5f;
 
             // The previous block's exit sits exactly on the shared cell
@@ -77,7 +88,7 @@ namespace MarbleOrchestra.Grid
             // two blocks' traces to stitch together without a jump.
             fallStart = side * halfLength + Vector3.up * (entry.y + Mathf.Max(fallHeight, 0f));
             padLanding = side * padCenterOffset + Vector3.up * padTopY;
-            grooveEntry = StraightMarbleTrace.GrooveFloorAtZ(block, grooveLandingZ);
+            grooveEntry = block.SampleGroovePointLocal(landingT);
 
             fallShare = Mathf.Clamp(fallBeatFraction, 0.05f, 0.9f);
 
@@ -106,7 +117,8 @@ namespace MarbleOrchestra.Grid
             if (t <= bounceShare) return Arc(padLanding, grooveEntry, bounceShare > 0f ? t / bounceShare : 1f, bounceHeight);
 
             t -= bounceShare;
-            return Vector3.Lerp(grooveEntry, exit, rollShare > 0f ? Mathf.Clamp01(t / rollShare) : 1f);
+            float u = rollShare > 0f ? Mathf.Clamp01(t / rollShare) : 1f;
+            return block.SampleGroovePointLocal(Mathf.Lerp(landingT, 1f, u));
         }
 
         /// Point at normalized progress u on a gravity-shaped arc from

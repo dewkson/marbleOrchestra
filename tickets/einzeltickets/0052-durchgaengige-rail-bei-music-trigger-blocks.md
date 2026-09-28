@@ -60,3 +60,34 @@ Akzeptanzkriterien (grob):
   TriggerFallMarbleTrace.cs, XylophoneBlockDecoration.cs und
   XylophonePadContent.cs aktualisiert. Unity-Batchmode-Kompilierung ohne
   Fehler geprüft.
+- 2026-09-28 (Korrektur): Erste Umsetzung ließ Trigger-Blocks nie eine
+  Kurve zeigen - `isTurn` in `TrackBlockSpawner.cs` erlaubte nur
+  `BlockType.Normal`, weil das vor der Änderung irrelevant war (die Rille
+  war ja gekappt). Mit durchgängiger Rille zeigte ein abbiegender
+  Trigger-Block (z.B. Eingang von links, Ausgang nach oben) dadurch eine
+  falsch ausgerichtete gerade Röhre statt der echten Kurve. Fix: `isTurn`
+  gilt jetzt auch für `BlockType.Trigger`; `TrackBlockSpawner.CreateTrace`
+  prüft `Trigger` jetzt vor `isTurn`/`CurvedMarbleTrace`, damit ein
+  kurvender Trigger-Block weiterhin `TriggerFallMarbleTrace` bekommt (statt
+  eines reinen Roll-Traces) - dessen Bounce/Roll-Phase folgt jetzt über
+  `TrackBlock.SampleGroovePointLocal` der echten (ggf. gekrümmten)
+  Rillen-Mittellinie statt einer geraden Linie zum Blockausgang. Damit
+  zeigt ein kurvender Trigger-Block jetzt die echte Kurve, mit dem
+  Xylophon-Element darüber. Unity-Editor war beim Nutzer bereits offen,
+  daher konnte kein frischer Batchmode-Kompilierungslauf gemacht werden -
+  Änderungen manuell auf Typkorrektheit und Aufrufreihenfolge
+  (Profile/Size/Yaw/SetCurve vor CreateTrace) geprüft.
+- 2026-09-28 (Follow-up): Xylophon-Element auf Wunsch näher an die
+  Blockkante gerückt. `XylophoneBlockDecoration.PadCenterOffset` (vorher
+  fixer Faktor 0.65 * halfCell) rückt die Bar jetzt so nah wie möglich an
+  die echte Blockkante (halfCell), abzüglich der halben Bar-Dicke und
+  eines kleinen 3%-Sicherheitsabstands (`EdgeMarginFraction`), damit sie
+  nicht optisch in die Außenwand clippt. Bar-Dicke dafür in eine geteilte
+  `BoxThickness`-Hilfsfunktion ausgelagert, damit `Build` und
+  `PadCenterOffset` nie auseinanderlaufen können. Der Murmel-Trace ist
+  automatisch mitgezogen: `TriggerFallMarbleTrace.padLanding` liest
+  denselben `PadCenterOffset`-Wert, die Murmel landet also weiterhin exakt
+  auf der (jetzt weiter außen liegenden) Bar; Fall-Start bleibt an der
+  echten Blockkante (unverändert), nur die Fallstrecke wird dadurch
+  entsprechend kürzer. Auch hier war der Unity-Editor beim Nutzer bereits
+  offen, daher nur manuelle Prüfung möglich.

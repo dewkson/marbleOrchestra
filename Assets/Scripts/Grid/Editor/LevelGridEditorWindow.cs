@@ -74,8 +74,12 @@ namespace MarbleOrchestra.Grid.Editor
         private bool subLevelsFoldout = true;
         private int selectedSubLevelIndex = -1;
         private Rect[,] cellRects;
-        private int? selectedCellIndex; // cell picked in the Pipe layer, awaiting attribute toggles - see DrawCellAttributesPanel
+        private int? selectedCellIndex; // sole selected cell in the Pipe layer, awaiting attribute toggles - see DrawCellAttributesPanel
+        private readonly HashSet<int> selectedCellIndices = new HashSet<int>(); // authoritative selection (see 0051) - kept in sync with selectedCellIndex via SelectSingleCell/SoleSelectedIndex
         private int? pipeDragCandidateIndex; // cell pressed in the Pipe layer, may turn into a swap-drag - see HandlePipeCellDragStart
+        private Color multiEditBackgroundColor = new Color(0.15f, 0.15f, 0.15f);
+        private Sprite multiEditSprite;
+        private Color multiEditBlockColor = new Color(0.30f, 0.45f, 0.20f); // matches TrackBlockSpawner's own default terrain color (see 0032)
 
         private static readonly Color[] SubLevelPalette =
         {
@@ -121,11 +125,11 @@ namespace MarbleOrchestra.Grid.Editor
             pendingHeight = level.Height;
             selectedSubLevelIndex = -1;
             cellRects = null;
-            selectedCellIndex = null;
+            SelectSingleCell(null);
             pipeDragCandidateIndex = null;
 
             int required = level.Width * level.Height;
-            if (level.Pipes.Count != required || level.Contents.Count != required || level.Blocked.Count != required || level.HeightOverrides.Count != required || level.BlockedLooks.Count != required)
+            if (level.Pipes.Count != required || level.Contents.Count != required || level.Blocked.Count != required || level.HeightOverrides.Count != required || level.BlockedLooks.Count != required || level.BlockColorOverrides.Count != required)
             {
                 Undo.RecordObject(level, "Fix Level Grid List Sizes");
                 level.EnsureListSizes();
@@ -179,7 +183,7 @@ namespace MarbleOrchestra.Grid.Editor
             activeLayer = (PaintLayer)GUILayout.Toolbar((int)activeLayer, new[] { "Pipe", "Content" });
             if (activeLayer != PaintLayer.Pipe)
             {
-                selectedCellIndex = null;
+                SelectSingleCell(null);
                 pipeDragCandidateIndex = null;
             }
 
@@ -461,7 +465,7 @@ namespace MarbleOrchestra.Grid.Editor
         private void DrawPipePalette()
         {
             EditorGUILayout.LabelField("Pipe Patterns", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("Drag a pattern onto a cell to place it, or the Blocked tile to mark it unbuildable. Drag an already-placed cell onto another to swap them. Click a cell to select it and toggle its attributes below. Right-click a cell to clear it (a blocked cell unblocks).", MessageType.None);
+            EditorGUILayout.HelpBox("Drag a pattern onto a cell to place it, or the Blocked tile to mark it unbuildable. Drag an already-placed cell onto another to swap them. Click a cell to select it and toggle its attributes below. Shift/Ctrl-click to add or remove cells from a multi-selection and edit shared attributes for all of them at once. Right-click a cell to clear it (a blocked cell unblocks).", MessageType.None);
 
             customBackgroundColor = EditorGUILayout.ColorField("New Pipe Color", customBackgroundColor);
 
@@ -473,7 +477,14 @@ namespace MarbleOrchestra.Grid.Editor
             EditorGUILayout.Space();
             if (GUILayout.Button("Block Empty Cells")) FillEmptyCellsWithBlocked();
 
-            DrawCellAttributesPanel();
+            if (selectedCellIndices.Count > 1)
+            {
+                DrawMultiEditPanel();
+            }
+            else
+            {
+                DrawCellAttributesPanel();
+            }
         }
 
         private void DrawPatternGrid()
@@ -621,6 +632,7 @@ namespace MarbleOrchestra.Grid.Editor
                 EditorGUILayout.HelpBox("Blocked cell. Isolated blocked/unused regions the surrounding terrain can't interpolate a height for settle at the height below, falling back to the SubLevel's own Start Height if none is set.", MessageType.None);
                 DrawHeightOverrideField(index);
                 DrawBlockedLookFields(index);
+                DrawBlockColorOverrideField(index);
                 return;
             }
 
@@ -667,6 +679,156 @@ namespace MarbleOrchestra.Grid.Editor
             }
 
             DrawCardLookFields(index, level.Pipes[index]);
+            DrawBlockColorOverrideField(index);
+        }
+
+        /// Bulk counterpart to DrawCellAttributesPanel/DrawCardLookFields
+        /// (see 0051): shown instead of the single-cell panel once more
+        /// than one cell is selected, and applies a property to every
+        /// selected cell that has it (pipe cells for Background
+        /// Color/Locked, pipe or blocked cells for the image) rather than
+        /// requiring each cell to be edited one at a time. Uses explicit
+        /// Apply buttons instead of live-apply-on-change, since a single
+        /// shared field can't reflect each selected cell's own current
+        /// value.
+        private void DrawMultiEditPanel()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField($"Multi Edit ({selectedCellIndices.Count} Zellen)", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox("Wird auf alle ausgewählten Zellen mit Pipe angewendet (Bild zusätzlich auf blockierte Zellen, Block Color auf alle Zellen).", MessageType.None);
+
+            EditorGUILayout.BeginHorizontal();
+            multiEditBackgroundColor = EditorGUILayout.ColorField("Background Color", multiEditBackgroundColor);
+            if (GUILayout.Button("Apply", GUILayout.Width(50))) ApplyBackgroundColorToSelection(multiEditBackgroundColor);
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal();
+            multiEditSprite = (Sprite)EditorGUILayout.ObjectField("Image", multiEditSprite, typeof(Sprite), false);
+            if (GUILayout.Button("Apply", GUILayout.Width(50))) ApplyImageToSelection(multiEditSprite);
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal();
+            multiEditBlockColor = EditorGUILayout.ColorField("Block Color (3D)", multiEditBlockColor);
+            if (GUILayout.Button("Apply", GUILayout.Width(50))) ApplyBlockColorToSelection(multiEditBlockColor);
+            EditorGUILayout.EndHorizontal();
+            if (GUILayout.Button("Clear Block Color")) ApplyBlockColorToSelection(null);
+
+            EditorGUILayout.Space();
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Lock All")) ApplyLockedToSelection(true);
+            if (GUILayout.Button("Unlock All")) ApplyLockedToSelection(false);
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.Space();
+            if (GUILayout.Button("Clear Selection")) SelectSingleCell(null);
+        }
+
+        /// Sets BackgroundColor on every selected cell that has a placed
+        /// pipe, preserving that cell's own connections/role/locked/image -
+        /// blocked or empty cells in the selection are skipped since they
+        /// hold no PipeDefinition to recolor.
+        private void ApplyBackgroundColorToSelection(Color color)
+        {
+            Undo.RecordObject(level, "Set Background Color (Multi)");
+            bool changed = false;
+            foreach (int index in selectedCellIndices)
+            {
+                if (level.IsBlockedAt(index) || index >= level.Pipes.Count || level.Pipes[index] == null) continue;
+                PipeDefinition pipe = level.Pipes[index];
+                PipeDefinition updated = GetOrCreateCustomPipe(pipe.Connections, color, pipe.Role, pipe.Locked, pipe.CardImage);
+                level.SetPipeAt(index, updated);
+                changed = true;
+            }
+
+            if (!changed) return;
+            EditorUtility.SetDirty(level);
+            Repaint();
+        }
+
+        /// Sets the card image on every selected cell - a pipe cell's
+        /// CardImage or a blocked cell's CardLook image (see
+        /// DrawCardLookFields/DrawBlockedLookFields), whichever applies.
+        private void ApplyImageToSelection(Sprite sprite)
+        {
+            Undo.RecordObject(level, "Set Image (Multi)");
+            bool changed = false;
+            foreach (int index in selectedCellIndices)
+            {
+                if (level.IsBlockedAt(index))
+                {
+                    level.SetBlockedLookAt(index, sprite);
+                    changed = true;
+                    continue;
+                }
+
+                if (index >= level.Pipes.Count || level.Pipes[index] == null) continue;
+                PipeDefinition pipe = level.Pipes[index];
+                PipeDefinition updated = GetOrCreateCustomPipe(pipe.Connections, pipe.BackgroundColor, pipe.Role, pipe.Locked, sprite);
+                level.SetPipeAt(index, updated);
+                changed = true;
+            }
+
+            if (!changed) return;
+            EditorUtility.SetDirty(level);
+            Repaint();
+        }
+
+        /// Sets the 3D TrackBlock color override on every selected cell
+        /// (see LevelData.SetBlockColorOverrideAt/0050) - unlike Background
+        /// Color/Image/Locked, this applies uniformly to any cell in the
+        /// selection regardless of whether it holds a pipe, since a
+        /// blocked cell still gets its own filler block in the 3D view.
+        /// color null clears the override instead (see "Clear Block Color").
+        private void ApplyBlockColorToSelection(Color? color)
+        {
+            Undo.RecordObject(level, "Set Block Color (Multi)");
+            foreach (int index in selectedCellIndices)
+            {
+                level.SetBlockColorOverrideAt(index, color);
+            }
+
+            EditorUtility.SetDirty(level);
+            Repaint();
+        }
+
+        /// Sets Locked on every selected cell that has a placed pipe.
+        private void ApplyLockedToSelection(bool locked)
+        {
+            Undo.RecordObject(level, "Set Locked (Multi)");
+            bool changed = false;
+            foreach (int index in selectedCellIndices)
+            {
+                if (level.IsBlockedAt(index) || index >= level.Pipes.Count || level.Pipes[index] == null) continue;
+                PipeDefinition pipe = level.Pipes[index];
+                if (pipe.Locked == locked) continue;
+                PipeDefinition updated = GetOrCreateCustomPipe(pipe.Connections, pipe.BackgroundColor, pipe.Role, locked, pipe.CardImage);
+                level.SetPipeAt(index, updated);
+                changed = true;
+            }
+
+            if (!changed) return;
+            EditorUtility.SetDirty(level);
+            Repaint();
+        }
+
+        /// Collapses the selection to a single cell (or none), keeping
+        /// selectedCellIndex and selectedCellIndices in sync (see 0051) -
+        /// used by every non-additive selection change (plain click,
+        /// placing/swapping a pipe, losing the layer focus).
+        private void SelectSingleCell(int? index)
+        {
+            selectedCellIndex = index;
+            selectedCellIndices.Clear();
+            if (index.HasValue) selectedCellIndices.Add(index.Value);
+        }
+
+        /// The sole member of selectedCellIndices, or null if it holds zero
+        /// or more than one cell.
+        private int? SoleSelectedIndex()
+        {
+            if (selectedCellIndices.Count != 1) return null;
+            foreach (int index in selectedCellIndices) return index;
+            return null;
         }
 
         /// Per-cell card picture + frame color (see 0030), shown in the
@@ -735,6 +897,39 @@ namespace MarbleOrchestra.Grid.Editor
             {
                 Undo.RecordObject(level, "Set Cell Height");
                 level.SetHeightOverrideAt(index, newValue);
+                EditorUtility.SetDirty(level);
+            }
+        }
+
+        /// A toggle-gated color field for this cell's 3D TrackBlock color
+        /// override (see LevelData.SetBlockColorOverrideAt/0050): off
+        /// leaves the cell at "not set" (null), so TrackBlockSpawner falls
+        /// back to its own global terrain color for this cell's block/
+        /// filler. Shown for both pipe cells and blocked cells, since a
+        /// blocked cell still gets a filler block in the 3D view.
+        private void DrawBlockColorOverrideField(int index)
+        {
+            Color? current = level.GetBlockColorOverrideAt(index);
+            bool hadOverride = current.HasValue;
+
+            bool wantsOverride = EditorGUILayout.Toggle("Custom Block Color", hadOverride);
+
+            if (!wantsOverride)
+            {
+                if (hadOverride)
+                {
+                    Undo.RecordObject(level, "Clear Block Color");
+                    level.SetBlockColorOverrideAt(index, null);
+                    EditorUtility.SetDirty(level);
+                }
+                return;
+            }
+
+            Color newValue = EditorGUILayout.ColorField("Block Color (3D)", current ?? Color.white);
+            if (!hadOverride || newValue != current.Value)
+            {
+                Undo.RecordObject(level, "Set Block Color");
+                level.SetBlockColorOverrideAt(index, newValue);
                 EditorUtility.SetDirty(level);
             }
         }
@@ -853,7 +1048,7 @@ namespace MarbleOrchestra.Grid.Editor
                 DrawBlockedOverlay(rect, blockedLook != null ? 0.25f : 0.6f);
             }
 
-            if (activeLayer == PaintLayer.Pipe && selectedCellIndex == index)
+            if (activeLayer == PaintLayer.Pipe && selectedCellIndices.Contains(index))
             {
                 DrawSelectedCellBorder(rect);
             }
@@ -1036,7 +1231,7 @@ namespace MarbleOrchestra.Grid.Editor
 
             if (e.type == EventType.MouseDown && e.button == 0)
             {
-                HandleCellClick(index);
+                HandleCellClick(index, e.shift || e.control || e.command);
                 e.Use();
             }
             else if (e.type == EventType.MouseDown && e.button == 1)
@@ -1089,7 +1284,7 @@ namespace MarbleOrchestra.Grid.Editor
                 {
                     DragAndDrop.AcceptDrag();
                     SwapPipes(sourceIndex, index);
-                    selectedCellIndex = index;
+                    SelectSingleCell(index);
                     Repaint();
                 }
                 e.Use();
@@ -1105,7 +1300,8 @@ namespace MarbleOrchestra.Grid.Editor
                     Undo.RecordObject(level, "Block Cell");
                     level.SetBlockedAt(index, true);
                     EditorUtility.SetDirty(level);
-                    if (selectedCellIndex == index) selectedCellIndex = null;
+                    selectedCellIndices.Remove(index);
+                    if (selectedCellIndex == index) selectedCellIndex = SoleSelectedIndex();
                     Repaint();
                 }
                 e.Use();
@@ -1115,14 +1311,28 @@ namespace MarbleOrchestra.Grid.Editor
             return false;
         }
 
-        private void HandleCellClick(int index)
+        /// additive is true for a Shift/Ctrl/Cmd-click (see 0051): toggles
+        /// the cell's membership in the multi-selection instead of
+        /// replacing it, and never starts a swap-drag (which assumes
+        /// exactly one selected cell) since multiple cells being selected
+        /// is ambiguous for that gesture.
+        private void HandleCellClick(int index, bool additive)
         {
             if (activeLayer == PaintLayer.Pipe)
             {
-                selectedCellIndex = index;
-                pipeDragCandidateIndex = !level.IsBlockedAt(index) && index < level.Pipes.Count && level.Pipes[index] != null
-                    ? index
-                    : (int?)null;
+                if (additive)
+                {
+                    if (!selectedCellIndices.Remove(index)) selectedCellIndices.Add(index);
+                    selectedCellIndex = SoleSelectedIndex();
+                    pipeDragCandidateIndex = null;
+                }
+                else
+                {
+                    SelectSingleCell(index);
+                    pipeDragCandidateIndex = !level.IsBlockedAt(index) && index < level.Pipes.Count && level.Pipes[index] != null
+                        ? index
+                        : (int?)null;
+                }
                 Repaint();
                 return;
             }
@@ -1170,7 +1380,7 @@ namespace MarbleOrchestra.Grid.Editor
             Undo.RecordObject(level, "Place Pipe");
             level.SetPipeAt(index, pipe);
             EditorUtility.SetDirty(level);
-            selectedCellIndex = index;
+            SelectSingleCell(index);
             Repaint();
         }
 
@@ -1355,6 +1565,8 @@ namespace MarbleOrchestra.Grid.Editor
                 level.SetContentAt(index, null);
             }
             EditorUtility.SetDirty(level);
+            selectedCellIndices.Remove(index);
+            if (selectedCellIndex == index) selectedCellIndex = SoleSelectedIndex();
             Repaint();
         }
 

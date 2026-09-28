@@ -91,9 +91,9 @@ namespace MarbleOrchestra.Grid
         /// block is built grid-axis-aligned, so callers should also leave
         /// YawDegrees at 0 rather than deriving it from a travel direction.
         /// Never meaningful together with an IClosedEndBlockProfile (see
-        /// Rebuild's guard) - only a straight-through Normal-block groove
-        /// can turn; Start/Goal/Trigger never turn either way (see
-        /// TrackBlockSpawner's isTurn, Normal-only).
+        /// Rebuild's guard) - Start/Goal never turn either way (see
+        /// TrackBlockSpawner's isTurn). Normal and Trigger blocks (see
+        /// 0052 follow-up) both use a plain groove and so can turn.
         public void SetCurve(Vector3 inputDirectionLocal, Vector3 outputDirectionLocal)
         {
             isCurved = true;
@@ -153,9 +153,11 @@ namespace MarbleOrchestra.Grid
         /// Local-space point on this block's own rollable surface at
         /// fractional position t (0 = entry, 1 = exit) - the TRUE geometric
         /// point, unmodified (matching EntryPointLocal/ExitPointLocal
-        /// exactly at t=0/1). Sampled by CurvedMarbleTrace (see 0038), i.e.
-        /// the marble follows this arc as it really is: since every block's
-        /// trace covers exactly its own extent, a straight neighbor's own
+        /// exactly at t=0/1). Sampled by CurvedMarbleTrace (see 0038) and,
+        /// for its own roll phase, by TriggerFallMarbleTrace (see 0052
+        /// follow-up), i.e. the marble follows this arc as it really is:
+        /// since every block's trace covers exactly its own extent, a
+        /// straight neighbor's own
         /// trace simply ends where this one begins, and neither has to be
         /// distorted to meet the other (earlier attempts blended this
         /// method's endpoints toward the grid cell centers instead, which
@@ -237,8 +239,9 @@ namespace MarbleOrchestra.Grid
             // never turns (see SetCurve's remarks and TrackBlockSpawner,
             // which never calls SetCurve for those types), but this guard
             // keeps Rebuild itself safe regardless. Trigger blocks use a
-            // plain groove too (see 0052) but never turn either, so they
-            // take the same straight-mesh path below.
+            // plain groove too (see 0052) and DO turn when their path
+            // does, taking the curved-mesh path below exactly like a
+            // turning Normal block.
             if (isCurved && !(profile is IClosedEndBlockProfile))
                 BuildCurvedMesh(vertices, mainTriangles, grooveTriangles);
             else

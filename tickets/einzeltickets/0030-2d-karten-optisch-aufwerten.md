@@ -3,7 +3,7 @@ id: 0030
 title: 2D-Karten optisch aufwerten
 type: Idea
 priority: Medium
-status: Open
+status: Done
 area: Gameplay
 created: 2026-09-04
 ---

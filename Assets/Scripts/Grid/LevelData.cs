@@ -23,6 +23,25 @@ namespace MarbleOrchestra.Grid
     }
 
     /// <summary>
+    /// A single per-cell color override (see 0050) - a thin wrapper rather
+    /// than a raw Color so a List&lt;ColorOverride&gt; can use null to mean
+    /// "not set", the same convention CardLook already uses for
+    /// blockedLooks (a raw Color has no such sentinel value).
+    /// </summary>
+    [System.Serializable]
+    public class ColorOverride
+    {
+        [SerializeField] private Color color;
+
+        public Color Color => color;
+
+        public ColorOverride(Color color)
+        {
+            this.color = color;
+        }
+    }
+
+    /// <summary>
     /// Names and bounds one SubLevel (see 0046): a rectangular area of the
     /// parent LevelData's big grid, e.g. "Xylophon" or "Percussion". Order
     /// in LevelData.SubLevels IS the progression order - there's no
@@ -87,6 +106,8 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private bool showPipesOnImageCards = true;
         [Tooltip("Optional picture + frame per blocked cell (see 0030), shown in the 2D planning view. Entries for non-blocked cells are ignored.")]
         [SerializeField] private List<CardLook> blockedLooks = new List<CardLook>();
+        [Tooltip("Optional per-cell 3D TrackBlock color override (see 0050) - replaces TrackBlockSpawner's global terrain color for this cell's 3D block/filler. Null = use the spawner's default.")]
+        [SerializeField] private List<ColorOverride> blockColorOverrides = new List<ColorOverride>();
         [Tooltip("SubLevels (see 0046) carve this grid into named, ordered puzzle areas the player progresses through one at a time. Empty = the whole grid is a single implicit SubLevel.")]
         [SerializeField] private List<SubLevelDefinition> subLevels = new List<SubLevelDefinition>();
 
@@ -117,6 +138,7 @@ namespace MarbleOrchestra.Grid
         public IReadOnlyList<bool> Blocked => blocked;
         public IReadOnlyList<float> HeightOverrides => heightOverrides;
         public IReadOnlyList<CardLook> BlockedLooks => blockedLooks;
+        public IReadOnlyList<ColorOverride> BlockColorOverrides => blockColorOverrides;
         public IReadOnlyList<SubLevelDefinition> SubLevels => subLevels;
 
         public void SetPipeAt(int index, PipeDefinition pipe)
@@ -181,6 +203,21 @@ namespace MarbleOrchestra.Grid
             blockedLooks[index] = image != null ? new CardLook(image) : null;
         }
 
+        /// This cell's manually-set 3D block color override (see 0050) -
+        /// null if none was set, in which case TrackBlockSpawner falls back
+        /// to its own global terrain color for this cell's block/filler.
+        public Color? GetBlockColorOverrideAt(int index)
+        {
+            if (index < 0 || index >= blockColorOverrides.Count) return null;
+            return blockColorOverrides[index]?.Color;
+        }
+
+        public void SetBlockColorOverrideAt(int index, Color? color)
+        {
+            if (index < 0 || index >= blockColorOverrides.Count) return;
+            blockColorOverrides[index] = color.HasValue ? new ColorOverride(color.Value) : null;
+        }
+
         public void AddSubLevel(string subLevelName, RectInt area)
         {
             subLevels.Add(new SubLevelDefinition(subLevelName, area));
@@ -231,6 +268,7 @@ namespace MarbleOrchestra.Grid
             ResizeList(blocked, required);
             ResizeList(heightOverrides, required, float.NaN);
             ResizeList(blockedLooks, required);
+            ResizeList(blockColorOverrides, required);
         }
 
         public void ResizeGrid(int newWidth, int newHeight)
@@ -243,6 +281,7 @@ namespace MarbleOrchestra.Grid
             List<bool> newBlocked = RemapGrid(blocked, width, height, newWidth, newHeight);
             List<float> newHeightOverrides = RemapGrid(heightOverrides, width, height, newWidth, newHeight, float.NaN);
             List<CardLook> newBlockedLooks = RemapGrid(blockedLooks, width, height, newWidth, newHeight);
+            List<ColorOverride> newBlockColorOverrides = RemapGrid(blockColorOverrides, width, height, newWidth, newHeight);
 
             width = newWidth;
             height = newHeight;
@@ -251,6 +290,7 @@ namespace MarbleOrchestra.Grid
             blocked = newBlocked;
             heightOverrides = newHeightOverrides;
             blockedLooks = newBlockedLooks;
+            blockColorOverrides = newBlockColorOverrides;
         }
 
         private static List<T> RemapGrid<T>(List<T> source, int oldWidth, int oldHeight, int newWidth, int newHeight, T fillValue = default)

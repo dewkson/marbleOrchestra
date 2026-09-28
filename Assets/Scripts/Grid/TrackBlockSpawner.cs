@@ -97,6 +97,7 @@ namespace MarbleOrchestra.Grid
         private Material sharedMaterial;
         private Material sharedGrooveMaterial;
         private Material sharedTunnelMaterial;
+        private readonly Dictionary<Color, Material> overrideMaterialCache = new Dictionary<Color, Material>(); // one shared Material per distinct override color (see 0050/ResolveBlockMaterial), so cells sharing the same override still batch together instead of getting one Material instance each
 
         // See 0047/SyncFillerBlocks: the surrounding, non-rollable terrain
         // that fills every grid cell NOT covered by a track block.
@@ -392,15 +393,29 @@ namespace MarbleOrchestra.Grid
         /// Start/Goal are shortened to their own sealed groove end
         /// (IClosedEndBlockProfile.WallZ), so the marble rolls out of /
         /// into the tunnel portal's mouth rather than appearing at the
-        /// block's outer edge; a turn follows its real arc; a Trigger
-        /// block falls onto its pad, bounces into the groove and rolls
-        /// out. Called once per block at spawn time, after Size/Profile/
-        /// Yaw/Tilt are final (the traces read those).
+        /// block's outer edge; a Trigger block ALWAYS falls onto its pad,
+        /// bounces into the groove and rolls out - regardless of isTurn,
+        /// since TriggerFallMarbleTrace's own roll phase already follows
+        /// the block's real (possibly curved) groove centerline (see
+        /// 0052 follow-up), so it must be checked before the isTurn/
+        /// CurvedMarbleTrace case below, which only ever applies to a
+        /// plain through-rolling Normal block turn. Called once per block
+        /// at spawn time, after Size/Profile/Yaw/Tilt are final (the
+        /// traces read those).
         private IMarbleTrace CreateTrace(TrackBlock block, BlockType type, bool isTurn, float fallHeight, Vector3 fallSideLocal, float railExtension)
         {
-            if (isTurn) return new CurvedMarbleTrace(block);
-
             float halfLength = block.Size.y * 0.5f;
+
+            if (type == BlockType.Trigger)
+            {
+                float grooveLandingT = Mathf.InverseLerp(-halfLength, halfLength, -railExtension + grooveRadius);
+                return new TriggerFallMarbleTrace(block, fallSideLocal, fallHeight,
+                    XylophoneBlockDecoration.PadTopY(grooveRadius),
+                    XylophoneBlockDecoration.PadCenterOffset(grooveRadius, SideWidth),
+                    grooveLandingT, triggerFallBeatFraction, triggerBounceHeight);
+            }
+
+            if (isTurn) return new CurvedMarbleTrace(block);
 
             switch (type)
             {
@@ -408,11 +423,6 @@ namespace MarbleOrchestra.Grid
                     return StraightMarbleTrace.BetweenZ(block, -railExtension, halfLength);
                 case BlockType.Goal:
                     return StraightMarbleTrace.BetweenZ(block, -halfLength, railExtension);
-                case BlockType.Trigger:
-                    return new TriggerFallMarbleTrace(block, fallSideLocal, fallHeight,
-                        XylophoneBlockDecoration.PadTopY(grooveRadius),
-                        XylophoneBlockDecoration.PadCenterOffset(grooveRadius, SideWidth),
-                        -railExtension + grooveRadius, triggerFallBeatFraction, triggerBounceHeight);
                 default:
                     return StraightMarbleTrace.BetweenZ(block, -halfLength, halfLength);
             }
@@ -715,12 +725,14 @@ namespace MarbleOrchestra.Grid
             Vector3 cellPos = grid.CellToLocalPosition(cell);
             block.transform.localPosition = new Vector3(cellPos.x, clampedHeight, cellPos.y);
 
+            Material blockMaterial = ResolveBlockMaterial(cell);
+
             block.ClearCurve();
             block.Profile = FlatBoxProfile.Instance;
             block.Size = blockSize;
             block.Height = clampedHeight;
-            block.Material = sharedMaterial;
-            block.GrooveMaterial = sharedMaterial; // FlatBoxProfile has no groove segments, so this is never actually sampled
+            block.Material = blockMaterial;
+            block.GrooveMaterial = blockMaterial; // FlatBoxProfile has no groove segments, so this is never actually sampled
             block.YawDegrees = 0f;
             block.TiltDegrees = 0f;
 
@@ -797,20 +809,21 @@ namespace MarbleOrchestra.Grid
                 Direction outputDir = ComputeOutputDirection(path, i);
 
                 // A curved groove (see 0040) only ever makes sense for a
-                // Normal block whose path actually turns 90° - Start/Goal
-                // blocks' entry/exit half is always capped
-                // (IClosedEndBlockProfile), never a through-rolling groove
-                // that could turn (see TrackBlock.SetCurve's remarks).
-                // Trigger blocks use a plain, uncapped groove too (see
-                // 0052 - the rail runs the full block, under the
-                // XylophoneBlockDecoration pad, instead of dead-ending at
-                // the block's center) but never turn either, since isTurn
-                // below only ever allows a Normal block through.
-                // Straight-through means InputDirection == OutputDirection
-                // (the marble keeps travelling the same way, e.g. Up->Up) -
-                // NOT Opposite() (that would be a 180° reversal, which
-                // doesn't occur on a valid grid path in the first place).
-                bool isTurn = type == BlockType.Normal && inputDir != Direction.None && outputDir != Direction.None
+                // block with a plain, uncapped, through-rolling groove -
+                // Normal and, since 0052's follow-up, Trigger (its rail
+                // now runs the full block under the
+                // XylophoneBlockDecoration pad, so a Trigger cell where
+                // the path actually turns must show that turn too,
+                // instead of a straight pipe facing the wrong way).
+                // Start/Goal are excluded: their entry/exit half is always
+                // capped (IClosedEndBlockProfile), which never turns (see
+                // TrackBlock.SetCurve's remarks). Straight-through means
+                // InputDirection == OutputDirection (the marble keeps
+                // travelling the same way, e.g. Up->Up) - NOT Opposite()
+                // (that would be a 180° reversal, which doesn't occur on a
+                // valid grid path in the first place).
+                bool isTurn = (type == BlockType.Normal || type == BlockType.Trigger)
+                    && inputDir != Direction.None && outputDir != Direction.None
                     && inputDir != outputDir;
 
                 // Trigger uses the same plain, uncapped groove as Normal
@@ -868,10 +881,12 @@ namespace MarbleOrchestra.Grid
                 Vector3 cellPos = grid.CellToLocalPosition(cell);
                 block.transform.localPosition = new Vector3(cellPos.x, height, cellPos.y);
 
+                Material blockMaterial = ResolveBlockMaterial(cell);
+
                 block.Profile = profile;
                 block.Size = blockSize;
                 block.Height = height;
-                block.Material = sharedMaterial;
+                block.Material = blockMaterial;
                 block.GrooveMaterial = sharedGrooveMaterial;
 
                 if (isTurn)
@@ -909,7 +924,7 @@ namespace MarbleOrchestra.Grid
 
                 if (isStart || isGoal)
                 {
-                    TunnelPortalDecoration.Build(block, closedAtEntry: isStart, grooveRadius, SideWidth, blockSize, railExtension, sharedMaterial, sharedTunnelMaterial);
+                    TunnelPortalDecoration.Build(block, closedAtEntry: isStart, grooveRadius, SideWidth, blockSize, railExtension, blockMaterial, sharedTunnelMaterial);
                 }
                 else if (type == BlockType.Trigger)
                 {
@@ -919,7 +934,7 @@ namespace MarbleOrchestra.Grid
                     // a block decides its own reactions) - this just hands
                     // the two to each other. A block without that
                     // component simply keeps the element's plain material.
-                    MeshRenderer padRenderer = XylophoneBlockDecoration.Build(block, fallSideLocal, grooveRadius, SideWidth, sharedMaterial);
+                    MeshRenderer padRenderer = XylophoneBlockDecoration.Build(block, fallSideLocal, grooveRadius, SideWidth, blockMaterial);
                     block.GetComponent<InstrumentPadFeedback>()?.Attach(padRenderer);
                 }
                 else
@@ -1021,6 +1036,30 @@ namespace MarbleOrchestra.Grid
             Material material = new Material(shader);
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);
             else material.color = color;
+            return material;
+        }
+
+        /// This cell's own terrain material (see 0050): sharedMaterial,
+        /// unless a per-cell color override is set in the Level Grid
+        /// Editor (LevelData.SetBlockColorOverrideAt), in which case a
+        /// Material for that exact color is lazily created and cached -
+        /// reused by every other cell with the SAME override color rather
+        /// than allocating one Material instance per overridden cell.
+        /// Used for the block's own body (BuildTrack/BuildFillerBlock), its
+        /// Start/Goal tunnel wall (TunnelPortalDecoration's terrainMaterial)
+        /// and a Trigger block's pad base (XylophoneBlockDecoration) - the
+        /// groove and tunnel-interior colors stay global/unoverridden.
+        private Material ResolveBlockMaterial(Vector2Int cell)
+        {
+            Color? overrideColor = grid.GetBlockColorOverride(cell);
+            if (!overrideColor.HasValue) return sharedMaterial;
+
+            Color color = overrideColor.Value;
+            if (!overrideMaterialCache.TryGetValue(color, out Material material))
+            {
+                material = CreateMaterial(color);
+                overrideMaterialCache[color] = material;
+            }
             return material;
         }
     }

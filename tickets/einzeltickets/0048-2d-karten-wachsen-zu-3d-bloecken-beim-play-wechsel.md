@@ -3,7 +3,7 @@ id: 0048
 title: 2D-Karten wachsen beim Play-Wechsel zu 3D-Blöcken
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Gameplay
 created: 2026-09-18
 ---

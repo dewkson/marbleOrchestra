@@ -34,10 +34,32 @@ namespace MarbleOrchestra.Grid
         /// somewhere the bar isn't.
         public static float PadTopY(float grooveRadius) => grooveRadius * 0.55f;
 
+        /// How thick the bar is along the fall direction - shared between
+        /// Build and PadCenterOffset so the two can never drift apart (see
+        /// PadCenterOffset's own remarks).
+        private static float BoxThickness(float halfCell) => halfCell * 0.35f;
+
+        /// Fraction of halfCell kept clear between the bar's own outer
+        /// edge and the block's true edge - just enough that the bar
+        /// reads as sitting right at the edge without visually clipping
+        /// into the block's own outer wall.
+        private const float EdgeMarginFraction = 0.03f;
+
         /// How far the bar's own center sits from the block's center,
-        /// toward the fall side (close to the outer edge) - the other half
-        /// of the landing point TriggerFallMarbleTrace needs.
-        public static float PadCenterOffset(float grooveRadius, float sideWidth) => (grooveRadius + sideWidth) * 0.65f;
+        /// toward the fall side - the other half of the landing point
+        /// TriggerFallMarbleTrace needs. Pushed as close to the block's
+        /// true edge (halfCell) as the bar's own thickness allows, minus a
+        /// small EdgeMarginFraction gap (see 0052 follow-up - originally a
+        /// fixed 0.65 fraction, moved outward on request) - computed from
+        /// the same BoxThickness Build uses, so the bar's mesh and the
+        /// marble's landing point can never drift apart even if the bar's
+        /// own size changes later.
+        public static float PadCenterOffset(float grooveRadius, float sideWidth)
+        {
+            float halfCell = grooveRadius + sideWidth;
+            float margin = halfCell * EdgeMarginFraction;
+            return halfCell - BoxThickness(halfCell) * 0.5f - margin;
+        }
 
         /// Returns the bar's own MeshRenderer, so whoever builds it can
         /// hand it to InstrumentPadFeedback (see 0042) as the thing that
@@ -47,7 +69,7 @@ namespace MarbleOrchestra.Grid
             float halfCell = grooveRadius + sideWidth; // == half the (square) block's own width/length
             float boxHeight = PadTopY(grooveRadius);
             float boxLength = halfCell * 1.15f; // ACROSS the fall direction - elongated
-            float boxThickness = halfCell * 0.35f; // along the fall direction - narrow
+            float boxThickness = BoxThickness(halfCell); // along the fall direction - narrow
             float offset = PadCenterOffset(grooveRadius, sideWidth); // how far the box's own center sits from the block's center, toward the fall side (close to the outer edge)
 
             // Direction is always cardinal, and this block's own Yaw is

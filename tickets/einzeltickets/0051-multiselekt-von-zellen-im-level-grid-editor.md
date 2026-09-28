@@ -3,7 +3,7 @@ id: 0051
 title: Multiselekt von Zellen im Level Grid Editor
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Level Editor
 created: 2026-09-28
 ---
@@ -39,3 +39,20 @@ Akzeptanzkriterien (grob):
   Zellen anwenden, statt jede Zelle einzeln bearbeiten zu müssen.
 
 ## Notizen
+
+Umgesetzt in `LevelGridEditorWindow.cs`: Shift/Ctrl/Cmd-Klick fügt Zellen
+zu einer Multi-Selektion (`selectedCellIndices`) hinzu/entfernt sie; ein
+normaler Klick selektiert wie bisher nur eine Zelle. Ab zwei
+selektierten Zellen zeigt das "Selected Cell"-Panel ein "Multi
+Edit"-Panel mit Apply-Buttons für Background Color, Sprite (Bild) und
+Locked - alles Eigenschaften, die schon pro Zelle im Datenmodell
+existieren (`PipeDefinition.BackgroundColor`/`CardImage`/`Locked`, sowie
+`CardLook` für blockierte Zellen).
+
+Rahmenfarbe und Rahmendicke sind bewusst nicht Teil des Multi-Edit-Panels:
+die existieren aktuell nur level-weit (`LevelData.CardBorderColor`/
+`CardBorderThickness`, siehe `DrawCardStylePanel`), nicht pro Zelle. Das
+würde eine Datenmodell-Erweiterung analog zu
+[0050](0050-separate-farbe-pro-trackblock-im-leveleditor.md) voraussetzen
+- Nutzer hat sich bewusst dagegen entschieden, das im Rahmen dieses
+Tickets mit umzusetzen.

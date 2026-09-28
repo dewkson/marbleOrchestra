@@ -3,7 +3,7 @@ id: 0050
 title: Separate Farbe pro Trackblock im Level-Editor
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Level Editor
 created: 2026-09-28
 ---
@@ -37,3 +37,26 @@ Akzeptanzkriterien (grob):
   (analog zu Sound/FlashColor, siehe 0028) persistiert wird.
 
 ## Notizen
+
+Umgesetzt: neuer per-Zelle Farb-Override, persistiert im Leveldaten-Modell
+(analog zu HeightOverrides/BlockedLooks): `LevelData.blockColorOverrides`
+(`List<ColorOverride>`, null = kein Override), erreichbar über
+`GetBlockColorOverrideAt`/`SetBlockColorOverrideAt` und `PathGrid.
+GetBlockColorOverride(coord)`.
+
+`TrackBlockSpawner.ResolveBlockMaterial(cell)` liefert für eine Zelle mit
+Override ein gecachtes Material für genau diese Farbe (ein Material pro
+distinkter Override-Farbe statt pro Zelle, damit Zellen mit derselben
+Farbe weiterhin dasselbe Material/Batching teilen - siehe
+`overrideMaterialCache`), sonst das bisherige globale `sharedMaterial`.
+Angewendet auf den Block-Körper selbst (Track- und Filler-Blöcke), die
+Start/Goal-Tunnelwand und die Basis des Xylophon-Pads bei Trigger-Blöcken.
+Rillenfarbe (`grooveColor`) und Tunnel-Innenfarbe (`tunnelColor`) bleiben
+bewusst global/nicht überschreibbar - Ticket verlangte nur "eine
+individuelle Farbe" pro Block.
+
+Im Level-Editor einstellbar über ein neues "Custom Block Color"-Feld im
+"Selected Cell"-Panel (für Pipe- und blockierte Zellen) sowie im
+Multi-Edit-Panel aus [0051](0051-multiselekt-von-zellen-im-level-grid-editor.md)
+("Block Color (3D)" mit Apply/Clear-Button, gilt für alle ausgewählten
+Zellen unabhängig davon ob Pipe oder blockiert).
