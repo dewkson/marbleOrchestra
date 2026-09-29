@@ -679,7 +679,7 @@ namespace MarbleOrchestra.Grid.Editor
             }
 
             DrawCardLookFields(index, level.Pipes[index]);
-            DrawBlockColorOverrideField(index);
+            DrawCardDerivedBlockColorInfo(level.Pipes[index]);
         }
 
         /// Bulk counterpart to DrawCellAttributesPanel/DrawCardLookFields
@@ -695,7 +695,7 @@ namespace MarbleOrchestra.Grid.Editor
         {
             EditorGUILayout.Space();
             EditorGUILayout.LabelField($"Multi Edit ({selectedCellIndices.Count} Zellen)", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("Wird auf alle ausgewählten Zellen mit Pipe angewendet (Bild zusätzlich auf blockierte Zellen, Block Color auf alle Zellen).", MessageType.None);
+            EditorGUILayout.HelpBox("Wird auf alle ausgewählten Zellen mit Pipe angewendet (Bild zusätzlich auf blockierte Zellen). Background Color färbt Karte UND 3D-Block. Block Color greift nur auf Zellen ohne Karte.", MessageType.None);
 
             EditorGUILayout.BeginHorizontal();
             multiEditBackgroundColor = EditorGUILayout.ColorField("Background Color", multiEditBackgroundColor);
@@ -708,7 +708,7 @@ namespace MarbleOrchestra.Grid.Editor
             EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.BeginHorizontal();
-            multiEditBlockColor = EditorGUILayout.ColorField("Block Color (3D)", multiEditBlockColor);
+            multiEditBlockColor = EditorGUILayout.ColorField("Block Color (3D, nur Zellen ohne Karte)", multiEditBlockColor);
             if (GUILayout.Button("Apply", GUILayout.Width(50))) ApplyBlockColorToSelection(multiEditBlockColor);
             EditorGUILayout.EndHorizontal();
             if (GUILayout.Button("Clear Block Color")) ApplyBlockColorToSelection(null);
@@ -774,21 +774,37 @@ namespace MarbleOrchestra.Grid.Editor
         }
 
         /// Sets the 3D TrackBlock color override on every selected cell
-        /// (see LevelData.SetBlockColorOverrideAt/0050) - unlike Background
-        /// Color/Image/Locked, this applies uniformly to any cell in the
-        /// selection regardless of whether it holds a pipe, since a
-        /// blocked cell still gets its own filler block in the 3D view.
+        /// that holds NO card (see LevelData.SetBlockColorOverrideAt/0050)
+        /// - a blocked or empty cell still gets its own filler block in
+        /// the 3D view and has no card to take a color from. Cells WITH a
+        /// card are skipped on purpose: their block color comes from the
+        /// card itself (see PathGrid.GetBlockColorOverride), so writing an
+        /// override there would silently do nothing - use Background Color
+        /// above to recolor those, which recolors card and block together.
         /// color null clears the override instead (see "Clear Block Color").
         private void ApplyBlockColorToSelection(Color? color)
         {
             Undo.RecordObject(level, "Set Block Color (Multi)");
+            bool changed = false;
             foreach (int index in selectedCellIndices)
             {
+                if (HasCardAt(index)) continue;
                 level.SetBlockColorOverrideAt(index, color);
+                changed = true;
             }
 
+            if (!changed) return;
             EditorUtility.SetDirty(level);
             Repaint();
+        }
+
+        /// True when this cell holds a placed card - i.e. it is not
+        /// blocked and has a PipeDefinition. The cells whose 3D block
+        /// color is derived from the card rather than from the per-cell
+        /// override (see PathGrid.GetBlockColorOverride).
+        private bool HasCardAt(int index)
+        {
+            return !level.IsBlockedAt(index) && index < level.Pipes.Count && level.Pipes[index] != null;
         }
 
         /// Sets Locked on every selected cell that has a placed pipe.
@@ -901,12 +917,34 @@ namespace MarbleOrchestra.Grid.Editor
             }
         }
 
+        /// Read-only counterpart to DrawBlockColorOverrideField for a cell
+        /// that HOLDS a card: its 3D block simply takes the card's own
+        /// face color (see PathGrid.GetBlockColorOverride), so the color
+        /// is shown here for reference rather than as an editable
+        /// override - recoloring the card (Background Color, above)
+        /// recolors its block with it.
+        private void DrawCardDerivedBlockColorInfo(PipeDefinition pipe)
+        {
+            if (pipe == null) return;
+
+            using (new EditorGUI.DisabledScope(true))
+            {
+                EditorGUILayout.ColorField("Block Color (3D)", pipe.BackgroundColor);
+            }
+
+            EditorGUILayout.HelpBox("Die 3D-Blockfarbe kommt von der Karte selbst (Background Color) und wandert mit ihr mit. Zum Ändern die Kartenfarbe anpassen.", MessageType.None);
+        }
+
         /// A toggle-gated color field for this cell's 3D TrackBlock color
         /// override (see LevelData.SetBlockColorOverrideAt/0050): off
         /// leaves the cell at "not set" (null), so TrackBlockSpawner falls
-        /// back to its own global terrain color for this cell's block/
-        /// filler. Shown for both pipe cells and blocked cells, since a
-        /// blocked cell still gets a filler block in the 3D view.
+        /// back to its own global terrain color for this cell's filler
+        /// block.
+        /// Only shown for cells WITHOUT a card (blocked ones, which still
+        /// get a filler block in the 3D view): a cell holding a card takes
+        /// its block color from that card instead, so there is nothing to
+        /// override there - see PathGrid.GetBlockColorOverride and
+        /// DrawCardDerivedBlockColorInfo.
         private void DrawBlockColorOverrideField(int index)
         {
             Color? current = level.GetBlockColorOverrideAt(index);

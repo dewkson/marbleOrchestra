@@ -18,46 +18,46 @@ MonoBehaviour:
   pipes:
   - {fileID: 11400000, guid: 1a1708556077b174482f0c5887dc627e, type: 2}
   - {fileID: 11400000, guid: a89e4caef1c26714baaf5961e8d47f8c, type: 2}
-  - {fileID: 11400000, guid: c5f29cc1f204ba643af6733fa5a903a8, type: 2}
+  - {fileID: 11400000, guid: f388bd3e604561b43a0455c22d2e1197, type: 2}
   - {fileID: 11400000, guid: 8e6a5c2e5cddbfb4e9ca1627c1eca48e, type: 2}
-  - {fileID: 11400000, guid: f388bd3e604561b43a0455c22d2e1197, type: 2}
-  - {fileID: 11400000, guid: f388bd3e604561b43a0455c22d2e1197, type: 2}
-  - {fileID: 11400000, guid: 9578bbd182726fc49a3d8313e8572378, type: 2}
-  - {fileID: 11400000, guid: f42428e9ccb22394680b83b429b71926, type: 2}
-  - {fileID: 11400000, guid: b3e8353874e988f49bf41cf6b418966e, type: 2}
-  - {fileID: 11400000, guid: 4c3efa6cff31d694e8c718b6a2acf426, type: 2}
-  - {fileID: 11400000, guid: e0864ab7bf44851408ed11b4b06d4f66, type: 2}
-  - {fileID: 11400000, guid: e349ed3e5194d444aa16cc916ae18c0a, type: 2}
   - {fileID: 11400000, guid: c5f29cc1f204ba643af6733fa5a903a8, type: 2}
+  - {fileID: 11400000, guid: bdfae31f6a44ed14b8245a5bb9e3a00b, type: 2}
+  - {fileID: 11400000, guid: 86e7a1c3675ef0b419d0091fe4bec924, type: 2}
   - {fileID: 11400000, guid: 029ed54217c9b2544b0576a6cc5c3f12, type: 2}
-  - {fileID: 11400000, guid: d122159f25658e942b03b85309819b45, type: 2}
-  - {fileID: 11400000, guid: 8a4b3ad70a44bc24082dd3fc90ade01a, type: 2}
-  - {fileID: 11400000, guid: bbd95496cfced8b49b166cff0622d970, type: 2}
-  - {fileID: 11400000, guid: e349ed3e5194d444aa16cc916ae18c0a, type: 2}
-  - {fileID: 11400000, guid: e349ed3e5194d444aa16cc916ae18c0a, type: 2}
-  - {fileID: 11400000, guid: 18f393207e259734d82f9773dc1e61d5, type: 2}
-  - {fileID: 11400000, guid: 029ed54217c9b2544b0576a6cc5c3f12, type: 2}
-  - {fileID: 11400000, guid: 0442b08ec4364be4589e5ccaa591fcff, type: 2}
   - {fileID: 11400000, guid: f42428e9ccb22394680b83b429b71926, type: 2}
-  - {fileID: 11400000, guid: 2d9c74d499142164286edc561938f715, type: 2}
+  - {fileID: 11400000, guid: 0442b08ec4364be4589e5ccaa591fcff, type: 2}
+  - {fileID: 11400000, guid: e0864ab7bf44851408ed11b4b06d4f66, type: 2}
   - {fileID: 11400000, guid: b3e8353874e988f49bf41cf6b418966e, type: 2}
+  - {fileID: 11400000, guid: b3e8353874e988f49bf41cf6b418966e, type: 2}
+  - {fileID: 11400000, guid: e1755b5c5e3216c4798e428330952289, type: 2}
+  - {fileID: 11400000, guid: d122159f25658e942b03b85309819b45, type: 2}
+  - {fileID: 11400000, guid: 2d9c74d499142164286edc561938f715, type: 2}
+  - {fileID: 11400000, guid: 6e60abd09d8c14e47b702d5800021825, type: 2}
+  - {fileID: 11400000, guid: 029ed54217c9b2544b0576a6cc5c3f12, type: 2}
+  - {fileID: 11400000, guid: f42428e9ccb22394680b83b429b71926, type: 2}
+  - {fileID: 11400000, guid: f4e2753709853134d999e50700aa43c9, type: 2}
+  - {fileID: 11400000, guid: f388bd3e604561b43a0455c22d2e1197, type: 2}
+  - {fileID: 11400000, guid: e1755b5c5e3216c4798e428330952289, type: 2}
+  - {fileID: 11400000, guid: 1f5a05688e8d7cd4c98cd95c893b6658, type: 2}
+  - {fileID: 11400000, guid: 029ed54217c9b2544b0576a6cc5c3f12, type: 2}
+  - {fileID: 11400000, guid: 4c3efa6cff31d694e8c718b6a2acf426, type: 2}
   - {fileID: 11400000, guid: 11319f7ebe7c24a4ca780bcd81979a25, type: 2}
   - {fileID: 0}
-  - {fileID: 11400000, guid: 029ed54217c9b2544b0576a6cc5c3f12, type: 2}
+  - {fileID: 11400000, guid: e349ed3e5194d444aa16cc916ae18c0a, type: 2}
   - {fileID: 11400000, guid: 72f7db26ffb581c4bbfd5c8b62284e48, type: 2}
-  - {fileID: 11400000, guid: e1755b5c5e3216c4798e428330952289, type: 2}
-  - {fileID: 11400000, guid: 6901042bffde12d4baf5c62addbce160, type: 2}
-  - {fileID: 11400000, guid: f42428e9ccb22394680b83b429b71926, type: 2}
-  - {fileID: 11400000, guid: aa0fe99d44a56cb4b94c92f8b7010e65, type: 2}
+  - {fileID: 11400000, guid: e349ed3e5194d444aa16cc916ae18c0a, type: 2}
+  - {fileID: 11400000, guid: 3f9ec956c1bfb8a408bdeb7653eff1b8, type: 2}
+  - {fileID: 11400000, guid: 029ed54217c9b2544b0576a6cc5c3f12, type: 2}
+  - {fileID: 11400000, guid: e349ed3e5194d444aa16cc916ae18c0a, type: 2}
   - {fileID: 11400000, guid: 4abbc2bde84eba247afbafee688d8180, type: 2}
-  - {fileID: 11400000, guid: 029ed54217c9b2544b0576a6cc5c3f12, type: 2}
+  - {fileID: 11400000, guid: c5f29cc1f204ba643af6733fa5a903a8, type: 2}
   - {fileID: 0}
   - {fileID: 0}
-  - {fileID: 11400000, guid: bdfae31f6a44ed14b8245a5bb9e3a00b, type: 2}
   - {fileID: 11400000, guid: e1755b5c5e3216c4798e428330952289, type: 2}
-  - {fileID: 11400000, guid: e1755b5c5e3216c4798e428330952289, type: 2}
-  - {fileID: 11400000, guid: 316b1396d159527419825ba58a179ed3, type: 2}
   - {fileID: 11400000, guid: 029ed54217c9b2544b0576a6cc5c3f12, type: 2}
+  - {fileID: 11400000, guid: aa0fe99d44a56cb4b94c92f8b7010e65, type: 2}
+  - {fileID: 11400000, guid: a5d888c9c96ac654fb123021118fad05, type: 2}
+  - {fileID: 11400000, guid: 8a4b3ad70a44bc24082dd3fc90ade01a, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -166,7 +166,7 @@ MonoBehaviour:
   - NaN
   - NaN
   - 2.5
-  cardBorderThickness: 0
+  cardBorderThickness: 0.03
   cardBorderColor: {r: 1, g: 1, b: 1, a: 1}
   lockedBorderColor: {r: 0.6698113, g: 0.08912478, b: 0.009478444, a: 1}
   connectedBorderColor: {r: 0.35, g: 0.65, b: 1, a: 1}
@@ -249,7 +249,7 @@ MonoBehaviour:
   - color: {r: 0.764151, g: 0.60973066, b: 0.1549929, a: 1}
   - color: {r: 0.764151, g: 0.60973066, b: 0.1549929, a: 1}
   - color: {r: 0.764151, g: 0.60973066, b: 0.1549929, a: 1}
-  - color: {r: 0.58431375, g: 0.58431375, b: 0.58431375, a: 1}
+  - color: {r: 0.7176471, g: 0.7176471, b: 0.7176471, a: 1}
   - color: {r: 0.26666665, g: 0.32531953, b: 0.6039216, a: 1}
   - color: {r: 0.26666668, g: 0.6039216, b: 0.2901961, a: 1}
   - color: {r: 0.26666668, g: 0.6039216, b: 0.2901961, a: 1}
@@ -258,18 +258,18 @@ MonoBehaviour:
   - color: {r: 0.764151, g: 0.60973066, b: 0.1549929, a: 1}
   - color: {r: 0.26666668, g: 0.6039216, b: 0.2901961, a: 1}
   - color: {r: 0.26666665, g: 0.32531953, b: 0.6039216, a: 1}
-  - color: {r: 0.58431375, g: 0.58431375, b: 0.58431375, a: 1}
-  - color: {r: 0.58431375, g: 0.58431375, b: 0.58431375, a: 1}
+  - color: {r: 0.7176471, g: 0.7176471, b: 0.7176471, a: 1}
+  - color: {r: 0.7176471, g: 0.7176471, b: 0.7176471, a: 1}
   - color: {r: 0.26666668, g: 0.6039216, b: 0.2901961, a: 1}
   - color: {r: 0.26666668, g: 0.6039216, b: 0.2901961, a: 1}
   - color: {r: 0.26666668, g: 0.6039216, b: 0.2901961, a: 1}
   - color: {r: 0.26666668, g: 0.6039216, b: 0.2901961, a: 1}
   - color: {r: 0.26666665, g: 0.32531953, b: 0.6039216, a: 1}
-  - color: {r: 0.58431375, g: 0.58431375, b: 0.58431375, a: 1}
-  - color: {r: 0.58431375, g: 0.58431375, b: 0.58431375, a: 1}
-  - color: {r: 0.58431375, g: 0.58431375, b: 0.58431375, a: 1}
-  - color: {r: 0.58431375, g: 0.58431375, b: 0.58431375, a: 1}
-  - color: {r: 0.58431375, g: 0.58431375, b: 0.58431375, a: 1}
-  - color: {r: 0.58431375, g: 0.58431375, b: 0.58431375, a: 1}
+  - color: {r: 0.7176471, g: 0.7176471, b: 0.7176471, a: 1}
+  - color: {r: 0.7176471, g: 0.7176471, b: 0.7176471, a: 1}
+  - color: {r: 0.7176471, g: 0.7176471, b: 0.7176471, a: 1}
+  - color: {r: 0.7176471, g: 0.7176471, b: 0.7176471, a: 1}
+  - color: {r: 0.7176471, g: 0.7176471, b: 0.7176471, a: 1}
+  - color: {r: 0.7176471, g: 0.7176471, b: 0.7176471, a: 1}
   - color: {r: 0.26666665, g: 0.32531953, b: 0.6039216, a: 1}
   subLevels: []

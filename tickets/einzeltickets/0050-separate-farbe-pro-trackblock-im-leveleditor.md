@@ -60,3 +60,59 @@ Im Level-Editor einstellbar über ein neues "Custom Block Color"-Feld im
 Multi-Edit-Panel aus [0051](0051-multiselekt-von-zellen-im-level-grid-editor.md)
 ("Block Color (3D)" mit Apply/Clear-Button, gilt für alle ausgewählten
 Zellen unabhängig davon ob Pipe oder blockiert).
+
+### Follow-up 1: Blockfarbe kommt von der Karte statt von der Zelle
+
+Nachtrag: die Farbe war bis hierhin rein an die Zellposition gebunden
+(`LevelData.blockColorOverrides` per Grid-Index, direkt abgefragt in
+`PathGrid.GetBlockColorOverride`). Damit lag sie in einer Liste, die
+parallel zu den Karten gepflegt werden musste - und lief zwangsläufig
+auseinander:
+
+- Verschiebt der Spieler in der 2D-Planung eine Karte, blieb die Farbe an
+  der alten Zelle liegen.
+- `LevelGridEditorWindow.RandomizePipesInArea` mischte die Karten, ließ die
+  Overrides aber unberührt.
+- Auch ohne jede Bewegung: im gespeicherten `Level_MarbleOrchestraV2` wichen
+  34 von 49 Zellen ab, weil Kartenfarbe und Override getrennt eingestellt
+  worden waren.
+
+Entscheidend war der Blick in die Daten: die sichtbare Kartenfarbe ist
+`PipeDefinition.BackgroundColor`, und es existieren bewusst Farbvarianten
+jeder Pipe-Form (`Pipe_UpDown 1` blau, `2` rot, `4` grün, `5` gold, ...).
+Die Karte trägt ihre Farbe also ohnehin schon mit sich - die Override-Liste
+war eine zweite, redundante Quelle derselben Information.
+
+Umgestellt: `PathGrid.GetBlockColorOverride(coord)` leitet die Blockfarbe
+für jede Zelle mit Karte direkt aus `PipeDefinition.BackgroundColor` ab.
+Damit stimmen 2D und 3D per Konstruktion überein - Swap, Randomize und jede
+künftige Kartenbewegung sind automatisch korrekt, ohne dass irgendeine
+Operation etwas mitführen muss. `TrackBlockSpawner.ResolveBlockMaterial`
+bleibt unverändert.
+
+Der Per-Zell-Override bleibt bestehen, gilt aber nur noch für Zellen OHNE
+Karte (blockierte Zellen und leere Zellen mit Filler-Block aus
+[0047](0047-umgebende-bloecke-mit-interpolierter-hoehe.md)) - dort gibt es
+keine Karte, von der eine Farbe kommen könnte, und das Terrain bewegt sich
+ohnehin nicht.
+
+Im Level-Editor entsprechend angepasst: das "Custom Block Color"-Feld
+erscheint nur noch für Zellen ohne Karte. Bei einer Kartenzelle zeigt das
+"Selected Cell"-Panel die Blockfarbe stattdessen read-only mit dem Hinweis,
+dass sie von der Karte kommt. Im Multi-Edit-Panel überspringt "Block Color
+(3D)" Kartenzellen; "Background Color" färbt dort Karte und 3D-Block in
+einem Zug.
+
+Konsequenz, bewusst in Kauf genommen: die globale `terrainColor` am
+`TrackBlockSpawner` greift jetzt nur noch für Zellen ohne Karte. Eine Karte
+ohne eigene Farbe (die ungefärbten Basis-Pipes mit
+`backgroundColor` 0.15/0.15/0.15) färbt ihren Block entsprechend dunkelgrau.
+
+Bewusst NICHT mitgezogen: der Höhen-Override
+(`LevelData.HeightOverrides`) und die Content-Ebene (Sound-Trigger) bleiben
+an der Zellposition - beide beschreiben das Terrain bzw. den Takt an dieser
+Stelle, nicht die Karte.
+
+Die veralteten Overrides auf Kartenzellen im bestehenden Level sind
+wirkungslos, aber noch im Asset. Sie werden erst wieder sichtbar, wenn eine
+solche Zelle später blockiert wird.

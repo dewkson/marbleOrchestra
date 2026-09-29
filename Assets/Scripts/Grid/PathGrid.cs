@@ -215,13 +215,31 @@ namespace MarbleOrchestra.Grid
             return level.GetHeightOverrideAt(coord.y * Width + coord.x);
         }
 
-        /// This cell's manually-set 3D block color override (see 0050,
-        /// LevelData.GetBlockColorOverrideAt) - null if none was set. Used
-        /// by TrackBlockSpawner.ResolveBlockMaterial, which falls back to
-        /// its own global terrain color when this is null.
+        /// The 3D block color for this cell (see 0050) - null means "no
+        /// color of its own", i.e. TrackBlockSpawner falls back to its
+        /// global terrain color.
+        ///
+        /// A cell holding a CARD takes that card's own face color
+        /// (PipeDefinition.BackgroundColor), so the 3D block always shows
+        /// the color of whichever card is lying there at the switch to 3D.
+        /// That's deliberately derived rather than stored per cell: the
+        /// card carries its color with it, so moving one in the 2D
+        /// planning view - or shuffling them with Randomize in the level
+        /// editor - can't leave a block colored after a card that has long
+        /// since moved away, and there is no second list to keep in sync.
+        ///
+        /// Only a cell WITHOUT a card - a blocked one, or an empty cell
+        /// that just gets a filler block (0047) - uses the per-cell
+        /// override authored in the Level Grid Editor
+        /// (LevelData.GetBlockColorOverrideAt): there's no card there to
+        /// take a color from, and that terrain stays put anyway.
         public Color? GetBlockColorOverride(Vector2Int coord)
         {
             if (level == null || !IsInBounds(coord)) return null;
+
+            PathPipe pipe = pipes != null ? pipes[coord.x, coord.y] : null;
+            if (pipe != null && pipe.Definition != null) return pipe.Definition.BackgroundColor;
+
             return level.GetBlockColorOverrideAt(coord.y * Width + coord.x);
         }
 
