@@ -248,14 +248,14 @@ namespace MarbleOrchestra.Grid.Editor
 
             Color normal = EditorGUILayout.ColorField("Border", level.CardBorderColor);
             Color locked = EditorGUILayout.ColorField("Border (Locked)", level.LockedBorderColor);
-            Color connected = EditorGUILayout.ColorField("Border (Connected)", level.ConnectedBorderColor);
+            Color blocked = EditorGUILayout.ColorField("Border (Blocked)", level.BlockedBorderColor);
             Color complete = EditorGUILayout.ColorField("Border (Valid Path)", level.PathCompleteBorderColor);
 
             if (normal != level.CardBorderColor || locked != level.LockedBorderColor ||
-                connected != level.ConnectedBorderColor || complete != level.PathCompleteBorderColor)
+                blocked != level.BlockedBorderColor || complete != level.PathCompleteBorderColor)
             {
                 Undo.RecordObject(level, "Set Card Border Colors");
-                level.SetCardBorderColors(normal, locked, connected, complete);
+                level.SetCardBorderColors(normal, locked, blocked, complete);
                 EditorUtility.SetDirty(level);
             }
             EditorGUI.indentLevel--;
@@ -1078,11 +1078,10 @@ namespace MarbleOrchestra.Grid.Editor
             if (isBlocked)
             {
                 CardLook blockedLook = level.GetBlockedLookAt(index);
-                if (blockedLook != null)
-                {
-                    EditorGUI.DrawRect(rect, level.CardBorderColor);
-                    DrawSpriteInRect(InsetRect(rect, level.CardBorderThickness), blockedLook.Image);
-                }
+                EditorGUI.DrawRect(rect, level.BlockedBorderColor);
+                Rect blockedFace = InsetRect(rect, level.CardBorderThickness);
+                EditorGUI.DrawRect(blockedFace, new Color(0.18f, 0.18f, 0.18f));
+                if (blockedLook != null) DrawSpriteInRect(blockedFace, blockedLook.Image);
                 DrawBlockedOverlay(rect, blockedLook != null ? 0.25f : 0.6f);
             }
 

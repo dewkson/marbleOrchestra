@@ -98,8 +98,8 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private Color cardBorderColor = Color.white;
         [Tooltip("Card frame color of locked (fixed) cards.")]
         [SerializeField] private Color lockedBorderColor = new Color(1f, 0.45f, 0f);
-        [Tooltip("Card frame color of a pipe that is correctly connected to the path from a Start.")]
-        [SerializeField] private Color connectedBorderColor = new Color(0.35f, 0.65f, 1f);
+        [Tooltip("Card frame color of a blocked cell.")]
+        [SerializeField] private Color blockedBorderColor = new Color(1f, 0.2f, 0.2f);
         [Tooltip("Card frame color of every pipe on a valid route (Start connected to Goal).")]
         [SerializeField] private Color pathCompleteBorderColor = new Color(0.35f, 0.9f, 0.45f);
         [Tooltip("Draw the white pipe arms/hub on top of card pictures (see 0030). Turn off when the pictures already show the pipes themselves. Cards without a picture always show them.")]
@@ -115,14 +115,14 @@ namespace MarbleOrchestra.Grid
         public int Height => height;
         public Color CardBorderColor => cardBorderColor;
         public Color LockedBorderColor => lockedBorderColor;
-        public Color ConnectedBorderColor => connectedBorderColor;
+        public Color BlockedBorderColor => blockedBorderColor;
         public Color PathCompleteBorderColor => pathCompleteBorderColor;
 
-        public void SetCardBorderColors(Color normal, Color locked, Color connected, Color pathComplete)
+        public void SetCardBorderColors(Color normal, Color locked, Color blocked, Color pathComplete)
         {
             cardBorderColor = normal;
             lockedBorderColor = locked;
-            connectedBorderColor = connected;
+            blockedBorderColor = blocked;
             pathCompleteBorderColor = pathComplete;
         }
 

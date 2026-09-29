@@ -37,11 +37,13 @@ namespace MarbleOrchestra.Grid
         private bool highlighted;
         private CellConnectivity connectivity = CellConnectivity.Disconnected;
         private bool dragElevated;
+        private bool isBlockedVisual;
 
         public void Refresh(PipeDefinition definition, LevelData levelStyle)
         {
             EnsureBuilt();
             style = levelStyle;
+            isBlockedVisual = false;
 
             Direction connections = definition != null ? definition.Connections : Direction.None;
             baseColor = definition != null ? definition.Color : Color.white;
@@ -74,20 +76,30 @@ namespace MarbleOrchestra.Grid
             UpdateFrameColor();
         }
 
-        /// Static, non-interactive card for a blocked cell that has a
-        /// picture assigned (see 0030): no hub/arms, just the framed image.
+        /// Static, non-interactive card for a blocked cell (see 0030): no
+        /// hub/arms, just the dark face inside the level's own frame, with
+        /// the assigned picture on top if there is one.
+        /// A null look - or one whose Image was never assigned - is
+        /// explicitly fine and still draws the plain framed card: every
+        /// blocked cell occupies its place in the 2D planning view, picture
+        /// or not, so the grid reads as the same complete surface the 3D
+        /// view builds out of it (0054). Non-interactive comes from the
+        /// GameObject PathGrid.CreateBlockedVisual builds around this -
+        /// it carries no collider, so GridInputHandler's raycasts pass
+        /// straight through.
         public void RefreshBlocked(CardLook look, LevelData levelStyle)
         {
             EnsureBuilt();
             style = levelStyle;
             locked = false;
+            isBlockedVisual = true;
 
             backgroundRenderer.color = new Color(0.18f, 0.18f, 0.18f);
             hubRenderer.enabled = false;
             foreach (SpriteRenderer arm in armRenderers) arm.enabled = false;
             roleLabel.text = string.Empty;
 
-            ApplyFrameAndImage(look.Image);
+            ApplyFrameAndImage(look != null ? look.Image : null);
             UpdateFrameColor();
         }
 
@@ -122,16 +134,17 @@ namespace MarbleOrchestra.Grid
             UpdateFrameColor();
         }
 
-        /// Highlight beats connectivity beats locked beats the default
-        /// frame color - a locked Start/Goal is usually connected too, and
-        /// that live state is the more useful thing to show.
+        /// Highlight beats blocked beats path-complete beats locked beats
+        /// the default frame color - a locked Start/Goal is usually
+        /// connected too, and that live state is the more useful thing to
+        /// show.
         private void UpdateFrameColor()
         {
             if (frameRenderer == null || style == null) return;
 
             if (highlighted) frameRenderer.color = highlightColor;
+            else if (isBlockedVisual) frameRenderer.color = style.BlockedBorderColor;
             else if (connectivity == CellConnectivity.PathComplete) frameRenderer.color = style.PathCompleteBorderColor;
-            else if (connectivity == CellConnectivity.Connected) frameRenderer.color = style.ConnectedBorderColor;
             else if (locked) frameRenderer.color = style.LockedBorderColor;
             else frameRenderer.color = style.CardBorderColor;
         }

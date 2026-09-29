@@ -18,7 +18,7 @@ namespace MarbleOrchestra.Grid
         private PathPipe[,] pipes;
         private CellContentDefinition[,] contents;
         private bool[,] blocked;
-        private PipeVisual[,] blockedVisuals; // only for blocked cells with a picture (see 0030) - purely decorative, no collider
+        private PipeVisual[,] blockedVisuals; // one per blocked cell, with or without a picture (see 0030/0054) - purely decorative, no collider
         private int activeSubLevelIndex;
 
         public int Width { get; private set; }
@@ -312,10 +312,18 @@ namespace MarbleOrchestra.Grid
             return new Vector3(coord.x * cellSize, coord.y * cellSize, 0f);
         }
 
+        /// The 2D stand-in for a blocked cell - built for EVERY blocked
+        /// cell, whether or not a picture was assigned to it (0054). It
+        /// used to bail out on a null look, which left an unpictured
+        /// blocked cell as a literal hole in the planning view while the
+        /// 3D view built solid filler terrain over the very same spot -
+        /// the transition between the two read as incomplete.
+        /// Deliberately no BoxCollider, unlike CreatePipe: that is the
+        /// whole of its non-interactivity, since GridInputHandler only
+        /// ever finds a cell by raycasting against one (and SwapCards
+        /// refuses a blocked coord on top of that).
         private PipeVisual CreateBlockedVisual(Vector2Int coord, CardLook look)
         {
-            if (look == null) return null;
-
             GameObject go = new GameObject($"Blocked_{coord.x}_{coord.y}");
             go.transform.SetParent(transform, false);
             go.transform.localPosition = CellToLocalPosition(coord);
