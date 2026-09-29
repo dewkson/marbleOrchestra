@@ -105,6 +105,20 @@ namespace MarbleOrchestra.Grid
         private GameObject fillerRoot;
         private static readonly Vector2Int[] FillerAxisOffsets = { Direction.Right.ToGridOffset(), Direction.Up.ToGridOffset() };
 
+        // See 0053/SyncPreviewBlocks: decorative (no marble, no trigger)
+        // groove blocks for every pipe cell PathValidator can already
+        // reach from a Start but that isn't part of a real, currently
+        // playable track - either a dead-end spur off a real path or a
+        // chain that hasn't reached any Goal yet. Rebuilt from scratch
+        // every RebuildNow() call (no diffing, unlike SyncTracks/
+        // SyncFillerBlocks - RebuildNow only ever runs once per 2D->3D
+        // transition, see its own remarks, so there's no per-frame cost
+        // to avoid). previewHeights is read back by SyncFillerBlocks so
+        // the surrounding filler terrain still anchors to/blends with
+        // these cells instead of cutting a flat notch into them.
+        private GameObject previewRoot;
+        private readonly Dictionary<Vector2Int, float> previewHeights = new Dictionary<Vector2Int, float>();
+
         private void Awake()
         {
             if (grid == null) grid = FindAnyObjectByType<PathGrid>();
@@ -135,6 +149,7 @@ namespace MarbleOrchestra.Grid
         public void RebuildNow()
         {
             SyncTracks(FindCompletedPaths());
+            SyncPreviewBlocks();
             SyncFillerBlocks();
         }
 
@@ -209,6 +224,15 @@ namespace MarbleOrchestra.Grid
                 }
             }
 
+            if (previewRoot != null)
+            {
+                foreach (Transform child in previewRoot.transform)
+                {
+                    TrackBlock block = child.GetComponent<TrackBlock>();
+                    if (block != null) result.Add(block);
+                }
+            }
+
             return result;
         }
 
@@ -229,6 +253,10 @@ namespace MarbleOrchestra.Grid
             if (fillerRoot != null) Destroy(fillerRoot);
             fillerRoot = null;
             lastTrackHeights.Clear();
+
+            if (previewRoot != null) Destroy(previewRoot);
+            previewRoot = null;
+            previewHeights.Clear();
         }
 
         /// True once this exact path's blocks actually exist - false in
@@ -487,7 +515,18 @@ namespace MarbleOrchestra.Grid
         /// rebuild).
         private void SyncFillerBlocks()
         {
+            // Real track cells AND preview cells (see SyncPreviewBlocks/
+            // 0053) both already have their own block - filler only ever
+            // fills what's left. Preview heights are merged in here
+            // purely as ANCHORS for SolveFillerHeights' interpolation
+            // (so ordinary flat terrain still blends smoothly up/down to
+            // a preview groove exactly like it already does to a real
+            // one) - SolveFillerHeights excludes every key of its input
+            // dictionary from its own result, so merging never causes a
+            // filler block to also appear on a preview cell.
             Dictionary<Vector2Int, float> trackHeights = CollectTrackHeights();
+            foreach (KeyValuePair<Vector2Int, float> entry in previewHeights) trackHeights[entry.Key] = entry.Value;
+
             if (FillerInputUnchanged(trackHeights)) return;
 
             lastTrackHeights.Clear();
@@ -516,6 +555,235 @@ namespace MarbleOrchestra.Grid
                 }
             }
             return result;
+        }
+
+        /// Builds one decorative, non-interactive groove block (see 0053)
+        /// for EVERY cell that holds a pipe card but isn't part of a real,
+        /// currently playable track (i.e. wasn't already built by
+        /// SyncTracks) - whether or not that cell connects to a Start, and
+        /// whether or not any Goal is reachable from it. A card lying on
+        /// the grid shows its rail in 3D, full stop; before this, every
+        /// such cell fell through to flat filler terrain and the rail only
+        /// appeared once a whole Start->Goal path validated.
+        ///
+        /// These blocks never carry a marble: they live outside `tracks`
+        /// entirely, so MarbleController.GetBlockAt/RunTrack never sees
+        /// them, and no SetTrace/trigger wiring is ever attached.
+        ///
+        /// Height comes in two tiers (see ResolvePreviewHeights):
+        /// 1. A cell PathValidator can reach from a Start chains its
+        ///    height along that Start's own BFS exactly like a real track
+        ///    would - so a configured Start/SubLevel height (or a per-cell
+        ///    override, see 0050) is honoured immediately, long before the
+        ///    path reaches any Goal.
+        /// 2. Every other pipe cell settles at its OWN ResolveStartHeight
+        ///    - its override if it has one, else its SubLevel's own
+        ///    StartHeight, else the global one. Same convention
+        ///    SolveFillerHeights already uses for a terrain region no
+        ///    interpolation pass can reach.
+        private void SyncPreviewBlocks()
+        {
+            if (previewRoot != null) Destroy(previewRoot);
+            previewRoot = new GameObject("PreviewBlocks");
+            previewRoot.transform.SetParent(transform, false);
+            previewHeights.Clear();
+
+            HashSet<Vector2Int> coveredCells = new HashSet<Vector2Int>();
+            foreach (TrackInstance track in tracks)
+            {
+                foreach (Vector2Int coord in track.Path) coveredCells.Add(coord);
+            }
+
+            // Seeded with every real track cell's own already-solved
+            // height, so a chain branching off one continues from where
+            // that block actually sits rather than from the Start baseline
+            // all over again.
+            Dictionary<Vector2Int, float> chainedHeights = CollectTrackHeights();
+            foreach (PathValidationResult result in grid.LastValidations)
+            {
+                ResolvePreviewHeights(result, chainedHeights);
+            }
+
+            Vector2 blockSize = new Vector2(grid.CellSize, grid.CellSize);
+
+            for (int y = 0; y < grid.Height; y++)
+            {
+                for (int x = 0; x < grid.Width; x++)
+                {
+                    Vector2Int cell = new Vector2Int(x, y);
+                    if (coveredCells.Contains(cell)) continue;
+                    if (!grid.IsInUnlockedSubLevel(cell)) continue; // a SubLevel not reached yet stays hidden, same as its filler terrain (0046)
+
+                    PathPipe pipe = grid.GetPipe(cell);
+                    if (pipe == null || pipe.Definition == null) continue;
+
+                    if (pipe.Definition.Connections == Direction.None) continue; // a card with no openings at all - nothing to draw, leave it to filler
+
+                    float height = chainedHeights.TryGetValue(cell, out float chained) ? chained : ResolveStartHeight(cell);
+                    previewHeights[cell] = height;
+                    BuildPreviewBlock(cell, pipe.Definition, height, blockSize);
+                }
+            }
+        }
+
+        /// Chains a height onto every cell one Start can reach, walking
+        /// PathValidator's own BFS order (parent always before child, see
+        /// PathValidationResult.ConnectedOrder) and subtracting a Trigger
+        /// content cell's FallHeight on the way down, exactly like
+        /// BuildTrack does for a real path - so the preview already sits at
+        /// the height the finished track will have. Heights only; the
+        /// blocks themselves are built by SyncPreviewBlocks, which covers
+        /// unconnected pipe cells too.
+        ///
+        /// A cell already in `chainedHeights` is left alone: that is either
+        /// a real track block (seeded from CollectTrackHeights, its solved
+        /// height wins) or a cell an earlier Start's chain already reached
+        /// (two Starts sharing a backbone - first one wins, deterministic
+        /// via grid.LastValidations' own order).
+        private void ResolvePreviewHeights(PathValidationResult result, Dictionary<Vector2Int, float> chainedHeights)
+        {
+            if (result.ConnectedOrder.Count == 0) return;
+            Vector2Int startCoord = result.ConnectedOrder[0];
+
+            foreach (Vector2Int coord in result.ConnectedOrder)
+            {
+                if (chainedHeights.ContainsKey(coord)) continue;
+
+                if (coord == startCoord)
+                {
+                    chainedHeights[coord] = ResolveStartHeight(startCoord);
+                    continue;
+                }
+
+                Vector2Int parent = result.CameFrom[coord];
+                if (!chainedHeights.TryGetValue(parent, out float parentHeight)) continue; // parent outside this pass (shouldn't happen - BFS order guarantees it came first)
+
+                ITriggerCellContent triggerContent = grid.GetContent(coord) as ITriggerCellContent;
+                float fallHeight = triggerContent != null ? Mathf.Max(triggerContent.FallHeight, MinTriggerFallHeight) : 0f;
+                chainedHeights[coord] = parentHeight - fallHeight;
+            }
+        }
+
+        /// One preview block's geometry, shaped straight from the card's
+        /// OWN pipe openings and role - not from any path through it. That
+        /// is the whole point: what shows up in 3D is the card that is
+        /// lying there in 2D, whether or not anything connects to it.
+        ///
+        /// PipeDefinition.Connections lists the SIDES a pipe opens onto,
+        /// while a TrackBlock is built from the marble's TRAVEL directions
+        /// (see BuildTrack) - entering through a side means travelling in
+        /// the direction OPPOSITE that side, hence the Opposite() calls
+        /// below. Two openings on one axis therefore collapse to a single
+        /// travel direction (a straight rail), two on different axes to a
+        /// 90-degree turn, and a Normal card's lone opening (a dead end)
+        /// runs straight through its own axis - never a 180-degree
+        /// SetCurve, which has no valid geometry (see TrackBlock.SetCurve).
+        ///
+        /// Start and Goal are the two roles where a single opening means
+        /// something specific rather than a dead end, so they get the same
+        /// capped profile and tunnel portal a real track gives them (see
+        /// BuildTrack): a Start's opening is where the marble LEAVES, so
+        /// the rail runs from the middle out through it and the far half
+        /// is sealed; a Goal's is where it ARRIVES, so the sealed half is
+        /// the other one. Getting this from the generic rule instead would
+        /// point every Start's rail the wrong way down its own axis.
+        ///
+        /// A card with three or four openings can still only show a rail
+        /// with two ends: the first two openings in Up/Right/Down/Left
+        /// order win. Same limitation a real, completed track already has
+        /// for any pipe whose extra openings its own path doesn't use.
+        private void BuildPreviewBlock(Vector2Int cell, PipeDefinition definition, float height, Vector2 blockSize)
+        {
+            Direction firstSide = Direction.None;
+            Direction secondSide = Direction.None;
+            foreach (Direction dir in DirectionExtensions.All)
+            {
+                if ((definition.Connections & dir) == 0) continue;
+                if (firstSide == Direction.None) firstSide = dir;
+                else if (secondSide == Direction.None) secondSide = dir;
+            }
+
+            if (firstSide == Direction.None) return;
+
+            bool isStart = definition.Role == PipeRole.Start;
+            bool isGoal = definition.Role == PipeRole.Goal;
+
+            Direction inputDir;
+            Direction outputDir;
+            if (isStart)
+            {
+                // The (usually only) opening is the mouth the marble rolls
+                // OUT of, so travel runs towards it.
+                outputDir = secondSide != Direction.None ? secondSide : firstSide;
+                inputDir = outputDir;
+            }
+            else if (isGoal)
+            {
+                // Mirror image: the opening is where the marble arrives,
+                // so travel runs away from it, into the block.
+                inputDir = (secondSide != Direction.None ? secondSide : firstSide).Opposite();
+                outputDir = inputDir;
+            }
+            else
+            {
+                inputDir = firstSide.Opposite();
+                outputDir = secondSide != Direction.None ? secondSide : inputDir;
+            }
+
+            bool isTurn = inputDir != outputDir; // Start/Goal never turn - their two directions are equal by construction above
+            float clampedHeight = Mathf.Max(height, minBlockHeight);
+
+            // Same reach past the block centre BuildTrack gives a real
+            // Start/Goal, so a previewed portal's rail ends exactly where
+            // the finished one's does.
+            float railExtension = Mathf.Min(grooveRadius * 1.5f, blockSize.y * 0.5f * 0.6f);
+
+            TrackBlock block = Instantiate(trackBlockPrefab, previewRoot.transform);
+            block.name = $"Preview_{cell.x}_{cell.y}";
+
+            Vector3 cellPos = grid.CellToLocalPosition(cell);
+            block.transform.localPosition = new Vector3(cellPos.x, clampedHeight, cellPos.y);
+
+            Material blockMaterial = ResolveBlockMaterial(cell);
+
+            block.Profile = isStart || isGoal
+                ? new ClosedEndGrooveBlockProfile(grooveRadius, SideWidth, grooveArcSegments, closedAtEntry: isStart, railExtension)
+                : (IBlockProfile)new GrooveBlockProfile(grooveRadius, SideWidth, grooveArcSegments);
+            block.Size = blockSize;
+            block.Height = clampedHeight;
+            block.Material = blockMaterial;
+            block.GrooveMaterial = sharedGrooveMaterial;
+
+            if (isTurn)
+            {
+                block.YawDegrees = 0f; // curved geometry is built directly in grid-axis-aligned local coordinates
+                block.SetCurve(inputDir.ToLocalVector3(), outputDir.ToLocalVector3());
+            }
+            else
+            {
+                block.ClearCurve();
+                block.YawDegrees = Quaternion.LookRotation(outputDir.ToLocalVector3(), Vector3.up).eulerAngles.y;
+            }
+
+            block.TiltDegrees = 0f; // no marble ever rolls here - a sloped preview would read as a real playable surface it isn't
+
+            BlockType type = isStart ? BlockType.Start : isGoal ? BlockType.Goal : BlockType.Normal;
+            block.SetDefinition(new BlockDefinition(cell, inputDir, outputDir, clampedHeight, type, 0f, 0f,
+                TriggerBehavior.None, null, BlockDefinition.DefaultBiome, Color.white));
+
+            if (isStart || isGoal)
+            {
+                TunnelPortalDecoration.Build(block, closedAtEntry: isStart, grooveRadius, SideWidth, blockSize, railExtension, blockMaterial, sharedTunnelMaterial);
+            }
+            else
+            {
+                // Deliberately plain terrain decoration even on a Trigger
+                // content cell - the Xylophone pad/fall-trace wiring
+                // belongs to a real, playable block (see BuildTrack);
+                // showing it here would suggest this cell already reacts
+                // to the marble, which it doesn't yet.
+                TerrainDecoration.Scatter(block, cell, BlockDefinition.DefaultBiome, grooveRadius, SideWidth, blockSize, terrainDecorationSettings);
+            }
         }
 
         private bool FillerInputUnchanged(Dictionary<Vector2Int, float> current)

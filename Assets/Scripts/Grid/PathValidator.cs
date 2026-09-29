@@ -16,11 +16,33 @@ namespace MarbleOrchestra.Grid
         public readonly bool GoalReached;
         public readonly IReadOnlyList<Vector2Int> OrderedPath;
 
-        public PathValidationResult(HashSet<Vector2Int> connectedCells, bool goalReached, IReadOnlyList<Vector2Int> orderedPath)
+        /// Every cell reachable from this Start (same cells as
+        /// ConnectedCells), but as a LIST in BFS discovery order - the
+        /// Start itself first, and every other cell strictly after
+        /// whichever cell led to it (see CameFrom). Always populated,
+        /// regardless of GoalReached - OrderedPath above only ever covers
+        /// the single winning Start->Goal route, so a branch that never
+        /// reaches a Goal (or a chain still under construction) has no
+        /// entry there at all. TrackBlockSpawner walks this list to give
+        /// those cells their own decorative groove/height preview (see
+        /// 0053) without needing a second traversal of the grid.
+        public readonly IReadOnlyList<Vector2Int> ConnectedOrder;
+
+        /// Parent lookup for ConnectedOrder - CameFrom[cell] is the
+        /// neighbour BFS reached it from (absent only for the Start
+        /// itself). Same map EvaluateFrom already builds to reconstruct
+        /// OrderedPath; kept for every reachable cell instead of being
+        /// discarded once the Goal walk-back is done.
+        public readonly IReadOnlyDictionary<Vector2Int, Vector2Int> CameFrom;
+
+        public PathValidationResult(HashSet<Vector2Int> connectedCells, bool goalReached, IReadOnlyList<Vector2Int> orderedPath,
+            IReadOnlyList<Vector2Int> connectedOrder, IReadOnlyDictionary<Vector2Int, Vector2Int> cameFrom)
         {
             ConnectedCells = connectedCells;
             GoalReached = goalReached;
             OrderedPath = orderedPath;
+            ConnectedOrder = connectedOrder;
+            CameFrom = cameFrom;
         }
     }
 
@@ -56,12 +78,14 @@ namespace MarbleOrchestra.Grid
             RectInt bounds = grid.GetOwnSubLevelArea(start.Coord);
 
             HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
+            List<Vector2Int> connectedOrder = new List<Vector2Int>();
             List<Vector2Int> orderedPath = new List<Vector2Int>();
 
             Dictionary<Vector2Int, Vector2Int> cameFrom = new Dictionary<Vector2Int, Vector2Int>();
             Queue<Vector2Int> frontier = new Queue<Vector2Int>();
             frontier.Enqueue(start.Coord);
             visited.Add(start.Coord);
+            connectedOrder.Add(start.Coord);
 
             while (frontier.Count > 0)
             {
@@ -85,6 +109,7 @@ namespace MarbleOrchestra.Grid
 
                     visited.Add(neighborCoord);
                     cameFrom[neighborCoord] = coord;
+                    connectedOrder.Add(neighborCoord);
                     frontier.Enqueue(neighborCoord);
                 }
             }
@@ -104,7 +129,7 @@ namespace MarbleOrchestra.Grid
                 orderedPath.Reverse();
             }
 
-            return new PathValidationResult(visited, goalReached, orderedPath);
+            return new PathValidationResult(visited, goalReached, orderedPath, connectedOrder, cameFrom);
         }
 
         private static PathPipe FindReachedGoal(PathGrid grid, HashSet<Vector2Int> visited, RectInt bounds)
