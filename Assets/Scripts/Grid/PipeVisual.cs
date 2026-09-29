@@ -72,6 +72,7 @@ namespace MarbleOrchestra.Grid
                 PipeRole.Goal => "Ziel",
                 _ => string.Empty
             };
+            PositionRoleLabel((connections & Direction.Up) != 0);
 
             UpdateFrameColor();
         }
@@ -147,6 +148,16 @@ namespace MarbleOrchestra.Grid
             else if (connectivity == CellConnectivity.PathComplete) frameRenderer.color = style.PathCompleteBorderColor;
             else if (locked) frameRenderer.color = style.LockedBorderColor;
             else frameRenderer.color = style.CardBorderColor;
+        }
+
+        /// The Start/Ziel label normally sits above the pipe arms - but an
+        /// arm pointing Up would draw right through it, so it flips to
+        /// sitting below the card instead whenever the pipe opens upward.
+        private void PositionRoleLabel(bool opensUpward)
+        {
+            float offset = opensUpward ? -roleLabelTopOffset : roleLabelTopOffset;
+            roleLabel.transform.localPosition = new Vector3(0f, offset, 0f);
+            roleLabel.anchor = opensUpward ? TextAnchor.LowerCenter : TextAnchor.UpperCenter;
         }
 
         /// While dragged (see 0004's GridInputHandler), the card should

@@ -687,7 +687,7 @@ MonoBehaviour:
   terrainColor: {r: 0.4039216, g: 0.5803922, b: 0.21176472, a: 1}
   grooveColor: {r: 1, g: 1, b: 1, a: 1}
   tunnelColor: {r: 0.05, g: 0.05, b: 0.06, a: 1}
-  terrainDecorationSettings: {fileID: 11400000, guid: 633d6e6723f7de842abb672850f7c0f0, type: 2}
+  terrainDecorationSettings: {fileID: 11400000, guid: 16c26a807cc238e43ae3e850f32bd865, type: 2}
   fillerSmoothingIterations: 8
   fillerSmoothingStrength: 0.5
 --- !u!114 &1612605617
