@@ -180,7 +180,7 @@ Camera:
     width: 1
     height: 1
   near clip plane: 0.3
-  far clip plane: 1000
+  far clip plane: 10000
   field of view: 60
   orthographic: 1
   orthographic size: 1.84
@@ -291,9 +291,8 @@ MonoBehaviour:
   pitchDegrees: 35.264
   yawDegrees: -45
   padding: 1
-  nearMargin: 2
   transitionDuration: 1.1
-  followDistance: 20
+  forwardClearance: 2000
   followOrthographicSize: 1.5
   followSmoothTime: 0.3
   freeCamDragThresholdPixels: 8

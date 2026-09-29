@@ -55,10 +55,27 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private float pitchDegrees = 35.264f; // true isometric tilt
         [SerializeField] private float yawDegrees = -45f;
         [SerializeField] private float padding = 1f;
-        [SerializeField] private float nearMargin = 2f; // extra room between the camera and the nearest block, so it never pokes through the near clip plane
         [SerializeField] private float transitionDuration = 1.1f;
 
-        [SerializeField] private float followDistance = 20f; // camera-to-marble distance along the isometric forward axis while following - orthographic, so this has no effect on apparent zoom/framing, only on clipping headroom. Also the free camera's (see 0044) starting distance, since it only pans along right/up from wherever FollowMarble left it - kept generous so panning never clips through taller blocks
+        // How far the camera pulls BACK along its own forward axis beyond
+        // the nearest geometry - used both for the isometric whole-track
+        // pose and for the marble follow, so there is exactly one number
+        // deciding clipping headroom.
+        //
+        // The projection is orthographic, so this changes nothing about
+        // framing, apparent size or perspective: it only decides how much
+        // room there is in front of the camera. Hence the deliberately
+        // huge value. A modest margin used to be enough for the settled
+        // poses, but the 2D->3D transition lerps position and rotation
+        // independently (see LerpPose), so mid-transition the camera swept
+        // close enough to the terrain for the near clip plane to slice
+        // visibly through blocks. Starting from this far out, no point on
+        // that path ever gets near the terrain again.
+        //
+        // Cheap, too: an orthographic camera's depth buffer is linear, so
+        // a view slab this deep costs none of the depth precision the same
+        // range would cost under perspective projection.
+        [SerializeField] private float forwardClearance = 2000f;
         [SerializeField] private float followOrthographicSize = 1.5f; // tighter zoom used once following starts, replacing the whole-track framing
         [SerializeField] private float followSmoothTime = 0.3f; // SmoothDamp time constant - the "sanft" in sanfter Kamera-Follow
 
@@ -69,17 +86,29 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private float minFreeOrthographicSize = 0.3f;
         [SerializeField] private float maxFreeOrthographicSize = 50f;
 
+        /// A camera pose expressed as the point it FRAMES plus how far
+        /// back it sits from that point along its own forward axis -
+        /// deliberately not as a raw world position.
+        ///
+        /// Under orthographic projection the distance is invisible: only
+        /// Focus, Rotation and OrthographicSize decide what ends up on
+        /// screen. Splitting the two apart is what lets the transition
+        /// interpolate the framing on its own while each pose keeps its
+        /// own camera distance - see LerpPose, which rebuilds the position
+        /// from the CURRENT rotation every frame.
         private readonly struct CameraPose
         {
-            public readonly Vector3 Position;
+            public readonly Vector3 Focus;
             public readonly Quaternion Rotation;
             public readonly float OrthographicSize;
+            public readonly float Distance;
 
-            public CameraPose(Vector3 position, Quaternion rotation, float orthographicSize)
+            public CameraPose(Vector3 focus, Quaternion rotation, float orthographicSize, float distance)
             {
-                Position = position;
+                Focus = focus;
                 Rotation = rotation;
                 OrthographicSize = orthographicSize;
+                Distance = distance;
             }
         }
 
@@ -88,6 +117,15 @@ namespace MarbleOrchestra.Grid
         private Coroutine transitionRoutine;
         private Vector3 followVelocity;
         private float followSizeVelocity;
+
+        // Where the camera is currently pointed, and how far back it sits
+        // from there. Kept as state rather than read back off the
+        // transform, because a position alone can't say which point along
+        // the forward axis the camera means to frame - and that is exactly
+        // what a transition has to start from (see CurrentPose).
+        private Vector3 focus;
+        private float focusDistance;
+        private bool focusKnown;
 
         private bool isFreeCamera;
         private bool mousePressed;
@@ -139,7 +177,7 @@ namespace MarbleOrchestra.Grid
             if (transitionRoutine != null) StopCoroutine(transitionRoutine);
             if (playing) followVelocity = Vector3.zero; // fresh follow, no leftover SmoothDamp momentum from a previous run
 
-            CameraPose from = new CameraPose(transform.position, transform.rotation, cam.orthographicSize);
+            CameraPose from = CurrentPose();
             CameraPose to = playing ? ComputeIsometricPose(from) : GetPlanPose(from);
 
             transitionRoutine = StartCoroutine(LerpPose(from, to));
@@ -159,12 +197,47 @@ namespace MarbleOrchestra.Grid
             followSizeVelocity = 0f;
         }
 
+        /// The 2D planning pose, straight from CameraFitter - including
+        /// the camera distance the scene authored for it, which is left
+        /// exactly as it was: the 2D view has never had a clipping problem
+        /// to solve, and GridInputHandler raycasts from this camera.
         private CameraPose GetPlanPose(CameraPose fallback)
         {
-            if (cameraFitter != null && cameraFitter.TryComputeFitPose(out Vector3 position, out Quaternion rotation, out float orthographicSize))
-                return new CameraPose(position, rotation, orthographicSize);
+            if (cameraFitter == null || !cameraFitter.TryComputeFitPose(out Vector3 position, out Quaternion rotation, out float orthographicSize, out Vector3 planFocus))
+                return fallback;
 
-            return fallback;
+            float distance = Vector3.Dot(planFocus - position, rotation * Vector3.forward);
+            return new CameraPose(planFocus, rotation, orthographicSize, distance);
+        }
+
+        /// The pose the camera is in right now - the starting point of
+        /// every transition. Reads the framed point from the tracked
+        /// state, falling back to the 2D planning pose the very first time
+        /// (nothing has moved the camera off it yet at that point).
+        private CameraPose CurrentPose()
+        {
+            if (!focusKnown)
+            {
+                CameraPose plan = GetPlanPose(new CameraPose(transform.position, transform.rotation, cam.orthographicSize, 0f));
+                focus = plan.Focus;
+                focusDistance = plan.Distance;
+                focusKnown = true;
+            }
+
+            return new CameraPose(focus, transform.rotation, cam.orthographicSize, focusDistance);
+        }
+
+        /// The single place the camera transform is written from a pose -
+        /// keeps the tracked framing state and the transform from ever
+        /// drifting apart.
+        private void ApplyPose(Vector3 newFocus, Quaternion rotation, float distance, float orthographicSize)
+        {
+            focus = newFocus;
+            focusDistance = distance;
+            focusKnown = true;
+
+            transform.SetPositionAndRotation(newFocus - (rotation * Vector3.forward) * distance, rotation);
+            cam.orthographicSize = orthographicSize;
         }
 
         /// Frames terrain's current track bounds fully on screen from a
@@ -178,15 +251,31 @@ namespace MarbleOrchestra.Grid
             if (terrain == null || !terrain.TryGetTracksWorldBounds(out Bounds bounds)) return fallback;
 
             Quaternion rotation = Quaternion.Euler(pitchDegrees, yawDegrees, 0f);
-            Vector3 forward = rotation * Vector3.forward;
-
             BoundsCameraMath.Extents extents = BoundsCameraMath.MeasureExtents(bounds, rotation);
 
             float orthographicSize = Mathf.Max(extents.Up, extents.Right / cam.aspect) + padding;
-            float distance = extents.Forward + nearMargin;
-            Vector3 position = bounds.center - forward * distance;
+            float distance = extents.Forward + forwardClearance;
 
-            return new CameraPose(position, rotation, orthographicSize);
+            WidenClipRangeFor(extents.Forward);
+
+            return new CameraPose(bounds.center, rotation, orthographicSize, distance);
+        }
+
+        /// Pushes the far clip plane out far enough that forwardClearance
+        /// can never move geometry out the BACK of the view slab - moving
+        /// the camera away from the track only helps if what it gains at
+        /// the near plane isn't lost at the far one.
+        ///
+        /// forwardExtent is the track's half-depth along the camera's
+        /// forward axis, so the farthest point of it sits at
+        /// forwardClearance + 2 * forwardExtent; the doubling on top is
+        /// slack for FollowMarble, which frames a single marble rather
+        /// than the whole track and can therefore sit closer to one end of
+        /// it. Only ever widens the authored value, never narrows it.
+        private void WidenClipRangeFor(float forwardExtent)
+        {
+            float required = forwardClearance + 4f * forwardExtent + 1f;
+            if (cam.farClipPlane < required) cam.farClipPlane = required;
         }
 
         /// Keeps the camera centered on MarbleController's currently
@@ -201,11 +290,14 @@ namespace MarbleOrchestra.Grid
             Transform target = marbleController.PrimaryMarbleTransform;
             if (target == null) return;
 
-            Vector3 forward = transform.rotation * Vector3.forward;
-            Vector3 desiredPosition = target.position - forward * followDistance;
+            // Smoothed on the framed point rather than on the camera
+            // position, for the same reason LerpPose is - the rotation is
+            // fixed here, so the two are equivalent in practice, but it
+            // keeps the tracked framing state honest.
+            Vector3 newFocus = Vector3.SmoothDamp(focus, target.position, ref followVelocity, followSmoothTime);
+            float size = Mathf.SmoothDamp(cam.orthographicSize, followOrthographicSize, ref followSizeVelocity, followSmoothTime);
 
-            transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref followVelocity, followSmoothTime);
-            cam.orthographicSize = Mathf.SmoothDamp(cam.orthographicSize, followOrthographicSize, ref followSizeVelocity, followSmoothTime);
+            ApplyPose(newFocus, transform.rotation, forwardClearance, size);
         }
 
         /// Only called once simulating and the entry transition has
@@ -363,7 +455,10 @@ namespace MarbleOrchestra.Grid
             Vector3 right = transform.rotation * Vector3.right;
             Vector3 up = transform.rotation * Vector3.up;
 
-            transform.position -= (right * screenDelta.x + up * screenDelta.y) * worldPerPixel;
+            // Purely sideways/up - never along forward - so the camera
+            // distance is untouched and the framed point simply travels
+            // with the camera.
+            ApplyPose(focus - (right * screenDelta.x + up * screenDelta.y) * worldPerPixel, transform.rotation, focusDistance, cam.orthographicSize);
         }
 
         private void ApplyZoomDelta(float delta)
@@ -372,6 +467,21 @@ namespace MarbleOrchestra.Grid
             cam.orthographicSize = Mathf.Clamp(cam.orthographicSize + delta, minFreeOrthographicSize, maxFreeOrthographicSize);
         }
 
+        /// Interpolates the FRAMING - the point on screen, the rotation
+        /// and the zoom - and rebuilds the camera position from that every
+        /// frame, rather than lerping the two end positions directly.
+        ///
+        /// That distinction is what keeps forwardClearance invisible.
+        /// Position and rotation interpolate independently, so a raw
+        /// position lerp puts the camera at the average of two points that
+        /// each only make sense under their own rotation. The error is
+        /// proportional to the camera distance: at the old distance of a
+        /// couple of units it was a barely visible wobble, but it scales
+        /// with the clearance, and at a distance chosen large enough to
+        /// rule out near-plane clipping it would sling the track clean off
+        /// screen mid-transition. Anchoring on the framed point instead
+        /// makes the whole thing independent of how far back the camera
+        /// sits - which is what an orthographic projection should do.
         private IEnumerator LerpPose(CameraPose from, CameraPose to)
         {
             float elapsed = 0f;
@@ -380,16 +490,16 @@ namespace MarbleOrchestra.Grid
                 elapsed += Time.deltaTime;
                 float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / transitionDuration));
 
-                transform.position = Vector3.Lerp(from.Position, to.Position, t);
-                transform.rotation = Quaternion.Slerp(from.Rotation, to.Rotation, t);
-                cam.orthographicSize = Mathf.Lerp(from.OrthographicSize, to.OrthographicSize, t);
+                ApplyPose(
+                    Vector3.Lerp(from.Focus, to.Focus, t),
+                    Quaternion.Slerp(from.Rotation, to.Rotation, t),
+                    Mathf.Lerp(from.Distance, to.Distance, t),
+                    Mathf.Lerp(from.OrthographicSize, to.OrthographicSize, t));
 
                 yield return null;
             }
 
-            transform.position = to.Position;
-            transform.rotation = to.Rotation;
-            cam.orthographicSize = to.OrthographicSize;
+            ApplyPose(to.Focus, to.Rotation, to.Distance, to.OrthographicSize);
             transitionRoutine = null;
         }
     }

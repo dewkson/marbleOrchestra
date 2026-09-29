@@ -43,7 +43,7 @@ namespace MarbleOrchestra.Grid
 
         public void Fit()
         {
-            if (!TryComputeFitPose(out Vector3 position, out Quaternion rotation, out float orthographicSize)) return;
+            if (!TryComputeFitPose(out Vector3 position, out Quaternion rotation, out float orthographicSize, out _)) return;
 
             cam.orthographicSize = orthographicSize;
             transform.SetPositionAndRotation(position, rotation);
@@ -52,11 +52,20 @@ namespace MarbleOrchestra.Grid
         /// Pure query version of Fit()'s math - used by Fit() itself and by
         /// CameraModeTransition (see 0029) to know where the 2D planning
         /// camera belongs without actually moving the camera there.
-        public bool TryComputeFitPose(out Vector3 position, out Quaternion rotation, out float orthographicSize)
+        ///
+        /// focus is the point this framing centers on. It matters to
+        /// CameraModeTransition separately from position, because an
+        /// orthographic camera's position along its own forward axis says
+        /// nothing about which point it is framing - and its 2D-to-3D
+        /// transition has to interpolate the framed point, not the camera
+        /// position, to keep its camera distance free of visual side
+        /// effects (see CameraModeTransition.LerpPose).
+        public bool TryComputeFitPose(out Vector3 position, out Quaternion rotation, out float orthographicSize, out Vector3 focus)
         {
             position = default;
             rotation = planRotation;
             orthographicSize = default;
+            focus = default;
 
             if (grid == null || cam == null || !cam.orthographic) return false;
             if (grid.Width <= 0 || grid.Height <= 0) return false;
@@ -88,6 +97,7 @@ namespace MarbleOrchestra.Grid
             // the original 2D distance at all.
             float forwardOffset = Vector3.Dot(planPosition - center, forward);
             position = center + forward * forwardOffset;
+            focus = center;
             return true;
         }
 

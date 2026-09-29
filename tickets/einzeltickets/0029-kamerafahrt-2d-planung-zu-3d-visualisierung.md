@@ -125,3 +125,55 @@ die Murmelbahn bei jedem Yaw-Vorzeichen automatisch vollständig im Bild.
 
 Vom User im Editor geprüft und für gut befunden - Status auf Done
 gesetzt.
+
+### Follow-up: Clipping Plane schneidet Blöcke beim 2D→3D-Übergang
+
+Nachtrag: beim Übergang tauchte wieder eine sichtbare Clipping-Plane auf,
+die einige TrackBlocks anschnitt. Ursache war der knapp bemessene Abstand
+der isometrischen Zielpose (`nearMargin = 2`, Szene: `2`): in der
+*gesetzten* Pose reichte das, aber `LerpPose` interpolierte Position und
+Rotation unabhängig voneinander, sodass die Kamera mitten in der Fahrt nah
+genug ans Terrain schwenkte, dass die Near-Clip-Plane (0.3) durch Blöcke
+schnitt.
+
+Wunsch des Users: den Kameraabstand einfach sehr groß wählen - bei
+orthografischer Projektion macht das für die Darstellung keinen
+Unterschied.
+
+Das stimmt, gilt aber erst nach einem zweiten Schritt. Ein reiner
+Positions-Lerp zwischen zwei Endposen, die je nur unter ihrer eigenen
+Rotation Sinn ergeben, erzeugt einen Fehler, der **proportional zum
+Kameraabstand** wächst. Beim alten Abstand von wenigen Einheiten war das
+ein kaum sichtbares Wackeln; mit einem Abstand, der groß genug ist, um
+Clipping auszuschließen, hätte es die Bahn mitten im Übergang komplett aus
+dem Bild geschleudert.
+
+Deshalb umgestellt:
+
+- `CameraPose` speichert jetzt den **gerahmten Punkt** (`Focus`) plus
+  `Distance` statt einer rohen Weltposition. `LerpPose` interpoliert
+  Focus/Rotation/Zoom und baut die Kameraposition in **jedem Frame aus der
+  aktuellen Rotation** neu auf. Damit ist der Abstand tatsächlich
+  wirkungslos für das Bild - so wie es bei orthografischer Projektion sein
+  soll.
+- `CameraFitter.TryComputeFitPose` liefert den gerahmten Punkt als
+  zusätzlichen `out`-Parameter mit.
+- `nearMargin` und `followDistance` sind zu einem einzigen
+  `forwardClearance = 2000` zusammengefasst (Isometrie-Pose und
+  Murmel-Follow teilen sich jetzt eine Zahl für Clipping-Headroom).
+- `WidenClipRangeFor` zieht die Far-Clip-Plane passend mit - ein größerer
+  Abstand hilft an der Near-Plane nur, wenn die Geometrie nicht hinten aus
+  dem Sichtkörper fällt. Far-Clip in der Szene außerdem 1000 → 10000.
+- `FollowMarble` und `ApplyPan` (Free Camera, 0044) laufen ebenfalls über
+  den Focus, damit gerahmter Punkt und Transform nie auseinanderlaufen.
+
+Bewusst unverändert: die 2D-Planungspose behält ihren in der Szene
+gesetzten Abstand (~11.6). In 2D gab es nie ein Clipping-Problem, und
+`GridInputHandler` raycastet über diese Kamera. Beim Rückweg 3D→2D ist das
+unkritisch, weil `MarbleController.Stop()` über
+`TrackBlockSpawner.ClearAll()` das 3D-Terrain sofort abräumt - während der
+Rückfahrt steht also gar keine 3D-Geometrie mehr im Bild.
+
+Szenenwerte mit angepasst (`Prototyp_Phase1.unity`): die alten
+`nearMargin: 2` / `followDistance: 20` hätten die neuen Script-Defaults
+sonst überstimmt.
