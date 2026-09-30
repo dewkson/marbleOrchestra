@@ -13,6 +13,9 @@ namespace MarbleOrchestra.Grid
     {
         [SerializeField] private float fallHeight = 1.2f; // clearly visible fall from the previous block onto this one's pad, not just a small step
 
+        [SerializeField] private InstrumentType instrument = InstrumentType.Xylophone; // which 3D element the block shows (see 0055) - Xylophone keeps assets saved before this field looking unchanged
+
         public float FallHeight => fallHeight;
+        public InstrumentType Instrument => instrument;
     }
 }

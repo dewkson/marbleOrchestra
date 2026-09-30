@@ -15,5 +15,6 @@ MonoBehaviour:
   contentId: Kick
   label: K
   fallHeight: 0.3
+  instrument: 1
   clip: {fileID: 8300000, guid: f5b2d849798f40d428819359bd37b7aa, type: 3}
   flashColor: {r: 1, g: 1, b: 1, a: 1}

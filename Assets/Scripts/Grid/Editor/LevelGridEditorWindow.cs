@@ -70,6 +70,7 @@ namespace MarbleOrchestra.Grid.Editor
         private bool useCustomContent;
         private AudioClip customClip;
         private Color customFlashColor = Color.white;
+        private InstrumentType customInstrument = InstrumentType.Xylophone;
 
         private bool subLevelsFoldout = true;
         private int selectedSubLevelIndex = -1;
@@ -980,6 +981,7 @@ namespace MarbleOrchestra.Grid.Editor
 
             customClip = (AudioClip)EditorGUILayout.ObjectField("Clip", customClip, typeof(AudioClip), false);
             customFlashColor = EditorGUILayout.ColorField("Flash Color", customFlashColor);
+            customInstrument = (InstrumentType)EditorGUILayout.EnumPopup("Instrument (3D)", customInstrument);
 
             if (GUILayout.Button(useCustomContent ? "Custom (active)" : "Use Custom"))
             {
@@ -1427,7 +1429,7 @@ namespace MarbleOrchestra.Grid.Editor
 
             Undo.RecordObject(level, "Paint Cell");
             CellContentDefinition content = useCustomContent
-                ? GetOrCreateCustomContent(customClip, customFlashColor)
+                ? GetOrCreateCustomContent(customClip, customFlashColor, customInstrument)
                 : selectedBrush as CellContentDefinition;
             level.SetContentAt(index, content);
             EditorUtility.SetDirty(level);
@@ -1488,28 +1490,29 @@ namespace MarbleOrchestra.Grid.Editor
             return id;
         }
 
-        private SoundTriggerContent GetOrCreateCustomContent(AudioClip clip, Color flashColor)
+        private SoundTriggerContent GetOrCreateCustomContent(AudioClip clip, Color flashColor, InstrumentType instrument)
         {
             foreach (CellContentDefinition existing in availableContents)
             {
                 if (existing is SoundTriggerContent sound &&
-                    sound.Clip == clip && sound.FlashColor == flashColor)
+                    sound.Clip == clip && sound.FlashColor == flashColor && sound.Instrument == instrument)
                 {
                     return sound;
                 }
             }
 
-            return CreateCustomContentAsset(clip, flashColor);
+            return CreateCustomContentAsset(clip, flashColor, instrument);
         }
 
-        private SoundTriggerContent CreateCustomContentAsset(AudioClip clip, Color flashColor)
+        private SoundTriggerContent CreateCustomContentAsset(AudioClip clip, Color flashColor, InstrumentType instrument)
         {
             SoundTriggerContent asset = CreateInstance<SoundTriggerContent>();
 
             SerializedObject serialized = new SerializedObject(asset);
             serialized.FindProperty("clip").objectReferenceValue = clip;
             serialized.FindProperty("flashColor").colorValue = flashColor;
-            string contentId = BuildContentId(clip);
+            serialized.FindProperty("instrument").enumValueIndex = (int)instrument;
+            string contentId = BuildContentId(clip, instrument);
             serialized.FindProperty("contentId").stringValue = contentId;
             serialized.FindProperty("label").stringValue = BuildContentLabel(contentId);
             serialized.ApplyModifiedPropertiesWithoutUndo();
@@ -1527,9 +1530,10 @@ namespace MarbleOrchestra.Grid.Editor
             return asset;
         }
 
-        private static string BuildContentId(AudioClip clip)
+        private static string BuildContentId(AudioClip clip, InstrumentType instrument)
         {
-            return clip != null ? clip.name : "Empty";
+            string id = clip != null ? clip.name : "Empty";
+            return instrument != InstrumentType.Xylophone ? $"{id}_{instrument}" : id;
         }
 
         private static string BuildContentLabel(string contentId)

@@ -11,5 +11,6 @@ namespace MarbleOrchestra.Grid
     public interface ITriggerCellContent
     {
         float FallHeight { get; }
+        InstrumentType Instrument { get; }
     }
 }
