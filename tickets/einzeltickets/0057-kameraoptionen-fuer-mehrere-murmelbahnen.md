@@ -3,7 +3,7 @@ id: 0057
 title: Kameraführung für mehrere Murmelbahnen im 3D-Modus
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Gameplay
 created: 2026-09-30
 ---

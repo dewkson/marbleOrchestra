@@ -93,6 +93,40 @@ namespace MarbleOrchestra.Grid
             }
         }
 
+        /// Number of distinct tracks (one per Start) that currently have a
+        /// marble in the SubLevel being edited (see 0057) - what the guided
+        /// camera can switch between.
+        public int ActiveTrackCount => CollectActiveStartCoords().Count;
+
+        /// The marble of the trackIndex-th track of the active SubLevel
+        /// (wrapped around ActiveTrackCount, tracks ordered by Start
+        /// position so the order stays stable while laps come and go), or
+        /// null while none is running (see 0057).
+        public Transform GetTrackMarbleTransform(int trackIndex)
+        {
+            List<Vector2Int> starts = CollectActiveStartCoords();
+            if (starts.Count == 0) return null;
+
+            Vector2Int start = starts[((trackIndex % starts.Count) + starts.Count) % starts.Count];
+            foreach (Marble marble in marbles)
+            {
+                if (marble != null && marble.StartCoord == start) return marble.transform;
+            }
+            return null;
+        }
+
+        private List<Vector2Int> CollectActiveStartCoords()
+        {
+            List<Vector2Int> starts = new List<Vector2Int>();
+            foreach (Marble marble in marbles)
+            {
+                if (marble == null || !grid.IsInActiveSubLevel(marble.StartCoord)) continue;
+                if (!starts.Contains(marble.StartCoord)) starts.Add(marble.StartCoord);
+            }
+            starts.Sort((a, b) => a.y != b.y ? a.y.CompareTo(b.y) : a.x.CompareTo(b.x));
+            return starts;
+        }
+
         private void Awake()
         {
             if (grid == null) grid = FindAnyObjectByType<PathGrid>();

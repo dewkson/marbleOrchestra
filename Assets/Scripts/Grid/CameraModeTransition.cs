@@ -52,7 +52,7 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private TrackBlockSpawner terrain;
         [SerializeField] private CameraFitter cameraFitter;
 
-        [SerializeField] private float pitchDegrees = 35.264f; // true isometric tilt
+        [SerializeField] private float pitchDegrees = 45f; // steeper than true isometric (35.264) so instruments stay visible
         [SerializeField] private float yawDegrees = -45f;
         [SerializeField] private float padding = 1f;
         [SerializeField] private float transitionDuration = 1.1f;
@@ -137,7 +137,60 @@ namespace MarbleOrchestra.Grid
         private Vector2 touchLastScreenPos;
         private float pinchLastDistance = -1f;
 
+        // Which of the active SubLevel's tracks the guided camera follows
+        // (see 0057), plus the optional automatic round-robin through them.
+        private int trackIndex;
+        private bool autoCycleTracks;
+        private Transform cycleTarget;
+        private bool hasCycleTarget;
+
         public bool IsFreeCamera => isFreeCamera;
+        public bool AutoCycleTracks => autoCycleTracks;
+        public int TrackCount => marbleController != null ? marbleController.ActiveTrackCount : 0;
+
+        /// Manually switches the guided camera to the next track and hands
+        /// control back from free camera; SmoothDamp eases across.
+        public void NextTrack() => SwitchTrack(1);
+
+        public void PreviousTrack() => SwitchTrack(-1);
+
+        public void ToggleAutoCycleTracks()
+        {
+            autoCycleTracks = !autoCycleTracks;
+            hasCycleTarget = false;
+            if (autoCycleTracks) ReturnToGuidedCamera();
+        }
+
+        private void SwitchTrack(int direction)
+        {
+            int count = TrackCount;
+            if (count > 0) trackIndex = ((trackIndex + direction) % count + count) % count;
+            hasCycleTarget = false;
+            ReturnToGuidedCamera();
+        }
+
+        /// Auto-cycle: moves on to the next track as soon as the marble
+        /// being followed has finished its lap. Each lap has its own
+        /// marble, so "the track's marble changed or vanished" means one
+        /// full run just ended.
+        private void AdvanceTrackAfterLap()
+        {
+            Transform current = marbleController.GetTrackMarbleTransform(trackIndex);
+
+            if (!hasCycleTarget)
+            {
+                if (current == null) return;
+                cycleTarget = current;
+                hasCycleTarget = true;
+                return;
+            }
+
+            if (current == cycleTarget) return;
+
+            int count = TrackCount;
+            if (count > 0) trackIndex = (trackIndex + 1) % count;
+            hasCycleTarget = false;
+        }
 
         private void Awake()
         {
@@ -155,6 +208,8 @@ namespace MarbleOrchestra.Grid
             if (isPlaying != wasPlaying)
             {
                 wasPlaying = isPlaying;
+                trackIndex = 0;
+                hasCycleTarget = false;
                 ReturnToGuidedCamera(); // entering or leaving simulation always drops any free-cam pan/zoom from the previous run
                 StartTransitionTo(isPlaying);
                 return;
@@ -169,7 +224,11 @@ namespace MarbleOrchestra.Grid
             if (!isPlaying || transitionRoutine != null) return;
 
             HandleFreeCameraInput();
-            if (!isFreeCamera) FollowMarble();
+            if (!isFreeCamera)
+            {
+                if (autoCycleTracks) AdvanceTrackAfterLap();
+                FollowMarble();
+            }
         }
 
         private void StartTransitionTo(bool playing)
@@ -287,7 +346,7 @@ namespace MarbleOrchestra.Grid
         /// direction abruptly at track corners.
         private void FollowMarble()
         {
-            Transform target = marbleController.PrimaryMarbleTransform;
+            Transform target = marbleController.GetTrackMarbleTransform(trackIndex);
             if (target == null) return;
 
             // Smoothed on the framed point rather than on the camera

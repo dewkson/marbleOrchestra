@@ -16,6 +16,8 @@ namespace MarbleOrchestra.Grid
     /// is New Input System only (no legacy StandaloneInputModule support),
     /// this also creates a minimal EventSystem + InputSystemUIInputModule
     /// the first time, if the scene doesn't already have one.
+    /// Also shows track-switch buttons (previous/next track, auto-cycle) while
+    /// playing with more than one track in the active SubLevel (see 0057).
     /// Lives on its own GameObject; cameraModeTransition and
     /// marbleController are wired in the Inspector or auto-found at Awake.
     /// </summary>
@@ -26,6 +28,8 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private string label = "Geführte Kamera";
 
         private GameObject buttonGO;
+        private GameObject trackPanelGO;
+        private Text autoCycleText;
 
         private void Awake()
         {
@@ -42,6 +46,11 @@ namespace MarbleOrchestra.Grid
                 && marbleController.IsPlaying && cameraModeTransition.IsFreeCamera;
 
             if (buttonGO.activeSelf != visible) buttonGO.SetActive(visible);
+
+            bool tracksVisible = cameraModeTransition != null && marbleController != null
+                && marbleController.IsPlaying && !cameraModeTransition.IsFreeCamera && cameraModeTransition.TrackCount > 1;
+            if (trackPanelGO.activeSelf != tracksVisible) trackPanelGO.SetActive(tracksVisible);
+            if (tracksVisible) autoCycleText.text = AutoLabel(cameraModeTransition.AutoCycleTracks);
         }
 
         private static void EnsureEventSystem()
@@ -67,32 +76,53 @@ namespace MarbleOrchestra.Grid
 
             canvasGO.AddComponent<GraphicRaycaster>();
 
-            buttonGO = new GameObject("ReturnButton");
-            buttonGO.transform.SetParent(canvasGO.transform, false);
+            buttonGO = CreateButton(canvasGO.transform, "ReturnButton", label, new Vector2(-30f, -30f), new Vector2(260f, 56f), HandleReturnClicked, out _);
+            buttonGO.SetActive(false);
 
-            Image buttonImage = buttonGO.AddComponent<Image>();
-            buttonImage.color = new Color(0.12f, 0.12f, 0.12f, 0.85f);
+            // Track switching for guided camera (see 0057), below the return button.
+            trackPanelGO = new GameObject("TrackSwitchPanel", typeof(RectTransform));
+            trackPanelGO.transform.SetParent(canvasGO.transform, false);
+            RectTransform panelRect = (RectTransform)trackPanelGO.transform;
+            panelRect.anchorMin = panelRect.anchorMax = panelRect.pivot = new Vector2(1f, 1f);
+            panelRect.anchoredPosition = Vector2.zero;
+            panelRect.sizeDelta = Vector2.zero;
 
-            RectTransform buttonRect = buttonGO.GetComponent<RectTransform>();
-            buttonRect.anchorMin = new Vector2(1f, 1f);
-            buttonRect.anchorMax = new Vector2(1f, 1f);
-            buttonRect.pivot = new Vector2(1f, 1f);
-            buttonRect.anchoredPosition = new Vector2(-30f, -30f);
-            buttonRect.sizeDelta = new Vector2(260f, 56f);
+            CreateButton(trackPanelGO.transform, "PrevTrackButton", "< Bahn", new Vector2(-160f, -100f), new Vector2(130f, 56f), () => cameraModeTransition?.PreviousTrack(), out _);
+            CreateButton(trackPanelGO.transform, "NextTrackButton", "Bahn >", new Vector2(-30f, -100f), new Vector2(130f, 56f), () => cameraModeTransition?.NextTrack(), out _);
+            CreateButton(trackPanelGO.transform, "AutoCycleButton", AutoLabel(false), new Vector2(-30f, -166f), new Vector2(260f, 56f), () => cameraModeTransition?.ToggleAutoCycleTracks(), out autoCycleText);
+            trackPanelGO.SetActive(false);
+        }
 
-            Button button = buttonGO.AddComponent<Button>();
-            button.targetGraphic = buttonImage;
-            button.onClick.AddListener(HandleReturnClicked);
+        private static string AutoLabel(bool on) => on ? "Bahnwechsel: Auto (an)" : "Bahnwechsel: Auto (aus)";
+
+        private static GameObject CreateButton(Transform parent, string name, string text, Vector2 anchoredPosition, Vector2 size, UnityEngine.Events.UnityAction onClick, out Text labelText)
+        {
+            GameObject go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+
+            Image image = go.AddComponent<Image>();
+            image.color = new Color(0.12f, 0.12f, 0.12f, 0.85f);
+
+            RectTransform rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot = new Vector2(1f, 1f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = size;
+
+            Button button = go.AddComponent<Button>();
+            button.targetGraphic = image;
+            button.onClick.AddListener(onClick);
 
             GameObject labelGO = new GameObject("Label");
-            labelGO.transform.SetParent(buttonGO.transform, false);
+            labelGO.transform.SetParent(go.transform, false);
 
-            Text labelText = labelGO.AddComponent<Text>();
+            labelText = labelGO.AddComponent<Text>();
             labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             labelText.fontSize = 22;
             labelText.alignment = TextAnchor.MiddleCenter;
             labelText.color = Color.white;
-            labelText.text = label;
+            labelText.text = text;
             labelText.raycastTarget = false;
 
             RectTransform labelRect = labelGO.GetComponent<RectTransform>();
@@ -101,7 +131,7 @@ namespace MarbleOrchestra.Grid
             labelRect.offsetMin = Vector2.zero;
             labelRect.offsetMax = Vector2.zero;
 
-            buttonGO.SetActive(false);
+            return go;
         }
 
         private void HandleReturnClicked()

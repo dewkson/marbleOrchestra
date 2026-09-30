@@ -288,7 +288,7 @@ MonoBehaviour:
   marbleController: {fileID: 1612605612}
   terrain: {fileID: 1612605614}
   cameraFitter: {fileID: 330585548}
-  pitchDegrees: 35.264
+  pitchDegrees: 45
   yawDegrees: -45
   padding: 1
   transitionDuration: 1.1
