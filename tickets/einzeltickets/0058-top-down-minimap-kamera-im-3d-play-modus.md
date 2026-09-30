@@ -3,7 +3,7 @@ id: 0058
 title: Top-Down-Minimap-Kamera im 3D-Play-Modus
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Gameplay
 created: 2026-09-30
 ---

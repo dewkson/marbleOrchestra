@@ -16,8 +16,6 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0031 | Instrumente abstrakt im 2D-Grid visualisieren | Idea | 🟡 Medium | ⚪ Open | Level Editor | 2026-09-04 |
 | 0055 | Weitere Instrumente neben Xylophon in 3D visualisieren | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-30 |
 | 0056 | Kartensystem überarbeiten (weniger ScriptableObjects) | Task | 🟡 Medium | ⚪ Open | Tooling | 2026-09-30 |
-| 0057 | Kameraführung für mehrere Murmelbahnen im 3D-Modus | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-30 |
-| 0058 | Top-Down-Minimap-Kamera im 3D-Play-Modus | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-30 |
 | 0033 | Licht und Schatten optimieren | Idea | 🔵 Low | ⚪ Open | Other | 2026-09-04 |
 | 0036 | Instrumentenreaktionen in 3D mit Partikeleffekt anreichern | Feature | 🔵 Low | ⚪ Open | Gameplay | 2026-09-04 |
 | 0037 | Sound für Murmel-Bewegung einbinden | Feature | 🔵 Low | ⚪ Open | Audio | 2026-09-04 |
@@ -81,6 +79,6 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0052 | Durchgängige Rail bei Music-Trigger-Blocks | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-28 |
 | 0055 | Weitere Instrumente neben Xylophon in 3D visualisieren | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-30 |
 | 0056 | Kartensystem überarbeiten (weniger ScriptableObjects) | Task | 🟡 Medium | ⚪ Open | Tooling | 2026-09-30 |
-| 0057 | Kameraführung für mehrere Murmelbahnen im 3D-Modus | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-30 |
-| 0058 | Top-Down-Minimap-Kamera im 3D-Play-Modus | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-09-30 |
+| 0057 | Kameraführung für mehrere Murmelbahnen im 3D-Modus | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-30 |
+| 0058 | Top-Down-Minimap-Kamera im 3D-Play-Modus | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-09-30 |
 | 0059 | Sound für Kartenswap integrieren | Feature | 🔵 Low | ⚪ Open | Audio | 2026-09-30 |

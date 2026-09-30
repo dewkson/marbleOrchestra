@@ -133,6 +133,7 @@ namespace MarbleOrchestra.Grid
         private Vector2 mousePressScreenPos;
         private Vector2 mouseLastScreenPos;
         private bool touchDragging;
+        private bool touchInMainView;
         private Vector2 touchPressScreenPos;
         private Vector2 touchLastScreenPos;
         private float pinchLastDistance = -1f;
@@ -140,7 +141,7 @@ namespace MarbleOrchestra.Grid
         // Which of the active SubLevel's tracks the guided camera follows
         // (see 0057), plus the optional automatic round-robin through them.
         private int trackIndex;
-        private bool autoCycleTracks;
+        private bool autoCycleTracks = true; // on by default
         private Transform cycleTarget;
         private bool hasCycleTarget;
 
@@ -195,9 +196,14 @@ namespace MarbleOrchestra.Grid
         private void Awake()
         {
             cam = GetComponent<Camera>();
+            GameViewLayout.ApplyTo(cam); // main view only fills the left two thirds
             if (marbleController == null) marbleController = FindAnyObjectByType<MarbleController>();
             if (terrain == null) terrain = FindAnyObjectByType<TrackBlockSpawner>();
             if (cameraFitter == null) cameraFitter = GetComponent<CameraFitter>();
+
+            // Top-down minimap overlay (see 0058) - self-building, so the scene needs no setup.
+            if (FindAnyObjectByType<MinimapCamera>() == null)
+                new GameObject("Minimap").AddComponent<MinimapCamera>();
         }
 
         private void Update()
@@ -240,6 +246,12 @@ namespace MarbleOrchestra.Grid
             CameraPose to = playing ? ComputeIsometricPose(from) : GetPlanPose(from);
 
             transitionRoutine = StartCoroutine(LerpPose(from, to));
+        }
+
+        /// Stops FollowMarble's auto-centering so the player can pan/zoom.
+        public void EnterFreeCamera()
+        {
+            isFreeCamera = true;
         }
 
         /// Hands control back from free camera to FollowMarble - no
@@ -377,9 +389,10 @@ namespace MarbleOrchestra.Grid
 
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
+                mousePressScreenPos = Mouse.current.position.ReadValue();
+                if (!GameViewLayout.IsInMainView(mousePressScreenPos)) return; // presses in the side column belong to its buttons
                 mousePressed = true;
                 mouseDragging = false;
-                mousePressScreenPos = Mouse.current.position.ReadValue();
                 return;
             }
 
@@ -426,8 +439,11 @@ namespace MarbleOrchestra.Grid
             {
                 touchDragging = false;
                 touchPressScreenPos = currentScreenPos;
+                touchInMainView = GameViewLayout.IsInMainView(currentScreenPos);
                 return;
             }
+
+            if (!touchInMainView) return;
 
             if (!touchDragging)
             {
@@ -446,6 +462,7 @@ namespace MarbleOrchestra.Grid
 
             float scroll = Mouse.current.scroll.ReadValue().y;
             if (Mathf.Approximately(scroll, 0f)) return;
+            if (!GameViewLayout.IsInMainView(Mouse.current.position.ReadValue())) return;
 
             // Scrolling "up" (positive) zooms in, so it shrinks orthographicSize.
             ApplyZoomDelta(-scroll * scrollZoomSpeed);

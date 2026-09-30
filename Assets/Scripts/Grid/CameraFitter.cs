@@ -23,7 +23,6 @@ namespace MarbleOrchestra.Grid
     {
         [SerializeField] private PathGrid grid;
         [SerializeField] private float padding = 0.6f;
-        [SerializeField] private float bottomHintSpace = 1.2f; // extra room freed at the screen-space bottom for PlaybackHintUI, along the plan rotation's own "up" axis
 
         private Camera cam;
         private Quaternion planRotation;
@@ -76,16 +75,15 @@ namespace MarbleOrchestra.Grid
             Vector3 forward = planRotation * Vector3.forward;
             Vector3 up = planRotation * Vector3.up;
 
-            // bottomHintSpace is added only on top of the symmetric
-            // padding, then the view center is shifted along -up by half
-            // of it below - so the grid moves toward the top of the
-            // screen, freeing exactly that much room at the bottom for the
-            // SPACE hint (PlaybackHintUI).
-            float verticalSize = extents.Up + padding + bottomHintSpace / 2f;
-            float horizontalSize = (extents.Right + padding) / cam.aspect;
+            // The camera only covers the left game column (see
+            // GameViewLayout), so its own pixel aspect decides the fit; the
+            // grid is centered in it with just the padding as margin.
+            float aspect = (float)cam.pixelWidth / Mathf.Max(1, cam.pixelHeight);
+            float verticalSize = extents.Up + padding;
+            float horizontalSize = (extents.Right + padding) / aspect;
             orthographicSize = Mathf.Max(verticalSize, horizontalSize);
 
-            Vector3 center = bounds.center - up * (bottomHintSpace / 2f);
+            Vector3 center = bounds.center;
 
             // Keep whatever distance from the grid plane the camera was
             // originally placed at in the scene (along its own forward

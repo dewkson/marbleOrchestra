@@ -6,9 +6,8 @@ using UnityEngine.UI;
 namespace MarbleOrchestra.Grid
 {
     /// <summary>
-    /// Screenspace button shown only while CameraModeTransition.IsFreeCamera
-    /// is true (see 0044): lets the player hand control back to the guided
-    /// isometric follow camera after panning/zooming away from it. Builds
+    /// Screenspace button shown while playing (see 0044): switches between
+    /// the guided isometric follow camera and the free pan/zoom camera. Builds
     /// its own Canvas/Button at runtime, matching PlaybackHintUI's
     /// procedural-UI pattern - no scene/prefab setup needed.
     /// A clickable uGUI Button needs an EventSystem with an input module to
@@ -25,9 +24,20 @@ namespace MarbleOrchestra.Grid
     {
         [SerializeField] private CameraModeTransition cameraModeTransition;
         [SerializeField] private MarbleController marbleController;
-        [SerializeField] private string label = "Geführte Kamera";
+        [SerializeField] private string guidedLabel = "Geführte Kamera";
+        [SerializeField] private string freeLabel = "Freie Kamera";
 
+        // Right column layout (see GameViewLayout): below the minimap (top-right),
+        // with some room in between.
+        private const float M = GameViewLayout.SideMargin;
+        private const float W = GameViewLayout.SideColumnRefWidth - 2f * GameViewLayout.SideMargin;
+        private const float GapBelowMinimap = 24f;
+
+        private MinimapCamera minimap;
+        private RectTransform buttonRect;
+        private RectTransform trackPanelRect;
         private GameObject buttonGO;
+        private Text cameraButtonText;
         private GameObject trackPanelGO;
         private Text autoCycleText;
 
@@ -42,10 +52,16 @@ namespace MarbleOrchestra.Grid
 
         private void Update()
         {
-            bool visible = cameraModeTransition != null && marbleController != null
-                && marbleController.IsPlaying && cameraModeTransition.IsFreeCamera;
+            if (minimap == null) minimap = FindAnyObjectByType<MinimapCamera>();
+            float top = (minimap != null ? minimap.BottomRef : GameViewLayout.SideMargin) + GapBelowMinimap;
+            buttonRect.anchoredPosition = new Vector2(-M, -top);
+            trackPanelRect.anchoredPosition = new Vector2(0f, -top);
+
+            bool visible = cameraModeTransition != null && marbleController != null && marbleController.IsPlaying;
 
             if (buttonGO.activeSelf != visible) buttonGO.SetActive(visible);
+            // Shows the mode a click switches TO: "Freie Kamera" while guided, "Geführte Kamera" while free.
+            if (visible) cameraButtonText.text = cameraModeTransition.IsFreeCamera ? guidedLabel : freeLabel;
 
             bool tracksVisible = cameraModeTransition != null && marbleController != null
                 && marbleController.IsPlaying && !cameraModeTransition.IsFreeCamera && cameraModeTransition.TrackCount > 1;
@@ -72,28 +88,30 @@ namespace MarbleOrchestra.Grid
 
             CanvasScaler scaler = canvasGO.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.referenceResolution = new Vector2(GameViewLayout.ReferenceWidth, 1080f);
 
             canvasGO.AddComponent<GraphicRaycaster>();
 
-            buttonGO = CreateButton(canvasGO.transform, "ReturnButton", label, new Vector2(-30f, -30f), new Vector2(260f, 56f), HandleReturnClicked, out _);
+            buttonGO = CreateButton(canvasGO.transform, "CameraModeButton", freeLabel, new Vector2(-M, 0f), new Vector2(W, 56f), HandleCameraButtonClicked, out cameraButtonText);
+            buttonRect = (RectTransform)buttonGO.transform;
             buttonGO.SetActive(false);
 
             // Track switching for guided camera (see 0057), below the return button.
             trackPanelGO = new GameObject("TrackSwitchPanel", typeof(RectTransform));
             trackPanelGO.transform.SetParent(canvasGO.transform, false);
-            RectTransform panelRect = (RectTransform)trackPanelGO.transform;
+            trackPanelRect = (RectTransform)trackPanelGO.transform;
+            RectTransform panelRect = trackPanelRect;
             panelRect.anchorMin = panelRect.anchorMax = panelRect.pivot = new Vector2(1f, 1f);
             panelRect.anchoredPosition = Vector2.zero;
             panelRect.sizeDelta = Vector2.zero;
 
-            CreateButton(trackPanelGO.transform, "PrevTrackButton", "< Bahn", new Vector2(-160f, -100f), new Vector2(130f, 56f), () => cameraModeTransition?.PreviousTrack(), out _);
-            CreateButton(trackPanelGO.transform, "NextTrackButton", "Bahn >", new Vector2(-30f, -100f), new Vector2(130f, 56f), () => cameraModeTransition?.NextTrack(), out _);
-            CreateButton(trackPanelGO.transform, "AutoCycleButton", AutoLabel(false), new Vector2(-30f, -166f), new Vector2(260f, 56f), () => cameraModeTransition?.ToggleAutoCycleTracks(), out autoCycleText);
+            CreateButton(trackPanelGO.transform, "PrevTrackButton", "< Bahn", new Vector2(-M - W / 2f - 10f, -66f), new Vector2(W / 2f - 10f, 56f), () => cameraModeTransition?.PreviousTrack(), out _);
+            CreateButton(trackPanelGO.transform, "NextTrackButton", "Bahn >", new Vector2(-M, -66f), new Vector2(W / 2f - 10f, 56f), () => cameraModeTransition?.NextTrack(), out _);
+            CreateButton(trackPanelGO.transform, "AutoCycleButton", AutoLabel(false), new Vector2(-M, -132f), new Vector2(W, 56f), () => cameraModeTransition?.ToggleAutoCycleTracks(), out autoCycleText);
             trackPanelGO.SetActive(false);
         }
 
-        private static string AutoLabel(bool on) => on ? "Bahnwechsel: Auto (an)" : "Bahnwechsel: Auto (aus)";
+        private static string AutoLabel(bool on) => on ? "Automatischer Bahnwechsel: an" : "Automatischer Bahnwechsel: aus";
 
         private static GameObject CreateButton(Transform parent, string name, string text, Vector2 anchoredPosition, Vector2 size, UnityEngine.Events.UnityAction onClick, out Text labelText)
         {
@@ -101,7 +119,7 @@ namespace MarbleOrchestra.Grid
             go.transform.SetParent(parent, false);
 
             Image image = go.AddComponent<Image>();
-            image.color = new Color(0.12f, 0.12f, 0.12f, 0.85f);
+            GameViewLayout.StyleAsButton(image);
 
             RectTransform rect = go.GetComponent<RectTransform>();
             rect.anchorMin = new Vector2(1f, 1f);
@@ -134,9 +152,12 @@ namespace MarbleOrchestra.Grid
             return go;
         }
 
-        private void HandleReturnClicked()
+        private void HandleCameraButtonClicked()
         {
-            if (cameraModeTransition != null) cameraModeTransition.ReturnToGuidedCamera();
+            if (cameraModeTransition == null) return;
+
+            if (cameraModeTransition.IsFreeCamera) cameraModeTransition.ReturnToGuidedCamera();
+            else cameraModeTransition.EnterFreeCamera();
         }
     }
 }
