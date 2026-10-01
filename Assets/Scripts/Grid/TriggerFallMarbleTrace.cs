@@ -56,9 +56,9 @@ namespace MarbleOrchestra.Grid
 
         /// fallSideLocal: horizontal direction, in this block's own local
         /// space, of the side the marble arrives FROM (the same vector
-        /// XylophoneBlockDecoration puts the bar on). padTopY/
-        /// padCenterOffset: that bar's own top height and distance from the
-        /// block's center. grooveLandingT: fraction (0 = entry, 1 = exit)
+        /// XylophoneBlockDecoration puts the bar on). padLandingLocal: where
+        /// the marble lands, in this block's local space (see
+        /// InstrumentBlockDecoration.PadLandingLocal). grooveLandingT: fraction (0 = entry, 1 = exit)
         /// along the block's own groove centerline (TrackBlock.
         /// SampleGroovePointLocal) where the bounce comes down - past the
         /// pad, so it reads as a natural hop off the bar. Using this
@@ -69,7 +69,7 @@ namespace MarbleOrchestra.Grid
         /// fall takes - the same for every Trigger block, see the class
         /// remarks.
         public TriggerFallMarbleTrace(TrackBlock block, Vector3 fallSideLocal, float fallHeight,
-            float padTopY, float padCenterOffset, float grooveLandingT, float fallBeatFraction, float bounceHeight)
+            Vector3 padLandingLocal, float grooveLandingT, float fallBeatFraction, float bounceHeight)
         {
             this.block = block;
             this.bounceHeight = Mathf.Max(bounceHeight, 0f);
@@ -87,7 +87,7 @@ namespace MarbleOrchestra.Grid
             // groove floor - that's where this trace has to start for the
             // two blocks' traces to stitch together without a jump.
             fallStart = side * halfLength + Vector3.up * (entry.y + Mathf.Max(fallHeight, 0f));
-            padLanding = side * padCenterOffset + Vector3.up * padTopY;
+            padLanding = padLandingLocal;
             grooveEntry = block.SampleGroovePointLocal(landingT);
 
             fallShare = Mathf.Clamp(fallBeatFraction, 0.05f, 0.9f);

@@ -12,5 +12,6 @@ namespace MarbleOrchestra.Grid
     {
         float FallHeight { get; }
         InstrumentType Instrument { get; }
+        InstrumentVisual Visual { get; } // optional external 3D model; wins over Instrument when set
     }
 }

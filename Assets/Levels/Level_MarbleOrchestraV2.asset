@@ -70,9 +70,9 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
-  - {fileID: 11400000, guid: 69979314f68c5958033b56f7f816428d, type: 2}
+  - {fileID: 11400000, guid: 968e65dc0d16e774baaa5ca1559c2098, type: 2}
   - {fileID: 11400000, guid: cd019b37ba3b43f44b5e4660a3789d23, type: 2}
-  - {fileID: 11400000, guid: a5579dc06055dadce559e5d8a066cc8e, type: 2}
+  - {fileID: 11400000, guid: da10a7fb57850034dbd4283e15206392, type: 2}
   - {fileID: 0}
   - {fileID: 11400000, guid: 1b184cefc3019034eb76765b4d4b30b5, type: 2}
   - {fileID: 11400000, guid: eb17afb3d96d1164c8809f855d9545b7, type: 2}
@@ -86,7 +86,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: b02d0a61a06244442b915b8c263bb5f5, type: 2}
   - {fileID: 0}
   - {fileID: 0}
-  - {fileID: 11400000, guid: 69979314f68c5958033b56f7f816428d, type: 2}
+  - {fileID: 11400000, guid: 968e65dc0d16e774baaa5ca1559c2098, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 11400000, guid: eb17afb3d96d1164c8809f855d9545b7, type: 2}
@@ -100,7 +100,7 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 11400000, guid: b56b2ba782cff144088371c896f80731, type: 2}
   - {fileID: 0}
-  - {fileID: 11400000, guid: a5579dc06055dadce559e5d8a066cc8e, type: 2}
+  - {fileID: 11400000, guid: da10a7fb57850034dbd4283e15206392, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -165,7 +165,7 @@ MonoBehaviour:
   - NaN
   - NaN
   - NaN
-  - 2.5
+  - 3
   cardBorderThickness: 0.03
   cardBorderColor: {r: 1, g: 1, b: 1, a: 1}
   lockedBorderColor: {r: 0.27450982, g: 0.27450982, b: 0.27450982, a: 1}

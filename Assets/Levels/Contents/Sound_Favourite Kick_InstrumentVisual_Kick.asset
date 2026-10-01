@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 86fba31e07eb15b0d1e8090c333c8634, type: 3}
-  m_Name: Sound_Amazing Hat_HiHat
+  m_Name: Sound_Favourite Kick_InstrumentVisual_Kick
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.SoundTriggerContent
-  contentId: Amazing Hat_HiHat
-  label: A
+  contentId: Favourite Kick_InstrumentVisual_Kick
+  label: F
   fallHeight: 0.3
-  instrument: 3
-  visual: {fileID: 0}
-  clip: {fileID: 8300000, guid: 010d85243a74e454d9b2f64ca89b00a0, type: 3}
+  instrument: 0
+  visual: {fileID: 11400000, guid: 5e3e244fe9a8a4b49b370ad6bbb5268c, type: 2}
+  clip: {fileID: 8300000, guid: f5b2d849798f40d428819359bd37b7aa, type: 3}
   flashColor: {r: 1, g: 1, b: 1, a: 1}

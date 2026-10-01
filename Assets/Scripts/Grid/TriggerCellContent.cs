@@ -11,11 +11,14 @@ namespace MarbleOrchestra.Grid
     /// </summary>
     public abstract class TriggerCellContent : CellContentDefinition, ITriggerCellContent
     {
-        [SerializeField] private float fallHeight = 1.2f; // clearly visible fall from the previous block onto this one's pad, not just a small step
+        [SerializeField] private float fallHeight = 0.3f; // default for newly created content (existing assets keep their saved value)
 
         [SerializeField] private InstrumentType instrument = InstrumentType.Xylophone; // which 3D element the block shows (see 0055) - Xylophone keeps assets saved before this field looking unchanged
 
+        [SerializeField] private InstrumentVisual visual; // optional external 3D model (0055 follow-up); when set it replaces the built-in geometry of `instrument`
+
         public float FallHeight => fallHeight;
+        public InstrumentVisual Visual => visual;
         public InstrumentType Instrument => instrument;
     }
 }

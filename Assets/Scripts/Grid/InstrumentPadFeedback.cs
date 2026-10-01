@@ -1,5 +1,7 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.Animations;
+using UnityEngine.Playables;
 
 namespace MarbleOrchestra.Grid
 {
@@ -35,7 +37,16 @@ namespace MarbleOrchestra.Grid
 
         private TrackBlock block;
         private BlockTrigger trigger;
-        private Renderer element;
+        private Renderer[] elements = System.Array.Empty<Renderer>();
+        private Color[] baseColors = System.Array.Empty<Color>(); // per renderer: padColor for built-in geometry, the model's own material color for external models
+        private bool usePadColor = true;
+        private bool flashOnHit = true;
+        private float elementScaleAmount = -1f;
+        private Animator animator;
+        private AnimationClip hitClip;
+        private PlayableGraph graph;
+        private AnimationClipPlayable clipPlayable;
+        private Coroutine clipRoutine;
         private Transform elementTransform;
         private Vector3 elementBaseScale = Vector3.one;
         private MaterialPropertyBlock propertyBlock;
@@ -65,20 +76,77 @@ namespace MarbleOrchestra.Grid
         /// The element's pivot must sit at its own base for the pulse to
         /// grow it in place rather than shift it (see
         /// XylophoneBlockDecoration).
-        public void Attach(Renderer instrumentElement)
+        public void Attach(InstrumentElement instrumentElement)
         {
-            element = instrumentElement;
-            elementTransform = instrumentElement != null ? instrumentElement.transform : null;
+            elements = instrumentElement != null ? instrumentElement.Renderers : System.Array.Empty<Renderer>();
+            usePadColor = instrumentElement == null || instrumentElement.UsePadColor;
+            flashOnHit = instrumentElement == null || instrumentElement.Flash;
+            elementScaleAmount = instrumentElement != null ? instrumentElement.PulseScaleAmount : -1f;
+            animator = instrumentElement != null ? instrumentElement.Animator : null;
+            hitClip = instrumentElement != null ? instrumentElement.HitClip : null;
+            elementTransform = instrumentElement != null ? instrumentElement.Root : null;
             elementBaseScale = elementTransform != null ? elementTransform.localScale : Vector3.one;
-            ApplyColor(padColor);
+
+            baseColors = new Color[elements.Length];
+            for (int i = 0; i < elements.Length; i++) baseColors[i] = usePadColor ? padColor : MaterialColor(elements[i]);
+            ApplyColors(0f, Color.white);
+        }
+
+        private static Color MaterialColor(Renderer renderer)
+        {
+            Material material = renderer != null ? renderer.sharedMaterial : null;
+            if (material == null) return Color.white;
+            if (material.HasProperty("_BaseColor")) return material.GetColor("_BaseColor");
+            if (material.HasProperty("_Color")) return material.GetColor("_Color");
+            return Color.white;
         }
 
         private void HandleTriggered()
         {
-            if (element == null) return;
+            if (hitClip != null && animator != null) PlayHitClip();
+
+            if (elements.Length == 0 || !flashOnHit) return;
 
             if (pulseRoutine != null) StopCoroutine(pulseRoutine);
             pulseRoutine = StartCoroutine(PulseRoutine());
+        }
+
+        /// Plays the model's hit clip straight through a PlayableGraph (no
+        /// Animator Controller), restarting it if the instrument is hit
+        /// again before it ended. Afterwards the pose is reset to the
+        /// clip's first frame, so the model is back at rest.
+        private void PlayHitClip()
+        {
+            if (!graph.IsValid())
+            {
+                graph = PlayableGraph.Create("InstrumentHit");
+                graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
+                AnimationPlayableOutput output = AnimationPlayableOutput.Create(graph, "Hit", animator);
+                clipPlayable = AnimationClipPlayable.Create(graph, hitClip);
+                clipPlayable.SetApplyFootIK(false);
+                output.SetSourcePlayable(clipPlayable);
+            }
+
+            if (clipRoutine != null) StopCoroutine(clipRoutine);
+            clipPlayable.SetTime(0.0);
+            clipPlayable.SetDone(false);
+            graph.Play();
+            clipRoutine = StartCoroutine(ClipRoutine());
+        }
+
+        private IEnumerator ClipRoutine()
+        {
+            yield return new WaitForSeconds(hitClip.length);
+
+            clipPlayable.SetTime(0.0);
+            graph.Evaluate(0f);
+            graph.Stop();
+            clipRoutine = null;
+        }
+
+        private void OnDestroy()
+        {
+            if (graph.IsValid()) graph.Destroy();
         }
 
         private IEnumerator PulseRoutine()
@@ -97,24 +165,38 @@ namespace MarbleOrchestra.Grid
                 // end (a linear ramp would jump back at the peak).
                 float pulse = Mathf.Sin(Mathf.Clamp01(elapsed / duration) * Mathf.PI);
 
-                ApplyColor(Color.Lerp(padColor, peak, pulse));
-                if (elementTransform != null) elementTransform.localScale = elementBaseScale * (1f + scaleAmount * pulse);
+                ApplyColors(pulse, peak);
+                if (elementTransform != null) elementTransform.localScale = elementBaseScale * (1f + (elementScaleAmount >= 0f ? elementScaleAmount : scaleAmount) * pulse);
 
                 yield return null;
             }
 
-            ApplyColor(padColor);
+            ApplyColors(0f, peak);
             if (elementTransform != null) elementTransform.localScale = elementBaseScale;
             pulseRoutine = null;
         }
 
-        private void ApplyColor(Color color)
+        /// Blends every renderer from its own base color toward `peak` by `amount`.
+        /// External models at amount 0 get their property block cleared, so
+        /// they look exactly like their own materials again.
+        private void ApplyColors(float amount, Color peak)
         {
-            if (element == null) return;
+            for (int i = 0; i < elements.Length; i++)
+            {
+                if (elements[i] == null) continue;
 
-            propertyBlock.SetColor("_BaseColor", color); // URP/Lit
-            propertyBlock.SetColor("_Color", color);     // Standard fallback - harmless if the shader lacks either property
-            element.SetPropertyBlock(propertyBlock);
+                if (!usePadColor && amount <= 0f)
+                {
+                    elements[i].SetPropertyBlock(null);
+                    continue;
+                }
+
+                Color color = Color.Lerp(baseColors[i], peak, amount);
+                propertyBlock.Clear();
+                propertyBlock.SetColor("_BaseColor", color); // URP/Lit
+                propertyBlock.SetColor("_Color", color);     // Standard fallback - harmless if the shader lacks either property
+                elements[i].SetPropertyBlock(propertyBlock);
+            }
         }
     }
 }

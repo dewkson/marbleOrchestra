@@ -71,6 +71,7 @@ namespace MarbleOrchestra.Grid.Editor
         private AudioClip customClip;
         private Color customFlashColor = Color.white;
         private InstrumentType customInstrument = InstrumentType.Xylophone;
+        private InstrumentVisual customVisual;
 
         private bool subLevelsFoldout = true;
         private int selectedSubLevelIndex = -1;
@@ -982,6 +983,7 @@ namespace MarbleOrchestra.Grid.Editor
             customClip = (AudioClip)EditorGUILayout.ObjectField("Clip", customClip, typeof(AudioClip), false);
             customFlashColor = EditorGUILayout.ColorField("Flash Color", customFlashColor);
             customInstrument = (InstrumentType)EditorGUILayout.EnumPopup("Instrument (3D)", customInstrument);
+            customVisual = (InstrumentVisual)EditorGUILayout.ObjectField("3D Model (optional)", customVisual, typeof(InstrumentVisual), false);
 
             if (GUILayout.Button(useCustomContent ? "Custom (active)" : "Use Custom"))
             {
@@ -1429,7 +1431,7 @@ namespace MarbleOrchestra.Grid.Editor
 
             Undo.RecordObject(level, "Paint Cell");
             CellContentDefinition content = useCustomContent
-                ? GetOrCreateCustomContent(customClip, customFlashColor, customInstrument)
+                ? GetOrCreateCustomContent(customClip, customFlashColor, customInstrument, customVisual)
                 : selectedBrush as CellContentDefinition;
             level.SetContentAt(index, content);
             EditorUtility.SetDirty(level);
@@ -1490,21 +1492,21 @@ namespace MarbleOrchestra.Grid.Editor
             return id;
         }
 
-        private SoundTriggerContent GetOrCreateCustomContent(AudioClip clip, Color flashColor, InstrumentType instrument)
+        private SoundTriggerContent GetOrCreateCustomContent(AudioClip clip, Color flashColor, InstrumentType instrument, InstrumentVisual visual)
         {
             foreach (CellContentDefinition existing in availableContents)
             {
                 if (existing is SoundTriggerContent sound &&
-                    sound.Clip == clip && sound.FlashColor == flashColor && sound.Instrument == instrument)
+                    sound.Clip == clip && sound.FlashColor == flashColor && sound.Instrument == instrument && sound.Visual == visual)
                 {
                     return sound;
                 }
             }
 
-            return CreateCustomContentAsset(clip, flashColor, instrument);
+            return CreateCustomContentAsset(clip, flashColor, instrument, visual);
         }
 
-        private SoundTriggerContent CreateCustomContentAsset(AudioClip clip, Color flashColor, InstrumentType instrument)
+        private SoundTriggerContent CreateCustomContentAsset(AudioClip clip, Color flashColor, InstrumentType instrument, InstrumentVisual visual)
         {
             SoundTriggerContent asset = CreateInstance<SoundTriggerContent>();
 
@@ -1512,7 +1514,8 @@ namespace MarbleOrchestra.Grid.Editor
             serialized.FindProperty("clip").objectReferenceValue = clip;
             serialized.FindProperty("flashColor").colorValue = flashColor;
             serialized.FindProperty("instrument").enumValueIndex = (int)instrument;
-            string contentId = BuildContentId(clip, instrument);
+            serialized.FindProperty("visual").objectReferenceValue = visual;
+            string contentId = BuildContentId(clip, instrument, visual);
             serialized.FindProperty("contentId").stringValue = contentId;
             serialized.FindProperty("label").stringValue = BuildContentLabel(contentId);
             serialized.ApplyModifiedPropertiesWithoutUndo();
@@ -1530,9 +1533,10 @@ namespace MarbleOrchestra.Grid.Editor
             return asset;
         }
 
-        private static string BuildContentId(AudioClip clip, InstrumentType instrument)
+        private static string BuildContentId(AudioClip clip, InstrumentType instrument, InstrumentVisual visual)
         {
             string id = clip != null ? clip.name : "Empty";
+            if (visual != null) return $"{id}_{visual.name}";
             return instrument != InstrumentType.Xylophone ? $"{id}_{instrument}" : id;
         }
 
