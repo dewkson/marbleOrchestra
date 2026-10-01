@@ -110,6 +110,19 @@ namespace MarbleOrchestra.Grid
             return side.sqrMagnitude > 1e-6f ? side.normalized : Vector3.back; // no input direction (shouldn't happen on a Trigger block) - assume the usual straight-through entry side
         }
 
+        /// The model's pivot in the block's local space: out toward the fall
+        /// side by the Landing Offset, and sideways (across the fall
+        /// direction) by the Lateral Offset. Seen along the marble's fall
+        /// (from the fall side toward the block's center), positive Lateral
+        /// Offset is to the right.
+        private static Vector3 ModelPivotLocal(Vector3 side, float grooveRadius, float sideWidth, InstrumentVisual visual)
+        {
+            float halfCell = grooveRadius + sideWidth;
+            Vector3 lateral = Vector3.Cross(Vector3.up, -side); // right-hand side seen along the fall
+            return side * PadCenterOffset(InstrumentType.Xylophone, grooveRadius, sideWidth, visual)
+                + lateral * (halfCell * visual.LateralOffsetFraction);
+        }
+
         private static Quaternion ModelRotation(Vector3 side, InstrumentVisual visual) =>
             Quaternion.LookRotation(side, Vector3.up) * Quaternion.Euler(0f, visual.YawOffsetDegrees, 0f);
 
@@ -124,7 +137,7 @@ namespace MarbleOrchestra.Grid
 
             if (HasModel(visual))
             {
-                Vector3 pivot = side * PadCenterOffset(type, grooveRadius, sideWidth, visual);
+                Vector3 pivot = ModelPivotLocal(side, grooveRadius, sideWidth, visual);
                 Vector3 landing = ModelRotation(side, visual) * visual.LandingLocal;
                 return new Vector3(pivot.x + landing.x, landing.y, pivot.z + landing.z);
             }
@@ -147,7 +160,7 @@ namespace MarbleOrchestra.Grid
             instance.name = visual.Prefab.name;
             instance.transform.localRotation = ModelRotation(side, visual);
             instance.transform.localScale = Vector3.one * visual.Scale;
-            instance.transform.localPosition = side * PadCenterOffset(InstrumentType.Xylophone, grooveRadius, sideWidth, visual);
+            instance.transform.localPosition = ModelPivotLocal(side, grooveRadius, sideWidth, visual);
 
             foreach (Collider collider in instance.GetComponentsInChildren<Collider>(true)) Object.Destroy(collider); // the marble follows a trace, never physics
 

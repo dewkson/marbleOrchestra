@@ -29,7 +29,10 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private bool overridePulseScale = false; // true: use pulseScaleAmount below instead of the value on the TrackBlock prefab's InstrumentPadFeedback
         [SerializeField, Range(0f, 1f)] private float pulseScaleAmount = 0.25f; // how much bigger the model gets at the peak of the hit pulse (0 = no scaling)
 
+        [SerializeField, Range(-0.9f, 0.9f)] private float lateralOffsetFraction = 0f; // shifts the model's PIVOT sideways, across the fall direction (horizontal, not up/down), as a fraction of half the block's width. Positive = to the right when looking along the marble's fall, negative = to the left
+
         public GameObject Prefab => prefab;
+        public float LateralOffsetFraction => lateralOffsetFraction;
         public float YawOffsetDegrees => yawOffsetDegrees;
         public bool OverridePulseScale => overridePulseScale;
         public float PulseScaleAmount => pulseScaleAmount;

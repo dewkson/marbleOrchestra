@@ -12,11 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1c8c022bb85dcea4ea0f742098b7ccfe, type: 3}
   m_Name: InstrumentVisual_Kick
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.InstrumentVisual
-  prefab: {fileID: 919132149155446097, guid: 00849d002b13199478d6b84e8d5e6c62, type: 3}
-  scale: 0.6
-  landingOffsetFraction: 0.6
+  prefab: {fileID: 7496231875267697974, guid: 06f70d3797ba24b4f9c6d743088c32d2, type: 3}
+  scale: 0.5
+  landingOffsetFraction: 0.7
   hitClip: {fileID: -623603649343465320, guid: 00849d002b13199478d6b84e8d5e6c62, type: 3}
   flashAlongsideClip: 1
   yawOffsetDegrees: -90
   overridePulseScale: 1
   pulseScaleAmount: 0.15
+  lateralOffsetFraction: 0.1
