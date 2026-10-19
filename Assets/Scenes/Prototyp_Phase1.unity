@@ -508,6 +508,8 @@ MonoBehaviour:
   grid: {fileID: 1612605610}
   marbleController: {fileID: 1612605612}
   dragThresholdPixels: 8
+  swapSound: {fileID: 8300000, guid: 826f3e38c3825a7459a759000895574e, type: 3}
+  swapSoundVolume: 1
 --- !u!114 &1612605610
 MonoBehaviour:
   m_ObjectHideFlags: 0

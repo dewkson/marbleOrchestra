@@ -3,7 +3,7 @@ id: 0059
 title: Sound für Kartenswap integrieren
 type: Feature
 priority: Low
-status: Open
+status: Done
 area: Audio
 created: 2026-09-30
 ---

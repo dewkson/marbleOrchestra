@@ -256,12 +256,13 @@ namespace MarbleOrchestra.Grid
             return result;
         }
 
-        public void SwapCards(Vector2Int a, Vector2Int b)
+        /// Returns true if a swap actually happened.
+        public bool SwapCards(Vector2Int a, Vector2Int b)
         {
             // Content layer is intentionally untouched here — it is bound to
             // the cell coordinate, not to the pipe occupying it.
-            if (!IsInBounds(a) || !IsInBounds(b) || a == b) return;
-            if (IsBlocked(a) || IsBlocked(b)) return;
+            if (!IsInBounds(a) || !IsInBounds(b) || a == b) return false;
+            if (IsBlocked(a) || IsBlocked(b)) return false;
 
             PathPipe pipeA = pipes[a.x, a.y];
             PathPipe pipeB = pipes[b.x, b.y];
@@ -282,6 +283,7 @@ namespace MarbleOrchestra.Grid
             }
 
             Revalidate();
+            return true;
         }
 
         public IReadOnlyList<PathValidationResult> Revalidate()

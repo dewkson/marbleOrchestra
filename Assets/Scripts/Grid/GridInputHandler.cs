@@ -30,6 +30,8 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private PathGrid grid;
         [SerializeField] private MarbleController marbleController;
         [SerializeField] private float dragThresholdPixels = 8f;
+        [SerializeField] private AudioClip swapSound;
+        [SerializeField, Range(0f, 1f)] private float swapSoundVolume = 1f;
 
         private PathPipe selectedPipe;
 
@@ -136,7 +138,7 @@ namespace MarbleOrchestra.Grid
             pressedCollider = null;
 
             if (target != null && target != pressedPipe && !target.IsLocked)
-                grid.SwapCards(pressedPipe.Coord, target.Coord);
+                SwapAndPlaySound(pressedPipe.Coord, target.Coord);
         }
 
         private void HandleClick(PathPipe clicked)
@@ -155,9 +157,15 @@ namespace MarbleOrchestra.Grid
                 return;
             }
 
-            grid.SwapCards(selectedPipe.Coord, clicked.Coord);
+            SwapAndPlaySound(selectedPipe.Coord, clicked.Coord);
             selectedPipe.SetSelected(false);
             selectedPipe = null;
+        }
+
+        private void SwapAndPlaySound(Vector2Int a, Vector2Int b)
+        {
+            if (grid.SwapCards(a, b) && swapSound != null)
+                AudioSource.PlayClipAtPoint(swapSound, targetCamera.transform.position, swapSoundVolume);
         }
 
         private void UpdateHoverHighlight(PathPipe hovered)
