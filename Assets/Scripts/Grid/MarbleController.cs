@@ -46,6 +46,20 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private float physicsGoalRadius = 0.25f; // horizontal distance to Goal at which a physics marble counts as arrived
         [SerializeField] private float physicsTimeoutMultiplier = 4f; // safety margin over the kinematic duration before a stuck physics marble is force-ended
 
+        [Tooltip("Look of the 3D marble (see 0061). Empty = built-in walnut.")]
+        [SerializeField] private MarbleDesign marbleDesign;
+
+        private MarbleDesign fallbackDesign;
+        private MarbleDesign ActiveDesign
+        {
+            get
+            {
+                if (marbleDesign != null) return marbleDesign;
+                if (fallbackDesign == null) fallbackDesign = MarbleDesign.CreateWalnut();
+                return fallbackDesign;
+            }
+        }
+
         private readonly List<Marble> marbles = new List<Marble>();
         private int activeRunCount;
         private BeatClock clock;
@@ -60,6 +74,7 @@ namespace MarbleOrchestra.Grid
         /// scope) - the camera swing and the block growth should read as
         /// one synchronized moment, not two.
         private bool starting;
+        private Coroutine stopRoutine; // block sink-down after Stop(), see StopRoutine
 
         /// How long the marble may wait for TrackBlockSpawner to actually
         /// spawn a just-completed track's blocks before this lap is given
@@ -168,6 +183,12 @@ namespace MarbleOrchestra.Grid
                 return false;
             }
 
+            if (stopRoutine != null)
+            {
+                StopCoroutine(stopRoutine); // Play pressed mid-return: finish the teardown instantly, then rebuild
+                FinishStop();
+            }
+
             starting = true;
             StartCoroutine(PlayRoutine());
             return true;
@@ -234,6 +255,26 @@ namespace MarbleOrchestra.Grid
             StopAllCoroutines(); // also cancels PlayRoutine/GrowToGameplay if Stop() lands mid-animation
             starting = false;
             activeRunCount = 0;
+            stopRoutine = null;
+
+            // Sink the blocks while CameraModeTransition swings back to
+            // top-down, and only then tear them down and show the 2D grid
+            // again - an instant ClearAll made the return look like a cut.
+            if (terrain != null && isActiveAndEnabled)
+                stopRoutine = StartCoroutine(StopRoutine());
+            else
+                FinishStop();
+        }
+
+        private IEnumerator StopRoutine()
+        {
+            yield return StartCoroutine(terrain.ShrinkToFlat());
+            FinishStop();
+        }
+
+        private void FinishStop()
+        {
+            stopRoutine = null;
             terrain?.ClearAll();
             if (grid != null) grid.gameObject.SetActive(true);
         }
@@ -369,9 +410,9 @@ namespace MarbleOrchestra.Grid
             switch (movementMode)
             {
                 case MovementMode.Kinematic3D:
-                    return Marble.CreateSphere3D(transform, marbleRadius3D, withPhysics: false);
+                    return Marble.CreateSphere3D(transform, marbleRadius3D, withPhysics: false, ActiveDesign);
                 case MovementMode.Physics3D:
-                    return Marble.CreateSphere3D(transform, marbleRadius3D, withPhysics: true);
+                    return Marble.CreateSphere3D(transform, marbleRadius3D, withPhysics: true, ActiveDesign);
                 default:
                     return Marble.Create(transform, marbleRadius, marbleColor);
             }

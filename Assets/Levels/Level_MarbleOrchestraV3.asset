@@ -1,0 +1,598 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0aa83a5d77470874ab782e44c644ae6b, type: 3}
+  m_Name: Level_MarbleOrchestraV3
+  m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.LevelData
+  width: 18
+  height: 6
+  loopLengthSteps: 16
+  pipes:
+  - {fileID: 11400000, guid: c19e2fd77dda78c4e9ad3765c8cafe7a, type: 2}
+  - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
+  - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
+  - {fileID: 11400000, guid: f66cb0683f663844f9e1c081bc0d3306, type: 2}
+  - {fileID: 11400000, guid: c19e2fd77dda78c4e9ad3765c8cafe7a, type: 2}
+  - {fileID: 11400000, guid: ae93e6e983db0d241be6dc3f170d9fed, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: f998b56ef0e6c0f40a9425bf404ff078, type: 2}
+  - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
+  - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
+  - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
+  - {fileID: 11400000, guid: 06138dfe9d2e7e24d975b8c250c45273, type: 2}
+  - {fileID: 11400000, guid: 08776b09c982e5848bcb41d861b160c0, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: c19e2fd77dda78c4e9ad3765c8cafe7a, type: 2}
+  - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
+  - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
+  - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
+  - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
+  - {fileID: 11400000, guid: ae93e6e983db0d241be6dc3f170d9fed, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: f998b56ef0e6c0f40a9425bf404ff078, type: 2}
+  - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
+  - {fileID: 11400000, guid: 0c4e1dc04addf8e4a8589e46e6cb5de7, type: 2}
+  - {fileID: 11400000, guid: f4ae79fc787b4ea46af142b5dfedfe62, type: 2}
+  - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
+  - {fileID: 11400000, guid: 06138dfe9d2e7e24d975b8c250c45273, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: c19e2fd77dda78c4e9ad3765c8cafe7a, type: 2}
+  - {fileID: 11400000, guid: ae93e6e983db0d241be6dc3f170d9fed, type: 2}
+  - {fileID: 11400000, guid: c19e2fd77dda78c4e9ad3765c8cafe7a, type: 2}
+  - {fileID: 11400000, guid: ae93e6e983db0d241be6dc3f170d9fed, type: 2}
+  - {fileID: 11400000, guid: f4ae79fc787b4ea46af142b5dfedfe62, type: 2}
+  - {fileID: 11400000, guid: ae93e6e983db0d241be6dc3f170d9fed, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: 08776b09c982e5848bcb41d861b160c0, type: 2}
+  - {fileID: 11400000, guid: f998b56ef0e6c0f40a9425bf404ff078, type: 2}
+  - {fileID: 11400000, guid: 06138dfe9d2e7e24d975b8c250c45273, type: 2}
+  - {fileID: 11400000, guid: f998b56ef0e6c0f40a9425bf404ff078, type: 2}
+  - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
+  - {fileID: 11400000, guid: 06138dfe9d2e7e24d975b8c250c45273, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  contents:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  blocked: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  heightOverrides:
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  cardBorderThickness: 0.07
+  cardBorderColor: {r: 1, g: 1, b: 1, a: 1}
+  lockedBorderColor: {r: 1, g: 0.45, b: 0, a: 1}
+  blockedBorderColor: {r: 1, g: 0.2, b: 0.2, a: 1}
+  pathCompleteBorderColor: {r: 0.35, g: 0.9, b: 0.45, a: 1}
+  showPipesOnImageCards: 1
+  blockedLooks:
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  blockColorOverrides:
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  subLevels:
+  - subLevelName: SubLevel 1
+    area:
+      x: 0
+      y: 4
+      width: 6
+      height: 2
+    startHeight: 1
+  - subLevelName: SubLevel 2
+    area:
+      x: 0
+      y: 2
+      width: 6
+      height: 2
+    startHeight: 1
+  - subLevelName: SubLevel 3
+    area:
+      x: 0
+      y: 0
+      width: 6
+      height: 2
+    startHeight: 1
+  - subLevelName: SubLevel 4
+    area:
+      x: 6
+      y: 0
+      width: 6
+      height: 6
+    startHeight: 1

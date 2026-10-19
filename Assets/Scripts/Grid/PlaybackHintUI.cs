@@ -25,6 +25,8 @@ namespace MarbleOrchestra.Grid
         private Text label;
         private Image panel;
         private Button button;
+        private CanvasScaler canvasScaler;
+        private RectTransform panelRect;
 
         private void Awake()
         {
@@ -33,8 +35,16 @@ namespace MarbleOrchestra.Grid
             BuildUI();
         }
 
+        private void UpdateLayout()
+        {
+            GameViewLayout.ApplyTo(canvasScaler); // Desktop / Mobile reference resolution (see 0060)
+            panelRect.sizeDelta = new Vector2(GameViewLayout.ColumnWidthRef, 170f);
+        }
+
         private void Update()
         {
+            UpdateLayout();
+
             if (marbleController.IsPlaying)
             {
                 label.text = "Zurück zur Planung\n(SPACE)";
@@ -76,7 +86,8 @@ namespace MarbleOrchestra.Grid
 
             CanvasScaler scaler = canvasGO.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(GameViewLayout.ReferenceWidth, 1080f);
+            canvasScaler = scaler;
+            GameViewLayout.ApplyTo(scaler);
 
             canvasGO.AddComponent<GraphicRaycaster>();
 
@@ -90,7 +101,8 @@ namespace MarbleOrchestra.Grid
             RectTransform panelRect = panelGO.GetComponent<RectTransform>();
             panelRect.anchorMin = panelRect.anchorMax = panelRect.pivot = new Vector2(1f, 0f);
             panelRect.anchoredPosition = new Vector2(-GameViewLayout.SideMargin, GameViewLayout.SideMargin);
-            panelRect.sizeDelta = new Vector2(GameViewLayout.SideColumnRefWidth - 2f * GameViewLayout.SideMargin, 170f);
+            this.panelRect = panelRect;
+            UpdateLayout();
 
             button = panelGO.AddComponent<Button>();
             button.targetGraphic = panel;

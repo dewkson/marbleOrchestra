@@ -196,7 +196,8 @@ namespace MarbleOrchestra.Grid
         private void Awake()
         {
             cam = GetComponent<Camera>();
-            GameViewLayout.ApplyTo(cam); // main view only fills the left two thirds
+            GameViewLayout.ApplyTo(cam); // main view only fills part of the screen (see 0060)
+            if (GetComponent<GameViewLayoutSwitcher>() == null) gameObject.AddComponent<GameViewLayoutSwitcher>();
             if (marbleController == null) marbleController = FindAnyObjectByType<MarbleController>();
             if (terrain == null) terrain = FindAnyObjectByType<TrackBlockSpawner>();
             if (cameraFitter == null) cameraFitter = GetComponent<CameraFitter>();

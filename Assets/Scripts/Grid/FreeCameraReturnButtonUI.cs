@@ -28,13 +28,16 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private string freeLabel = "Freie Kamera";
 
         // Right column layout (see GameViewLayout): below the minimap (top-right),
-        // with some room in between.
+        // with some room in between. On Mobile (see 0060) the minimap sits in
+        // the left half of the bottom strip, so the buttons start at its top.
         private const float M = GameViewLayout.SideMargin;
-        private const float W = GameViewLayout.SideColumnRefWidth - 2f * GameViewLayout.SideMargin;
+        private static float W => GameViewLayout.ColumnWidthRef;
         private const float GapBelowMinimap = 24f;
 
         private MinimapCamera minimap;
+        private CanvasScaler canvasScaler;
         private RectTransform buttonRect;
+        private RectTransform prevRect, nextRect, autoRect;
         private RectTransform trackPanelRect;
         private GameObject buttonGO;
         private Text cameraButtonText;
@@ -53,9 +56,16 @@ namespace MarbleOrchestra.Grid
         private void Update()
         {
             if (minimap == null) minimap = FindAnyObjectByType<MinimapCamera>();
-            float top = (minimap != null ? minimap.BottomRef : GameViewLayout.SideMargin) + GapBelowMinimap;
+            GameViewLayout.ApplyTo(canvasScaler);
+            float top = GameViewLayout.IsMobile
+                ? GameViewLayout.SideTopRef + M
+                : (minimap != null ? minimap.BottomRef : M) + GapBelowMinimap;
             buttonRect.anchoredPosition = new Vector2(-M, -top);
+            buttonRect.sizeDelta = new Vector2(W, 56f);
             trackPanelRect.anchoredPosition = new Vector2(0f, -top);
+            SetRect(prevRect, new Vector2(-M - W / 2f - 10f, -66f), new Vector2(W / 2f - 10f, 56f));
+            SetRect(nextRect, new Vector2(-M, -66f), new Vector2(W / 2f - 10f, 56f));
+            SetRect(autoRect, new Vector2(-M, -132f), new Vector2(W, 56f));
 
             bool visible = cameraModeTransition != null && marbleController != null && marbleController.IsPlaying;
 
@@ -67,6 +77,12 @@ namespace MarbleOrchestra.Grid
                 && marbleController.IsPlaying && !cameraModeTransition.IsFreeCamera && cameraModeTransition.TrackCount > 1;
             if (trackPanelGO.activeSelf != tracksVisible) trackPanelGO.SetActive(tracksVisible);
             if (tracksVisible) autoCycleText.text = AutoLabel(cameraModeTransition.AutoCycleTracks);
+        }
+
+        private static void SetRect(RectTransform rect, Vector2 anchoredPosition, Vector2 size)
+        {
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = size;
         }
 
         private static void EnsureEventSystem()
@@ -88,7 +104,8 @@ namespace MarbleOrchestra.Grid
 
             CanvasScaler scaler = canvasGO.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(GameViewLayout.ReferenceWidth, 1080f);
+            canvasScaler = scaler;
+            GameViewLayout.ApplyTo(scaler);
 
             canvasGO.AddComponent<GraphicRaycaster>();
 
@@ -105,9 +122,9 @@ namespace MarbleOrchestra.Grid
             panelRect.anchoredPosition = Vector2.zero;
             panelRect.sizeDelta = Vector2.zero;
 
-            CreateButton(trackPanelGO.transform, "PrevTrackButton", "< Bahn", new Vector2(-M - W / 2f - 10f, -66f), new Vector2(W / 2f - 10f, 56f), () => cameraModeTransition?.PreviousTrack(), out _);
-            CreateButton(trackPanelGO.transform, "NextTrackButton", "Bahn >", new Vector2(-M, -66f), new Vector2(W / 2f - 10f, 56f), () => cameraModeTransition?.NextTrack(), out _);
-            CreateButton(trackPanelGO.transform, "AutoCycleButton", AutoLabel(false), new Vector2(-M, -132f), new Vector2(W, 56f), () => cameraModeTransition?.ToggleAutoCycleTracks(), out autoCycleText);
+            prevRect = (RectTransform)CreateButton(trackPanelGO.transform, "PrevTrackButton", "< Bahn", new Vector2(-M - W / 2f - 10f, -66f), new Vector2(W / 2f - 10f, 56f), () => cameraModeTransition?.PreviousTrack(), out _).transform;
+            nextRect = (RectTransform)CreateButton(trackPanelGO.transform, "NextTrackButton", "Bahn >", new Vector2(-M, -66f), new Vector2(W / 2f - 10f, 56f), () => cameraModeTransition?.NextTrack(), out _).transform;
+            autoRect = (RectTransform)CreateButton(trackPanelGO.transform, "AutoCycleButton", AutoLabel(false), new Vector2(-M, -132f), new Vector2(W, 56f), () => cameraModeTransition?.ToggleAutoCycleTracks(), out autoCycleText).transform;
             trackPanelGO.SetActive(false);
         }
 

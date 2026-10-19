@@ -203,6 +203,32 @@ namespace MarbleOrchestra.Grid
             }
         }
 
+        /// Reverse of GrowToGameplay: every block sinks from its current
+        /// height back to the flat starting surface, so leaving 3D reads as
+        /// the track folding back into the 2D plan while the camera swings
+        /// to top-down, instead of the blocks vanishing in one frame.
+        public IEnumerator ShrinkToFlat()
+        {
+            List<TrackBlock> blocks = CollectAllBlocks();
+
+            float elapsed = 0f;
+            while (elapsed < growDuration)
+            {
+                elapsed += Time.deltaTime;
+                float f = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / growDuration));
+
+                foreach (TrackBlock block in blocks)
+                {
+                    if (block == null) continue;
+                    Vector3 p = block.transform.localPosition;
+                    p.y = Mathf.Lerp(block.Height, flatStartHeight, f);
+                    block.transform.localPosition = p;
+                }
+
+                yield return null;
+            }
+        }
+
         private List<TrackBlock> CollectAllBlocks()
         {
             List<TrackBlock> result = new List<TrackBlock>();

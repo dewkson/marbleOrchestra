@@ -28,7 +28,7 @@ namespace MarbleOrchestra.Grid
 
         // In canvas reference pixels (see GameViewLayout).
         private const float EdgeMargin = GameViewLayout.SideMargin;
-        private const float MapMaxWidth = GameViewLayout.SideColumnRefWidth - 2f * GameViewLayout.SideMargin;
+        private static float MapMaxWidth => GameViewLayout.ColumnWidthRef;
         private const float BorderThickness = 3f;
 
         /// Distance (canvas reference pixels) from the top of the screen to
@@ -41,6 +41,7 @@ namespace MarbleOrchestra.Grid
         private bool userEnabled = true;
         private GameObject borderGO;
         private RectTransform borderRect;
+        private CanvasScaler canvasScaler;
 
         private void Awake()
         {
@@ -54,6 +55,7 @@ namespace MarbleOrchestra.Grid
 
         private void Update()
         {
+            GameViewLayout.ApplyTo(canvasScaler);
             BottomRef = EdgeMargin;
             bool playing = marbleController != null && marbleController.IsPlaying;
 
@@ -109,16 +111,20 @@ namespace MarbleOrchestra.Grid
             float contentW = 2f * bounds.extents.x + 2f * padding;
             float contentH = 2f * bounds.extents.z + 2f * padding;
 
-            float fit = MapMaxWidth / contentW; // always exactly as wide as the buttons below it
-            BottomRef = EdgeMargin + contentH * fit;
+            // Desktop: always exactly as wide as the buttons below it. Mobile
+            // (see 0060): the left half of the bottom strip, also capped by its height.
+            float fit = Mathf.Min(MapMaxWidth / contentW, GameViewLayout.SideInnerHeightRef / contentH);
+            float topRef = GameViewLayout.SideTopRef + EdgeMargin;
+            BottomRef = topRef + contentH * fit;
             float scale = GameViewLayout.CanvasScale; // canvas reference pixels -> real pixels
             float widthPx = contentW * fit * scale;
             float heightPx = contentH * fit * scale;
-            float rightPx = EdgeMargin * scale;
-            float topPx = EdgeMargin * scale;
+            float edgePx = EdgeMargin * scale;
+            float topPx = topRef * scale;
+            float leftPx = GameViewLayout.IsMobile ? edgePx : Screen.width - edgePx - widthPx;
 
             Rect rect = new Rect(
-                1f - (rightPx + widthPx) / Screen.width,
+                leftPx / Screen.width,
                 1f - (topPx + heightPx) / Screen.height,
                 widthPx / Screen.width,
                 heightPx / Screen.height);
@@ -145,7 +151,8 @@ namespace MarbleOrchestra.Grid
 
             CanvasScaler scaler = canvasGO.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(GameViewLayout.ReferenceWidth, 1080f);
+            canvasScaler = scaler;
+            GameViewLayout.ApplyTo(scaler);
 
             // White border: four strips around the viewport rect. Overlay
             // canvases draw over cameras, so it has to be hollow.

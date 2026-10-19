@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.InstrumentVisual
   prefab: {fileID: 919132149155446097, guid: cad152e4b9cff7b40aff4c2e562075aa, type: 3}
   scale: 0.7
-  landingOffsetFraction: 0.5
+  landingOffsetFraction: 0.7
   hitClip: {fileID: 0}
   flashAlongsideClip: 0
   yawOffsetDegrees: 0

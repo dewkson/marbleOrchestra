@@ -562,6 +562,7 @@ MonoBehaviour:
   physicsSpawnOffset: 0.3
   physicsGoalRadius: 0.25
   physicsTimeoutMultiplier: 4
+  marbleDesign: {fileID: 11400000, guid: 9f41db4f407769243bbe55508c5aae59, type: 2}
 --- !u!82 &1612605613
 AudioSource:
   m_ObjectHideFlags: 0
