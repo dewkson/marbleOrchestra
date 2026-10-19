@@ -58,7 +58,7 @@ namespace MarbleOrchestra.Grid
             if (minimap == null) minimap = FindAnyObjectByType<MinimapCamera>();
             GameViewLayout.ApplyTo(canvasScaler);
             float top = GameViewLayout.IsMobile
-                ? GameViewLayout.SideTopRef + M
+                ? GameViewLayout.SideContentTopRef
                 : (minimap != null ? minimap.BottomRef : M) + GapBelowMinimap;
             buttonRect.anchoredPosition = new Vector2(-M, -top);
             buttonRect.sizeDelta = new Vector2(W, 56f);

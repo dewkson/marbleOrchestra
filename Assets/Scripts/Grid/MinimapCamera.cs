@@ -114,7 +114,7 @@ namespace MarbleOrchestra.Grid
             // Desktop: always exactly as wide as the buttons below it. Mobile
             // (see 0060): the left half of the bottom strip, also capped by its height.
             float fit = Mathf.Min(MapMaxWidth / contentW, GameViewLayout.SideInnerHeightRef / contentH);
-            float topRef = GameViewLayout.SideTopRef + EdgeMargin;
+            float topRef = GameViewLayout.IsMobile ? GameViewLayout.SideContentTopRef : EdgeMargin;
             BottomRef = topRef + contentH * fit;
             float scale = GameViewLayout.CanvasScale; // canvas reference pixels -> real pixels
             float widthPx = contentW * fit * scale;

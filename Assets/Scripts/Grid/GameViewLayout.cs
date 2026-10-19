@@ -66,9 +66,19 @@ namespace MarbleOrchestra.Grid
         /// of the side region: 0 on Desktop, below the main view on Mobile.
         public static float SideTopRef => IsMobile ? MobileMainViewFraction * Screen.height / CanvasScale : 0f;
 
-        /// Height (reference pixels) of the side region, inside its margins.
+        public const float PlayButtonHeight = 170f;
+        private const float GapBelowPlayButton = SideMargin; // same as above the button
+
+        /// Mobile (see 0060): the play button spans the full width at the top
+        /// of the side strip; minimap and buttons start below it. This is the
+        /// distance from the screen top to that content (Desktop: 0, unused).
+        public static float SideContentTopRef => IsMobile
+            ? SideTopRef + SideMargin + PlayButtonHeight + GapBelowPlayButton
+            : 0f;
+
+        /// Height (reference pixels) available to the minimap.
         public static float SideInnerHeightRef => IsMobile
-            ? Screen.height / CanvasScale - SideTopRef - 2f * SideMargin
+            ? Screen.height / CanvasScale - SideContentTopRef - SideMargin
             : float.MaxValue;
 
         /// Screen pixels per canvas reference pixel (CanvasScaler match-width).

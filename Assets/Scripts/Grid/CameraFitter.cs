@@ -79,6 +79,9 @@ namespace MarbleOrchestra.Grid
             // GameViewLayout), so its own pixel aspect decides the fit; the
             // grid is centered in it with just the padding as margin.
             float aspect = (float)cam.pixelWidth / Mathf.Max(1, cam.pixelHeight);
+            // Mobile (see 0060): the camera spans the full width, so keep the
+            // layout's side margin free at the left and right screen edge.
+            if (GameViewLayout.IsMobile) aspect *= 1f - 2f * GameViewLayout.SideMargin / GameViewLayout.ReferenceWidth;
             float verticalSize = extents.Up + padding;
             float horizontalSize = (extents.Right + padding) / aspect;
             orthographicSize = Mathf.Max(verticalSize, horizontalSize);
