@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_Demo_15-Puzzle
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.LevelData
   width: 7
-  height: 13
+  height: 14
   gameMode: 1
   loopLengthSteps: 8
   pipes:
@@ -43,6 +43,13 @@ MonoBehaviour:
   - {fileID: 11400000, guid: ae93e6e983db0d241be6dc3f170d9fed, type: 2}
   - {fileID: 11400000, guid: 0c4e1dc04addf8e4a8589e46e6cb5de7, type: 2}
   - {fileID: 11400000, guid: f4ae79fc787b4ea46af142b5dfedfe62, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -96,8 +103,8 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 11400000, guid: b6d8844e0d2c69844807e92e8733fe89, type: 2}
-  - {fileID: 11400000, guid: 06138dfe9d2e7e24d975b8c250c45273, type: 2}
   - {fileID: 0}
+  - {fileID: 11400000, guid: 06138dfe9d2e7e24d975b8c250c45273, type: 2}
   - {fileID: 0}
   - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
   - {fileID: 0}
@@ -160,6 +167,13 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   - {fileID: 11400000, guid: 968e65dc0d16e774baaa5ca1559c2098, type: 2}
   - {fileID: 0}
   - {fileID: 11400000, guid: 968e65dc0d16e774baaa5ca1559c2098, type: 2}
@@ -200,8 +214,15 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
-  blocked: 01010101010101010100000001010100000000000101000000000001010101010101010100000000000101000000000001010000000000010101010101010101010101010101010000000000010100000000000101010101010101
+  blocked: 0101010101010101010000000101010000000000010100000000000101010101010101010101010101010100000000000101000000000001010000000000010101010101010101010101010101010000000000010100000000000101010101010101
   heightOverrides:
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
+  - NaN
   - NaN
   - NaN
   - NaN
@@ -391,6 +412,13 @@ MonoBehaviour:
   - image: {fileID: 0}
   - image: {fileID: 0}
   - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
+  - image: {fileID: 0}
   blockColorOverrides:
   - color: {r: 0.09411765, g: 0.105882354, b: 0.14901961, a: 1}
   - color: {r: 0.09411765, g: 0.105882354, b: 0.14901961, a: 1}
@@ -483,11 +511,18 @@ MonoBehaviour:
   - color: {r: 0.4509804, g: 0.3254902, b: 0.2, a: 1}
   - color: {r: 0.4509804, g: 0.3254902, b: 0.2, a: 1}
   - color: {r: 0.4509804, g: 0.3254902, b: 0.2, a: 1}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0, g: 0, b: 0, a: 0}
   subLevels:
   - subLevelName: SubLevel 1
     area:
       x: 0
-      y: 9
+      y: 10
       width: 7
       height: 4
     startHeight: 1
@@ -497,7 +532,7 @@ MonoBehaviour:
       x: 0
       y: 5
       width: 7
-      height: 4
+      height: 5
     startHeight: 1
     loopLengthSteps: 8
   - subLevelName: SubLevel 3

@@ -18,9 +18,9 @@ namespace MarbleOrchestra.Grid
     /// Also shows track-switch buttons (previous/next track, auto-cycle) while
     /// playing with more than one track in the active SubLevel (see 0057).
     /// While planning in a level with several SubLevels, the same slot
-    /// instead holds previous/next SubLevel buttons - "next" only enabled
-    /// once the active SubLevel has a valid track (see
-    /// MarbleController.CanAdvanceSubLevel).
+    /// instead holds "Zurück"/"Weiter" SubLevel buttons, each shown only
+    /// while usable - "Weiter" once the active SubLevel has a valid track
+    /// (see MarbleController.CanAdvanceSubLevel).
     /// Lives on its own GameObject; cameraModeTransition and
     /// marbleController are wired in the Inspector or auto-found at Awake.
     /// </summary>
@@ -51,11 +51,7 @@ namespace MarbleOrchestra.Grid
         private PathGrid grid;
         private GameObject subLevelPanelGO;
         private RectTransform subLevelPanelRect, prevSubLevelRect, nextSubLevelRect;
-        private Button prevSubLevelButton, nextSubLevelButton;
-        private Text prevSubLevelText, nextSubLevelText;
-
-        private static readonly Color EnabledTextColor = Color.white;
-        private static readonly Color DisabledTextColor = new Color(1f, 1f, 1f, 0.35f);
+        private GameObject prevSubLevelGO, nextSubLevelGO;
 
         private void Awake()
         {
@@ -112,12 +108,15 @@ namespace MarbleOrchestra.Grid
             if (subLevelPanelGO.activeSelf != visible) subLevelPanelGO.SetActive(visible);
             if (!visible) return;
 
-            bool canPrev = marbleController.CanGoToPreviousSubLevel;
-            bool canNext = marbleController.CanAdvanceSubLevel;
-            prevSubLevelButton.interactable = canPrev;
-            nextSubLevelButton.interactable = canNext;
-            prevSubLevelText.color = canPrev ? EnabledTextColor : DisabledTextColor;
-            nextSubLevelText.color = canNext ? EnabledTextColor : DisabledTextColor;
+            // Each button only exists while it can actually be pressed: "Zurück" whenever
+            // there is an earlier SubLevel, "Weiter" once the active one is solved.
+            SetActiveIfChanged(prevSubLevelGO, marbleController.CanGoToPreviousSubLevel);
+            SetActiveIfChanged(nextSubLevelGO, marbleController.CanAdvanceSubLevel);
+        }
+
+        private static void SetActiveIfChanged(GameObject go, bool active)
+        {
+            if (go.activeSelf != active) go.SetActive(active);
         }
 
         private static void SetRect(RectTransform rect, Vector2 anchoredPosition, Vector2 size)
@@ -175,12 +174,10 @@ namespace MarbleOrchestra.Grid
             subLevelPanelRect.anchorMin = subLevelPanelRect.anchorMax = subLevelPanelRect.pivot = new Vector2(1f, 1f);
             subLevelPanelRect.sizeDelta = Vector2.zero;
 
-            GameObject prevGO = CreateButton(subLevelPanelGO.transform, "PrevSubLevelButton", "< Sublevel", Vector2.zero, Vector2.zero, () => marbleController?.TryGoToPreviousSubLevel(), out prevSubLevelText);
-            prevSubLevelRect = (RectTransform)prevGO.transform;
-            prevSubLevelButton = prevGO.GetComponent<Button>();
-            GameObject nextGO = CreateButton(subLevelPanelGO.transform, "NextSubLevelButton", "Sublevel >", Vector2.zero, Vector2.zero, () => marbleController?.TryAdvanceSubLevel(), out nextSubLevelText);
-            nextSubLevelRect = (RectTransform)nextGO.transform;
-            nextSubLevelButton = nextGO.GetComponent<Button>();
+            prevSubLevelGO = CreateButton(subLevelPanelGO.transform, "PrevSubLevelButton", "Zurück", Vector2.zero, Vector2.zero, () => marbleController?.TryGoToPreviousSubLevel(), out _);
+            prevSubLevelRect = (RectTransform)prevSubLevelGO.transform;
+            nextSubLevelGO = CreateButton(subLevelPanelGO.transform, "NextSubLevelButton", "Weiter", Vector2.zero, Vector2.zero, () => marbleController?.TryAdvanceSubLevel(), out _);
+            nextSubLevelRect = (RectTransform)nextSubLevelGO.transform;
             subLevelPanelGO.SetActive(false);
         }
 
