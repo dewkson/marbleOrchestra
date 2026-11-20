@@ -159,6 +159,7 @@ namespace MarbleOrchestra.Grid
             if (Keyboard.current.sKey.wasPressedThisFrame) Stop();
             if (Keyboard.current.rKey.wasPressedThisFrame) ResetMarble();
             if (Keyboard.current.nKey.wasPressedThisFrame) TryAdvanceSubLevel();
+            if (Keyboard.current.bKey.wasPressedThisFrame) TryGoToPreviousSubLevel();
         }
 
         /// Switches between planning (stopped, pipes editable) and
@@ -295,24 +296,44 @@ namespace MarbleOrchestra.Grid
         /// planning camera onto the newly active area right away - not
         /// just on the next play/stop transition (see CameraModeTransition,
         /// which only refits automatically when IsPlaying flips).
+        /// The gate is the ACTIVE SubLevel's own track, not CanPlay - an
+        /// earlier SubLevel's valid track would otherwise let the player
+        /// skip ahead without ever solving this one.
         public bool TryAdvanceSubLevel()
         {
-            if (!CanPlay)
-            {
-                Debug.LogWarning("MarbleController: Naechstes Sublevel ignoriert, aktuell existiert keine gueltige Bahn im aktiven Sublevel.");
-                return false;
-            }
-
-            if (!grid.AdvanceToNextSubLevel())
+            if (!grid.HasNextSubLevel)
             {
                 Debug.LogWarning("MarbleController: Es gibt kein weiteres Sublevel.");
                 return false;
             }
 
+            if (!HasCompletedTrackInActiveSubLevel())
+            {
+                Debug.LogWarning("MarbleController: Naechstes Sublevel ignoriert, aktuell existiert keine gueltige Bahn im aktiven Sublevel.");
+                return false;
+            }
+
+            grid.AdvanceToNextSubLevel();
             ResetMarble();
             cameraFitter?.Fit();
             return true;
         }
+
+        /// Steps back to the previous SubLevel for rework - always allowed.
+        /// Later SubLevels already reached stay unlocked (see
+        /// PathGrid.GoToPreviousSubLevel); only their GoalReached tracks
+        /// play, so a broken track anywhere is simply silent.
+        public bool TryGoToPreviousSubLevel()
+        {
+            if (!grid.GoToPreviousSubLevel()) return false;
+
+            ResetMarble();
+            cameraFitter?.Fit();
+            return true;
+        }
+
+        public bool CanAdvanceSubLevel => grid.HasNextSubLevel && HasCompletedTrackInActiveSubLevel();
+        public bool CanGoToPreviousSubLevel => grid.HasPreviousSubLevel;
 
         private bool HasCompletedTrack()
         {
@@ -320,6 +341,17 @@ namespace MarbleOrchestra.Grid
             for (int i = 0; i < results.Count; i++)
             {
                 if (results[i].GoalReached) return true;
+            }
+            return false;
+        }
+
+        private bool HasCompletedTrackInActiveSubLevel()
+        {
+            IReadOnlyList<PathValidationResult> results = grid.LastValidations;
+            for (int i = 0; i < results.Count; i++)
+            {
+                PathValidationResult result = results[i];
+                if (result.GoalReached && result.OrderedPath.Count > 0 && grid.IsInActiveSubLevel(result.OrderedPath[0])) return true;
             }
             return false;
         }

@@ -17,6 +17,10 @@ namespace MarbleOrchestra.Grid
     /// the first time, if the scene doesn't already have one.
     /// Also shows track-switch buttons (previous/next track, auto-cycle) while
     /// playing with more than one track in the active SubLevel (see 0057).
+    /// While planning in a level with several SubLevels, the same slot
+    /// instead holds previous/next SubLevel buttons - "next" only enabled
+    /// once the active SubLevel has a valid track (see
+    /// MarbleController.CanAdvanceSubLevel).
     /// Lives on its own GameObject; cameraModeTransition and
     /// marbleController are wired in the Inspector or auto-found at Awake.
     /// </summary>
@@ -44,10 +48,20 @@ namespace MarbleOrchestra.Grid
         private GameObject trackPanelGO;
         private Text autoCycleText;
 
+        private PathGrid grid;
+        private GameObject subLevelPanelGO;
+        private RectTransform subLevelPanelRect, prevSubLevelRect, nextSubLevelRect;
+        private Button prevSubLevelButton, nextSubLevelButton;
+        private Text prevSubLevelText, nextSubLevelText;
+
+        private static readonly Color EnabledTextColor = Color.white;
+        private static readonly Color DisabledTextColor = new Color(1f, 1f, 1f, 0.35f);
+
         private void Awake()
         {
             if (cameraModeTransition == null) cameraModeTransition = FindAnyObjectByType<CameraModeTransition>();
             if (marbleController == null) marbleController = FindAnyObjectByType<MarbleController>();
+            grid = FindAnyObjectByType<PathGrid>(FindObjectsInactive.Include); // inactive while playing (see MarbleController.PlayRoutine)
 
             EnsureEventSystem();
             BuildUI();
@@ -57,6 +71,7 @@ namespace MarbleOrchestra.Grid
         {
             if (minimap == null) minimap = FindAnyObjectByType<MinimapCamera>();
             GameViewLayout.ApplyTo(canvasScaler);
+            GameViewLayout.HasSubLevelNavRow = grid != null && grid.SubLevelCount > 1; // before SideContentTopRef is read below
             float top = GameViewLayout.IsMobile
                 ? GameViewLayout.SideContentTopRef
                 : (minimap != null ? minimap.BottomRef : M) + GapBelowMinimap;
@@ -77,6 +92,32 @@ namespace MarbleOrchestra.Grid
                 && marbleController.IsPlaying && !cameraModeTransition.IsFreeCamera && cameraModeTransition.TrackCount > 1;
             if (trackPanelGO.activeSelf != tracksVisible) trackPanelGO.SetActive(tracksVisible);
             if (tracksVisible) autoCycleText.text = AutoLabel(cameraModeTransition.AutoCycleTracks);
+
+            UpdateSubLevelPanel(top);
+        }
+
+        /// Desktop: below the minimap like the other buttons, both side by
+        /// side across the column. Mobile: its own row across the full
+        /// screen width right below the play button (see
+        /// GameViewLayout.SubLevelNavTopRef).
+        private void UpdateSubLevelPanel(float top)
+        {
+            float rowWidth = GameViewLayout.IsMobile ? GameViewLayout.ReferenceWidth - 2f * M : W;
+            float half = rowWidth / 2f - 10f;
+            subLevelPanelRect.anchoredPosition = new Vector2(0f, -(GameViewLayout.IsMobile ? GameViewLayout.SubLevelNavTopRef : top));
+            SetRect(prevSubLevelRect, new Vector2(-M - rowWidth / 2f - 10f, 0f), new Vector2(half, GameViewLayout.SubLevelNavRowHeight));
+            SetRect(nextSubLevelRect, new Vector2(-M, 0f), new Vector2(half, GameViewLayout.SubLevelNavRowHeight));
+
+            bool visible = marbleController != null && GameViewLayout.HasSubLevelNavRow && !marbleController.IsPlaying;
+            if (subLevelPanelGO.activeSelf != visible) subLevelPanelGO.SetActive(visible);
+            if (!visible) return;
+
+            bool canPrev = marbleController.CanGoToPreviousSubLevel;
+            bool canNext = marbleController.CanAdvanceSubLevel;
+            prevSubLevelButton.interactable = canPrev;
+            nextSubLevelButton.interactable = canNext;
+            prevSubLevelText.color = canPrev ? EnabledTextColor : DisabledTextColor;
+            nextSubLevelText.color = canNext ? EnabledTextColor : DisabledTextColor;
         }
 
         private static void SetRect(RectTransform rect, Vector2 anchoredPosition, Vector2 size)
@@ -126,6 +167,21 @@ namespace MarbleOrchestra.Grid
             nextRect = (RectTransform)CreateButton(trackPanelGO.transform, "NextTrackButton", "Bahn >", new Vector2(-M, -66f), new Vector2(W / 2f - 10f, 56f), () => cameraModeTransition?.NextTrack(), out _).transform;
             autoRect = (RectTransform)CreateButton(trackPanelGO.transform, "AutoCycleButton", AutoLabel(false), new Vector2(-M, -132f), new Vector2(W, 56f), () => cameraModeTransition?.ToggleAutoCycleTracks(), out autoCycleText).transform;
             trackPanelGO.SetActive(false);
+
+            // SubLevel navigation while planning - same slot as the camera button, which only shows while playing.
+            subLevelPanelGO = new GameObject("SubLevelPanel", typeof(RectTransform));
+            subLevelPanelGO.transform.SetParent(canvasGO.transform, false);
+            subLevelPanelRect = (RectTransform)subLevelPanelGO.transform;
+            subLevelPanelRect.anchorMin = subLevelPanelRect.anchorMax = subLevelPanelRect.pivot = new Vector2(1f, 1f);
+            subLevelPanelRect.sizeDelta = Vector2.zero;
+
+            GameObject prevGO = CreateButton(subLevelPanelGO.transform, "PrevSubLevelButton", "< Sublevel", Vector2.zero, Vector2.zero, () => marbleController?.TryGoToPreviousSubLevel(), out prevSubLevelText);
+            prevSubLevelRect = (RectTransform)prevGO.transform;
+            prevSubLevelButton = prevGO.GetComponent<Button>();
+            GameObject nextGO = CreateButton(subLevelPanelGO.transform, "NextSubLevelButton", "Sublevel >", Vector2.zero, Vector2.zero, () => marbleController?.TryAdvanceSubLevel(), out nextSubLevelText);
+            nextSubLevelRect = (RectTransform)nextGO.transform;
+            nextSubLevelButton = nextGO.GetComponent<Button>();
+            subLevelPanelGO.SetActive(false);
         }
 
         private static string AutoLabel(bool on) => on ? "Automatischer Bahnwechsel: an" : "Automatischer Bahnwechsel: aus";

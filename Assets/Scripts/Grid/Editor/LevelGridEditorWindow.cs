@@ -544,7 +544,7 @@ namespace MarbleOrchestra.Grid.Editor
         private void DrawPipePalette()
         {
             EditorGUILayout.LabelField("Pipe Patterns", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("Drag a pattern onto a cell to place it, or the Blocked tile to mark it unbuildable. Drag an already-placed cell onto another to swap them. Click a cell to select it and toggle its attributes below. Shift/Ctrl-click to add or remove cells from a multi-selection and edit shared attributes for all of them at once. Right-click a cell to clear it (a blocked cell unblocks).", MessageType.None);
+            EditorGUILayout.HelpBox("Drag a pattern onto a cell to place it, or the Blocked tile to mark it unbuildable. Drag an already-placed cell onto another to swap them. Click a cell to select it and toggle its attributes below. Shift/Ctrl-click to add or remove cells from a multi-selection and edit shared attributes for all of them at once. Right-click a cell to clear it (a blocked cell unblocks, an empty cell gets blocked).", MessageType.None);
 
             customBackgroundColor = EditorGUILayout.ColorField("New Pipe Color", customBackgroundColor);
 
@@ -811,8 +811,49 @@ namespace MarbleOrchestra.Grid.Editor
             if (GUILayout.Button("Unlock All")) ApplyLockedToSelection(false);
             EditorGUILayout.EndHorizontal();
 
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Block All")) ApplyBlockedToSelection(true);
+            if (GUILayout.Button("Unblock All")) ApplyBlockedToSelection(false);
+            EditorGUILayout.EndHorizontal();
+
             EditorGUILayout.Space();
             if (GUILayout.Button("Clear Selection")) SelectSingleCell(null);
+        }
+
+        /// Blocks/unblocks every selected cell. Blocking wipes a cell's
+        /// pipe and content (see LevelData.SetBlockedAt), so ask first when
+        /// the selection holds any - Undo would restore them, but it's easy
+        /// to miss a pipe hidden in a large selection.
+        private void ApplyBlockedToSelection(bool blocked)
+        {
+            if (blocked)
+            {
+                int filled = 0;
+                foreach (int index in selectedCellIndices)
+                {
+                    if (level.IsBlockedAt(index)) continue;
+                    bool hasPipe = index < level.Pipes.Count && level.Pipes[index] != null;
+                    bool hasContent = index < level.Contents.Count && level.Contents[index] != null;
+                    if (hasPipe || hasContent) filled++;
+                }
+                if (filled > 0 && !EditorUtility.DisplayDialog("Block Selected Cells",
+                        $"{filled} der ausgewählten Zellen haben eine Pipe oder Content, der beim Blockieren entfernt wird. Trotzdem blockieren?",
+                        "Blockieren", "Abbrechen"))
+                    return;
+            }
+
+            Undo.RecordObject(level, blocked ? "Block Cells (Multi)" : "Unblock Cells (Multi)");
+            bool changed = false;
+            foreach (int index in selectedCellIndices)
+            {
+                if (level.IsBlockedAt(index) == blocked) continue;
+                level.SetBlockedAt(index, blocked);
+                changed = true;
+            }
+
+            if (!changed) return;
+            EditorUtility.SetDirty(level);
+            Repaint();
         }
 
         /// Sets BackgroundColor on every selected cell that has a placed
@@ -1793,13 +1834,21 @@ namespace MarbleOrchestra.Grid.Editor
 
         /// Right-click erase: a blocked cell always unblocks first (there's
         /// no separate Blocked layer any more to target it directly, see
-        /// 0049 follow-up), otherwise clears whatever the active layer owns.
+        /// 0049 follow-up), a fully empty cell (no pipe, no content) gets
+        /// blocked instead - so right-click toggles empty <-> blocked for
+        /// quick blocking - otherwise clears whatever the active layer owns.
         private void ClearCell(int index)
         {
             Undo.RecordObject(level, "Clear Cell");
+            bool hasPipe = index < level.Pipes.Count && level.Pipes[index] != null;
+            bool hasContent = index < level.Contents.Count && level.Contents[index] != null;
             if (level.IsBlockedAt(index))
             {
                 level.SetBlockedAt(index, false);
+            }
+            else if (!hasPipe && !hasContent)
+            {
+                level.SetBlockedAt(index, true);
             }
             else if (activeLayer == PaintLayer.Pipe)
             {

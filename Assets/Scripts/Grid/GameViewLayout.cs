@@ -69,11 +69,24 @@ namespace MarbleOrchestra.Grid
         public const float PlayButtonHeight = 170f;
         private const float GapBelowPlayButton = SideMargin; // same as above the button
 
+        public const float SubLevelNavRowHeight = 56f;
+
+        /// Set by FreeCameraReturnButtonUI while the level has several
+        /// SubLevels: on Mobile the SubLevel buttons get their own
+        /// full-width row right below the play button, pushing the minimap
+        /// and the other buttons down. Reserved for the whole level (not
+        /// just while planning) so the minimap doesn't jump on Play.
+        public static bool HasSubLevelNavRow { get; set; }
+
+        /// Mobile: distance from the screen top to the SubLevel button row.
+        public static float SubLevelNavTopRef => SideTopRef + SideMargin + PlayButtonHeight + GapBelowPlayButton;
+
         /// Mobile (see 0060): the play button spans the full width at the top
-        /// of the side strip; minimap and buttons start below it. This is the
-        /// distance from the screen top to that content (Desktop: 0, unused).
+        /// of the side strip; minimap and buttons start below it (and below
+        /// the SubLevel row, if any). This is the distance from the screen
+        /// top to that content (Desktop: 0, unused).
         public static float SideContentTopRef => IsMobile
-            ? SideTopRef + SideMargin + PlayButtonHeight + GapBelowPlayButton
+            ? SubLevelNavTopRef + (HasSubLevelNavRow ? SubLevelNavRowHeight + SideMargin : 0f)
             : 0f;
 
         /// Height (reference pixels) available to the minimap.

@@ -23,6 +23,7 @@ namespace MarbleOrchestra.Grid
         private PipeVisual[,] blockedVisuals; // one per blocked cell, with or without a picture (see 0030/0054) - purely decorative, no collider
         private PipeVisual[,] slotVisuals; // 15-Puzzle only (see 0067): an empty slot under every buildable cell, drawn below the cards so it only shows where a cell is free - no collider
         private int activeSubLevelIndex;
+        private int highestReachedSubLevelIndex; // stays put when stepping back, so SubLevels already reached keep validating/playing (see IsInUnlockedSubLevel)
 
         public int Width { get; private set; }
         public int Height { get; private set; }
@@ -33,6 +34,8 @@ namespace MarbleOrchestra.Grid
 
         public int ActiveSubLevelIndex => activeSubLevelIndex;
         public int SubLevelCount => level != null ? level.SubLevels.Count : 0;
+        public bool HasNextSubLevel => activeSubLevelIndex < SubLevelCount - 1;
+        public bool HasPreviousSubLevel => SubLevelCount > 0 && activeSubLevelIndex > 0;
 
         /// The area shown/editable in the 2D planning view right now (see
         /// 0046's follow-up) - the active SubLevel's own Area, or the
@@ -57,7 +60,8 @@ namespace MarbleOrchestra.Grid
         }
 
         /// True for every cell belonging to a SubLevel reached so far
-        /// (index <= ActiveSubLevelIndex) - PathValidator resolves ALL of
+        /// (index <= the highest SubLevel ever advanced to, even after
+        /// stepping back to an earlier one) - PathValidator resolves ALL of
         /// these concurrently (see 0046 follow-up), not just the newest
         /// one, so every earlier SubLevel's track keeps spawning marbles
         /// and looping once built: several simultaneous tracks are the
@@ -67,7 +71,7 @@ namespace MarbleOrchestra.Grid
         public bool IsInUnlockedSubLevel(Vector2Int coord)
         {
             if (level == null || level.SubLevels.Count == 0) return true;
-            return TryGetSubLevelIndexAt(coord, out int index) && index <= activeSubLevelIndex;
+            return TryGetSubLevelIndexAt(coord, out int index) && index <= highestReachedSubLevelIndex;
         }
 
         /// The Area of whichever SubLevel owns this cell - used to keep a
@@ -116,6 +120,22 @@ namespace MarbleOrchestra.Grid
             if (count == 0 || activeSubLevelIndex >= count - 1) return false;
 
             activeSubLevelIndex++;
+            highestReachedSubLevelIndex = Mathf.Max(highestReachedSubLevelIndex, activeSubLevelIndex);
+            UpdateActiveSubLevelVisibility();
+            Revalidate();
+            return true;
+        }
+
+        /// Moves the EDITABLE SubLevel one back so an earlier puzzle can be
+        /// reworked. Everything reached so far stays unlocked (see
+        /// IsInUnlockedSubLevel) - only GoalReached tracks ever play, so a
+        /// later SubLevel keeps looping exactly as long as its own track
+        /// stays valid.
+        public bool GoToPreviousSubLevel()
+        {
+            if (!HasPreviousSubLevel) return false;
+
+            activeSubLevelIndex--;
             UpdateActiveSubLevelVisibility();
             Revalidate();
             return true;
@@ -162,6 +182,7 @@ namespace MarbleOrchestra.Grid
         {
             level = levelData;
             activeSubLevelIndex = 0;
+            highestReachedSubLevelIndex = 0;
             Width = levelData.Width;
             Height = levelData.Height;
             pipes = new PathPipe[Width, Height];
