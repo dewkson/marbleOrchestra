@@ -21,6 +21,9 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private int roleLabelFontSize = 32;
         [SerializeField] private float roleLabelTopOffset = 0.38f; // distance from card center to the label, so it sits above the pipe arms instead of on top of them
         [SerializeField] private int dragSortingBoost = 100; // added to every renderer's sortingOrder while dragged, so the card draws over every other pipe regardless of layout
+        [SerializeField] private Color freeSlotColor = new Color(0f, 0f, 0f, 0.35f); // face of an empty 15-Puzzle slot (see 0067)
+        [SerializeField] private Color freeSlotBorderColor = new Color(1f, 1f, 1f, 0.18f); // its faint outline
+        [SerializeField] private int freeSlotSortingOffset = -20; // below every card renderer (min -1, see EnsureBuilt), so a card lying on the slot hides it
 
         private static Sprite pixelSprite;
 
@@ -38,6 +41,7 @@ namespace MarbleOrchestra.Grid
         private CellConnectivity connectivity = CellConnectivity.Disconnected;
         private bool dragElevated;
         private bool isBlockedVisual;
+        private bool isFreeSlotVisual;
 
         public void Refresh(PipeDefinition definition, LevelData levelStyle)
         {
@@ -104,6 +108,30 @@ namespace MarbleOrchestra.Grid
             UpdateFrameColor();
         }
 
+        /// The empty slot of a 15-Puzzle cell (see 0067): a dim, faintly
+        /// outlined hole instead of a card, so a free cell reads as "a card
+        /// can slide in here". Drawn below every card (freeSlotSortingOffset)
+        /// since PathGrid builds one under every buildable cell and lets
+        /// the cards cover the occupied ones.
+        public void RefreshFreeSlot(LevelData levelStyle)
+        {
+            EnsureBuilt();
+            style = levelStyle;
+            locked = false;
+            isFreeSlotVisual = true;
+
+            backgroundRenderer.color = freeSlotColor;
+            hubRenderer.enabled = false;
+            foreach (SpriteRenderer arm in armRenderers) arm.enabled = false;
+            roleLabel.text = string.Empty;
+
+            ApplyFrameAndImage(null);
+            UpdateFrameColor();
+
+            frameRenderer.sortingOrder = freeSlotSortingOffset - 1;
+            backgroundRenderer.sortingOrder = freeSlotSortingOffset;
+        }
+
         /// The frame always exists (its width is the level's card border
         /// width); the background - and the picture on top of it, if any -
         /// is inset by that width.
@@ -143,7 +171,8 @@ namespace MarbleOrchestra.Grid
         {
             if (frameRenderer == null || style == null) return;
 
-            if (highlighted) frameRenderer.color = highlightColor;
+            if (isFreeSlotVisual) frameRenderer.color = freeSlotBorderColor;
+            else if (highlighted) frameRenderer.color = highlightColor;
             else if (isBlockedVisual) frameRenderer.color = style.BlockedBorderColor;
             else if (connectivity == CellConnectivity.PathComplete) frameRenderer.color = style.PathCompleteBorderColor;
             else if (locked) frameRenderer.color = style.LockedBorderColor;

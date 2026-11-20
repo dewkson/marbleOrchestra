@@ -510,6 +510,7 @@ MonoBehaviour:
   dragThresholdPixels: 8
   swapSound: {fileID: 8300000, guid: 826f3e38c3825a7459a759000895574e, type: 3}
   swapSoundVolume: 1
+  slideDragThresholdCells: 0.25
 --- !u!114 &1612605610
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -522,9 +523,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0506b7ce37689243b46c7b5f4d8145b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.PathGrid
-  level: {fileID: 11400000, guid: dfb9109f90a31e34497e20126aa43ee8, type: 2}
+  level: {fileID: 11400000, guid: 77797b873bc1a874d86059368ec8feed, type: 2}
   cellSize: 1.2
   cardScale: 1.15
+  slideDuration: 0.15
 --- !u!4 &1612605611
 Transform:
   m_ObjectHideFlags: 0

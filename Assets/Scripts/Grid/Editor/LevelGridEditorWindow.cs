@@ -172,6 +172,9 @@ namespace MarbleOrchestra.Grid.Editor
                 return;
             }
 
+            DrawGameModeTabs();
+            EditorGUILayout.Space();
+
             DrawResizeControls();
             EditorGUILayout.Space();
 
@@ -199,6 +202,66 @@ namespace MarbleOrchestra.Grid.Editor
             EditorGUILayout.EndHorizontal();
         }
 
+        private static readonly string[] GameModeTabLabels = { "Card Swap", "15-Puzzle" };
+
+        /// One tab per GameMode (see 0063/0064) - the selected tab IS the
+        /// level's game mode, followed by that mode's own section: Card
+        /// Swap needs nothing beyond the shared tools below, 15-Puzzle
+        /// gets its free-cell overview (see DrawFifteenPuzzlePanel).
+        private void DrawGameModeTabs()
+        {
+            EditorGUILayout.LabelField("Spielmodus", EditorStyles.boldLabel);
+            GameMode newMode = (GameMode)GUILayout.Toolbar((int)level.GameMode, GameModeTabLabels);
+            if (newMode != level.GameMode)
+            {
+                Undo.RecordObject(level, "Set Game Mode");
+                level.SetGameMode(newMode);
+                EditorUtility.SetDirty(level);
+            }
+
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            if (level.GameMode == GameMode.CardSwap)
+            {
+                EditorGUILayout.LabelField("Zwei beliebige, nicht gesperrte Karten werden per Klick-Klick oder Drag & Drop getauscht. Leere Zellen sind leere Karten und tauschen mit.", EditorStyles.wordWrappedMiniLabel);
+            }
+            else
+            {
+                DrawFifteenPuzzlePanel();
+            }
+            EditorGUILayout.EndVertical();
+        }
+
+        /// 15-Puzzle section (see 0065): free cells are simply buildable
+        /// cells without a card (right-click a card to clear it), so this
+        /// only explains that and lists how many each puzzle area has -
+        /// an area without one is stuck, an area with only free cells has
+        /// nothing to slide.
+        private void DrawFifteenPuzzlePanel()
+        {
+            EditorGUILayout.LabelField("Karten werden in freie Zellen geschoben - eine Karte in derselben Reihe/Spalte wie eine freie Zelle schiebt alle Karten dazwischen mit. Freie Zelle = nicht blockierte Zelle ohne Karte (Rechtsklick auf eine Karte leert sie). Gesperrte Karten und blockierte Zellen stoppen einen Schub. Klick schiebt nur bei genau einer möglichen Richtung, sonst per Wischen.", EditorStyles.wordWrappedMiniLabel);
+
+            if (level.SubLevels.Count == 0)
+            {
+                DrawFreeCellCount("Ganzes Grid", new RectInt(0, 0, level.Width, level.Height));
+                return;
+            }
+
+            for (int i = 0; i < level.SubLevels.Count; i++)
+            {
+                DrawFreeCellCount(level.SubLevels[i].Name, level.SubLevels[i].Area);
+            }
+        }
+
+        private void DrawFreeCellCount(string areaName, RectInt area)
+        {
+            int free = level.CountFreeCellsIn(area);
+            EditorGUILayout.LabelField(areaName, $"{free} freie Zelle(n)");
+            if (free == 0)
+            {
+                EditorGUILayout.HelpBox($"'{areaName}' hat keine freie Zelle - dort kann sich nichts bewegen.", MessageType.Warning);
+            }
+        }
+
         private void DrawResizeControls()
         {
             EditorGUILayout.BeginHorizontal();
@@ -222,7 +285,7 @@ namespace MarbleOrchestra.Grid.Editor
         private void DrawLoopLengthControl()
         {
             int newLoopLength = EditorGUILayout.IntField(
-                new GUIContent("Takt (Loop Length Steps)", "Wie viele Beats der gemeinsame Loop hat, bevor alle Bahnen wieder auf demselben Downbeat neu starten. 0 = jede Bahn loopt mit ihrer eigenen Schrittzahl."),
+                new GUIContent("Takt (Loop Length Steps)", "Wie viele Beats der gemeinsame Loop hat, bevor alle Bahnen wieder auf demselben Downbeat neu starten. 0 = jede Bahn loopt mit ihrer eigenen Schrittzahl. SubLevels können unten einen eigenen Takt setzen (0 = diesen verwenden)."),
                 level.LoopLengthSteps);
             newLoopLength = Mathf.Max(0, newLoopLength);
 
@@ -231,6 +294,11 @@ namespace MarbleOrchestra.Grid.Editor
                 Undo.RecordObject(level, "Set Loop Length Steps");
                 level.SetLoopLengthSteps(newLoopLength);
                 EditorUtility.SetDirty(level);
+            }
+
+            if (!level.AreLoopLengthsCompatible(out string conflict))
+            {
+                EditorGUILayout.HelpBox($"Die Takte {conflict} sind keine Vielfachen voneinander - die Bahnen teilen sich dann keinen gemeinsamen Downbeat.", MessageType.Warning);
             }
         }
 
@@ -352,6 +420,15 @@ namespace MarbleOrchestra.Grid.Editor
                 {
                     Undo.RecordObject(level, "Set SubLevel Start Height");
                     level.SetSubLevelStartHeight(i, startHeight);
+                    EditorUtility.SetDirty(level);
+                }
+
+                EditorGUILayout.LabelField(new GUIContent("Takt", "Eigener Takt (Loop-Länge in Steps) dieses SubLevels, z.B. kurzer Kick-Loop vs. lange Melodie. 0 = Level-Takt verwenden. Takte sollten Vielfache voneinander sein, damit alle Bahnen einen gemeinsamen Downbeat behalten."), GUILayout.Width(30));
+                int subLevelLoop = Mathf.Max(0, EditorGUILayout.IntField(subLevel.LoopLengthSteps, GUILayout.Width(30)));
+                if (subLevelLoop != subLevel.LoopLengthSteps)
+                {
+                    Undo.RecordObject(level, "Set SubLevel Takt");
+                    level.SetSubLevelLoopLengthSteps(i, subLevelLoop);
                     EditorUtility.SetDirty(level);
                 }
 
@@ -477,7 +554,7 @@ namespace MarbleOrchestra.Grid.Editor
             DrawBlockedPatternRow();
 
             EditorGUILayout.Space();
-            if (GUILayout.Button("Block Empty Cells")) FillEmptyCellsWithBlocked();
+            if (GUILayout.Button("Block Empty Cells") && ConfirmBlockEmptyCells()) FillEmptyCellsWithBlocked();
 
             if (selectedCellIndices.Count > 1)
             {
@@ -576,6 +653,17 @@ namespace MarbleOrchestra.Grid.Editor
             e.Use();
         }
 
+        /// In 15-Puzzle mode an empty cell is a free cell (see 0065), so
+        /// blocking all of them would leave nothing to slide into - ask
+        /// first instead of silently wiping them out.
+        private bool ConfirmBlockEmptyCells()
+        {
+            if (level.GameMode != GameMode.FifteenPuzzle) return true;
+            return EditorUtility.DisplayDialog("Block Empty Cells",
+                "Im 15-Puzzle-Modus sind leere Zellen die freien Zellen. Wirklich alle leeren Zellen (ohne Content) blockieren?",
+                "Blockieren", "Abbrechen");
+        }
+
         /// Bulk action requested alongside dropping the dedicated Blocked
         /// layer/tab (see 0049 follow-up): blocks every cell that has
         /// neither a pipe nor content yet, across the whole grid (not
@@ -640,7 +728,9 @@ namespace MarbleOrchestra.Grid.Editor
 
             if (index >= level.Pipes.Count || level.Pipes[index] == null)
             {
-                EditorGUILayout.HelpBox("Selected cell has no pipe - drag a pattern onto it first.", MessageType.None);
+                EditorGUILayout.HelpBox(level.GameMode == GameMode.FifteenPuzzle
+                    ? "Freie Zelle (15-Puzzle) - Karten können hierher geschoben werden. Ein Pattern draufziehen, um sie zu belegen."
+                    : "Selected cell has no pipe - drag a pattern onto it first.", MessageType.None);
                 return;
             }
 
@@ -1052,6 +1142,13 @@ namespace MarbleOrchestra.Grid.Editor
                 EditorGUI.DrawRect(face, background);
                 if (pipe.CardImage != null) DrawSpriteInRect(face, pipe.CardImage);
             }
+            else if (!isBlocked && level.GameMode == GameMode.FifteenPuzzle)
+            {
+                // Free cell (see 0065) - drawn as an open slot rather than
+                // an empty card, so it's obvious where cards can slide.
+                EditorGUI.DrawRect(rect, new Color(0.08f, 0.08f, 0.08f));
+                GUI.Label(rect, "frei", GetFreeCellLabelStyle());
+            }
             else
             {
                 EditorGUI.DrawRect(rect, background);
@@ -1210,6 +1307,21 @@ namespace MarbleOrchestra.Grid.Editor
                 };
             }
             return contentLabelStyle;
+        }
+
+        private GUIStyle freeCellLabelStyle;
+
+        private GUIStyle GetFreeCellLabelStyle()
+        {
+            if (freeCellLabelStyle == null)
+            {
+                freeCellLabelStyle = new GUIStyle(EditorStyles.miniLabel)
+                {
+                    alignment = TextAnchor.MiddleCenter,
+                    normal = { textColor = new Color(1f, 1f, 1f, 0.45f) }
+                };
+            }
+            return freeCellLabelStyle;
         }
 
         private GUIStyle roleLabelStyle;
@@ -1553,6 +1665,12 @@ namespace MarbleOrchestra.Grid.Editor
         /// puzzles.
         private void RandomizePipesInArea(RectInt area)
         {
+            if (level.GameMode == GameMode.FifteenPuzzle)
+            {
+                RandomizeBySlides(area);
+                return;
+            }
+
             List<int> freeSlots = new List<int>();
             List<PipeDefinition> pipesToShuffle = new List<PipeDefinition>();
 
@@ -1587,6 +1705,88 @@ namespace MarbleOrchestra.Grid.Editor
                 PipeDefinition pipe = i < pipesToShuffle.Count ? pipesToShuffle[i] : null;
                 level.SetPipeAt(freeSlots[i], pipe);
             }
+            EditorUtility.SetDirty(level);
+            Repaint();
+        }
+
+        private const int SlideShuffleMovesPerCell = 20;
+
+        /// 15-Puzzle Randomize (see 0065): instead of an arbitrary
+        /// permutation - which, like in the classic 15-Puzzle, can be
+        /// impossible to slide back into a solution - plays many random
+        /// legal slides (FifteenPuzzleRules, the very rule the player
+        /// uses), so the scrambled layout is always reachable from the
+        /// authored one and therefore solvable. Never immediately undoes
+        /// the previous slide, which would just waste moves.
+        private void RandomizeBySlides(RectInt area)
+        {
+            RectInt bounds = ClampAreaToGrid(area);
+            int width = level.Width;
+            PipeDefinition[] cells = new PipeDefinition[level.Width * level.Height];
+            for (int i = 0; i < cells.Length && i < level.Pipes.Count; i++) cells[i] = level.Pipes[i];
+
+            PuzzleCell CellAt(Vector2Int c)
+            {
+                int index = c.y * width + c.x;
+                if (level.IsBlockedAt(index)) return PuzzleCell.Blocked;
+                PipeDefinition pipe = cells[index];
+                if (pipe == null) return PuzzleCell.Free;
+                return pipe.Locked ? PuzzleCell.LockedCard : PuzzleCell.Card;
+            }
+
+            List<(Vector2Int from, Direction dir)> moves = new List<(Vector2Int, Direction)>();
+            List<(Vector2Int from, Direction dir)> undoMoves = new List<(Vector2Int, Direction)>();
+            List<Vector2Int> line = new List<Vector2Int>();
+            Vector2Int? lastFreeCell = null; // the free cell the previous slide left behind
+            Direction lastDir = Direction.None;
+            int moveCount = bounds.width * bounds.height * SlideShuffleMovesPerCell;
+            bool moved = false;
+
+            for (int step = 0; step < moveCount; step++)
+            {
+                moves.Clear();
+                undoMoves.Clear();
+                for (int y = bounds.yMin; y < bounds.yMax; y++)
+                {
+                    for (int x = bounds.xMin; x < bounds.xMax; x++)
+                    {
+                        Vector2Int from = new Vector2Int(x, y);
+                        foreach (Direction dir in DirectionExtensions.All)
+                        {
+                            if (!FifteenPuzzleRules.TryGetSlideLine(from, dir, bounds, CellAt, line, out Vector2Int freeCell)) continue;
+
+                            // Sliding back into the cell the last slide
+                            // just vacated (fully or partly) undoes it.
+                            bool undoesLast = dir == lastDir.Opposite() && lastFreeCell == freeCell;
+                            (undoesLast ? undoMoves : moves).Add((from, dir));
+                        }
+                    }
+                }
+
+                // Only the undo move left (e.g. a single row with one free
+                // cell at its end) - take it rather than stopping early.
+                if (moves.Count == 0) moves.AddRange(undoMoves);
+                if (moves.Count == 0) break;
+
+                (Vector2Int moveFrom, Direction moveDir) = moves[UnityEngine.Random.Range(0, moves.Count)];
+                FifteenPuzzleRules.TryGetSlideLine(moveFrom, moveDir, bounds, CellAt, line, out _);
+                Vector2Int offset = moveDir.ToGridOffset();
+                for (int i = line.Count - 1; i >= 0; i--)
+                {
+                    int source = line[i].y * width + line[i].x;
+                    int target = (line[i] + offset).y * width + (line[i] + offset).x;
+                    cells[target] = cells[source];
+                    cells[source] = null;
+                }
+                lastFreeCell = moveFrom;
+                lastDir = moveDir;
+                moved = true;
+            }
+
+            if (!moved) return;
+
+            Undo.RecordObject(level, "Randomize Pipes (Slides)");
+            for (int i = 0; i < cells.Length; i++) level.SetPipeAt(i, cells[i]);
             EditorUtility.SetDirty(level);
             Repaint();
         }

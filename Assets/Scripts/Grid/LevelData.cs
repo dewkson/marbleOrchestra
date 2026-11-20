@@ -56,9 +56,14 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private RectInt area = new RectInt(0, 0, 1, 1);
         [SerializeField] private float startHeight = 1f; // world/spawner-local Y of THIS SubLevel's own Start block - see TrackBlockSpawner.ResolveStartHeight (0047 follow-up). Now only a FALLBACK (0050): a per-cell height override set directly on the Start pipe or a blocked cell (LevelData.SetHeightOverrideAt) takes priority; this only applies when no such override exists, and this spawner's own global startHeight field is the next fallback when no SubLevel owns a given cell at all
 
+        [Tooltip("This SubLevel's own Takt in steps - e.g. a short kick loop next to a longer melody. 0 = use the level's Takt (LevelData.LoopLengthSteps). Every track starts on the same beat 0, so SubLevels whose Takte are multiples of each other always share a downbeat.")]
+        [SerializeField] private int loopLengthSteps;
+
         public string Name => subLevelName;
         public RectInt Area => area;
         public float StartHeight => startHeight;
+        public int LoopLengthSteps => Mathf.Max(0, loopLengthSteps);
+        public void SetLoopLengthSteps(int steps) => loopLengthSteps = Mathf.Max(0, steps);
 
         public SubLevelDefinition(string subLevelName, RectInt area, float startHeight = 1f)
         {
@@ -82,6 +87,8 @@ namespace MarbleOrchestra.Grid
     {
         [SerializeField] private int width = 4;
         [SerializeField] private int height = 3;
+        [Tooltip("How the player rearranges cards (see 0063): Card Swap trades any two unlocked cards, 15-Puzzle slides cards into free (empty, non-blocked) cells.")]
+        [SerializeField] private GameMode gameMode = GameMode.CardSwap;
         [Tooltip("Loop length in steps (one beat each). Only the blocks between Start and Goal count - Start/Goal are silent and overlap the neighbouring laps, so a 16-step loop is an 18-block track. Every track's lap is rounded up to whole loops, so all tracks restart on a shared downbeat. 0 = each track loops with its own step count.")]
         [SerializeField] private int loopLengthSteps = 16;
         [FormerlySerializedAs("cards")]
@@ -113,6 +120,8 @@ namespace MarbleOrchestra.Grid
 
         public int Width => width;
         public int Height => height;
+        public GameMode GameMode => gameMode;
+        public void SetGameMode(GameMode mode) => gameMode = mode;
         public Color CardBorderColor => cardBorderColor;
         public Color LockedBorderColor => lockedBorderColor;
         public Color BlockedBorderColor => blockedBorderColor;
@@ -156,6 +165,30 @@ namespace MarbleOrchestra.Grid
         public bool IsBlockedAt(int index)
         {
             return index >= 0 && index < blocked.Count && blocked[index];
+        }
+
+        /// A free cell (see 0065) is simply a buildable cell without a card -
+        /// no marker of its own. Only meaningful in GameMode.FifteenPuzzle,
+        /// where it's the slot cards slide into; Card Swap keeps treating
+        /// it as an empty card that can be swapped like any other.
+        public bool IsFreeAt(int index)
+        {
+            return index >= 0 && index < width * height && !IsBlockedAt(index) && (index >= pipes.Count || pipes[index] == null);
+        }
+
+        /// Number of free cells inside the given area (clamped to the grid) -
+        /// a 15-Puzzle area without one is stuck, nothing can ever move.
+        public int CountFreeCellsIn(RectInt area)
+        {
+            int count = 0;
+            for (int y = Mathf.Max(0, area.yMin); y < Mathf.Min(height, area.yMax); y++)
+            {
+                for (int x = Mathf.Max(0, area.xMin); x < Mathf.Min(width, area.xMax); x++)
+                {
+                    if (IsFreeAt(y * width + x)) count++;
+                }
+            }
+            return count;
         }
 
         /// Blocking a cell also clears any pipe/content it held - a
@@ -245,6 +278,58 @@ namespace MarbleOrchestra.Grid
         {
             if (index < 0 || index >= subLevels.Count) return;
             subLevels[index].SetStartHeight(startHeight);
+        }
+
+        public void SetSubLevelLoopLengthSteps(int index, int steps)
+        {
+            if (index < 0 || index >= subLevels.Count) return;
+            subLevels[index].SetLoopLengthSteps(steps);
+        }
+
+        /// The Takt a track in this SubLevel loops on: the SubLevel's own
+        /// one if set, else the level's (also for an index of -1, i.e. a
+        /// cell that belongs to no SubLevel). 0 = the track loops with its
+        /// own step count.
+        public int ResolveLoopLengthSteps(int subLevelIndex)
+        {
+            if (subLevelIndex >= 0 && subLevelIndex < subLevels.Count && subLevels[subLevelIndex].LoopLengthSteps > 0)
+                return subLevels[subLevelIndex].LoopLengthSteps;
+            return LoopLengthSteps;
+        }
+
+        /// True if every Takt in use (level + each SubLevel's resolved one,
+        /// ignoring 0 = "own step count") divides or is divided by every
+        /// other - only then do all tracks keep landing on a shared
+        /// downbeat. `conflict` names the first pair that doesn't.
+        public bool AreLoopLengthsCompatible(out string conflict)
+        {
+            conflict = null;
+            List<int> lengths = new List<int>();
+            if (subLevels.Count == 0)
+            {
+                if (LoopLengthSteps > 0) lengths.Add(LoopLengthSteps);
+            }
+            else
+            {
+                for (int i = 0; i < subLevels.Count; i++)
+                {
+                    int steps = ResolveLoopLengthSteps(i);
+                    if (steps > 0) lengths.Add(steps);
+                }
+            }
+
+            for (int i = 0; i < lengths.Count; i++)
+            {
+                for (int j = i + 1; j < lengths.Count; j++)
+                {
+                    int a = lengths[i];
+                    int b = lengths[j];
+                    if (a % b == 0 || b % a == 0) continue;
+                    conflict = $"{a} und {b}";
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// Reorders SubLevels - their list position IS their progression
@@ -389,6 +474,21 @@ namespace MarbleOrchestra.Grid
                 {
                     Debug.LogWarning($"{name}: SubLevel '{subLevels[i].Name}' has an area outside the {width}x{height} grid.", this);
                 }
+
+                if (gameMode == GameMode.FifteenPuzzle && CountFreeCellsIn(area) == 0)
+                {
+                    Debug.LogWarning($"{name}: SubLevel '{subLevels[i].Name}' has no free cell - in 15-Puzzle mode nothing there can move.", this);
+                }
+            }
+
+            if (!AreLoopLengthsCompatible(out string loopConflict))
+            {
+                Debug.LogWarning($"{name}: SubLevel-Takte {loopConflict} sind keine Vielfachen voneinander - die Bahnen laufen auseinander statt sich einen gemeinsamen Downbeat zu teilen.", this);
+            }
+
+            if (gameMode == GameMode.FifteenPuzzle && subLevels.Count == 0 && CountFreeCellsIn(new RectInt(0, 0, width, height)) == 0)
+            {
+                Debug.LogWarning($"{name}: no free cell - in 15-Puzzle mode nothing can move.", this);
             }
         }
     }

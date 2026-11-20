@@ -11,8 +11,11 @@ namespace MarbleOrchestra.Grid
     /// loops on one shared BeatClock (see 0043): only the blocks between
     /// Start and Goal count as the loop's steps, Start and Goal overlap
     /// the neighbouring laps - so a 16-step loop is an 18-block track -
-    /// and every lap starts on a downbeat of the level's loop
-    /// (LevelData.LoopLengthSteps). Play is refused whenever no track is
+    /// and every lap starts on a downbeat of its own SubLevel's loop
+    /// (SubLevelDefinition.LoopLengthSteps, falling back to
+    /// LevelData.LoopLengthSteps) - every track starts on the same beat 0,
+    /// so Takte that are multiples of each other always share a downbeat
+    /// (e.g. a 4-step kick under a 16-step melody). Play is refused whenever no track is
     /// currently complete.
     /// Keyboard-driven for now: SPACE toggles between planning (stopped,
     /// pipes editable) and simulation (playing) - S stops without clearing,
@@ -63,7 +66,6 @@ namespace MarbleOrchestra.Grid
         private readonly List<Marble> marbles = new List<Marble>();
         private int activeRunCount;
         private BeatClock clock;
-        private int stepsPerLoop;
 
         /// True from the moment Play() is called until PlayRoutine has
         /// actually spawned the marble coroutines - keeps IsPlaying (and
@@ -230,7 +232,6 @@ namespace MarbleOrchestra.Grid
             // as the grow animation finishes rather than when Play() was
             // first pressed.
             clock = new BeatClock(cellsPerSecond);
-            stepsPerLoop = grid.Level != null ? grid.Level.LoopLengthSteps : 0;
 
             foreach (PathValidationResult result in grid.LastValidations)
             {
@@ -352,6 +353,7 @@ namespace MarbleOrchestra.Grid
         {
             IReadOnlyList<Vector2Int> path = FindCurrentPath(startCoord);
             double startBeat = 0d; // beat this lap's marble rolls off Start - Play() just started the clock
+            int stepsPerLoop = ResolveStepsPerLoop(startCoord);
 
             while (path != null)
             {
@@ -361,7 +363,7 @@ namespace MarbleOrchestra.Grid
                 StartCoroutine(RunLap(marble, path, startBeat));
 
                 double nextSpawnBeat = startBeat + path.Count - 2; // this marble reaches the last block before Goal
-                startBeat += LapLengthInSteps(path.Count);
+                startBeat += LapLengthInSteps(path.Count, stepsPerLoop);
 
                 while (clock.CurrentBeat < nextSpawnBeat) yield return null;
                 path = FindCurrentPath(startCoord);
@@ -398,11 +400,21 @@ namespace MarbleOrchestra.Grid
         /// next one, a longer one spans several loops. stepsPerLoop 0 falls
         /// back to the step count itself. Never below one beat, so a bare
         /// Start-Goal track can't spawn marbles endlessly.
-        private int LapLengthInSteps(int pathLength)
+        private static int LapLengthInSteps(int pathLength, int stepsPerLoop)
         {
             int steps = Mathf.Max(pathLength - 2, 1);
             if (stepsPerLoop <= 0) return steps;
             return (steps + stepsPerLoop - 1) / stepsPerLoop * stepsPerLoop;
+        }
+
+        /// The Takt of the SubLevel this track's Start lies in (a track
+        /// never leaves its own SubLevel, see PathGrid.GetOwnSubLevelArea),
+        /// or the level's own Takt without SubLevels.
+        private int ResolveStepsPerLoop(Vector2Int startCoord)
+        {
+            if (grid.Level == null) return 0;
+            int subLevelIndex = grid.TryGetSubLevelIndexAt(startCoord, out int index) ? index : -1;
+            return grid.Level.ResolveLoopLengthSteps(subLevelIndex);
         }
 
         private Marble CreateMarbleForMode()

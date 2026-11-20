@@ -14,17 +14,21 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private LevelData level;
         [SerializeField] private float cellSize = 1.2f;
         [SerializeField] private float cardScale = 1f;
+        [Tooltip("Seconds a card takes to glide into its new cell after a 15-Puzzle slide (see 0067). 0 = jump instantly.")]
+        [SerializeField] private float slideDuration = 0.15f;
 
         private PathPipe[,] pipes;
         private CellContentDefinition[,] contents;
         private bool[,] blocked;
         private PipeVisual[,] blockedVisuals; // one per blocked cell, with or without a picture (see 0030/0054) - purely decorative, no collider
+        private PipeVisual[,] slotVisuals; // 15-Puzzle only (see 0067): an empty slot under every buildable cell, drawn below the cards so it only shows where a cell is free - no collider
         private int activeSubLevelIndex;
 
         public int Width { get; private set; }
         public int Height { get; private set; }
         public float CellSize => cellSize;
         public LevelData Level => level;
+        public bool IsFifteenPuzzle => level != null && level.GameMode == GameMode.FifteenPuzzle;
         public IReadOnlyList<PathValidationResult> LastValidations { get; private set; } = new List<PathValidationResult>();
 
         public int ActiveSubLevelIndex => activeSubLevelIndex;
@@ -136,6 +140,9 @@ namespace MarbleOrchestra.Grid
                     PipeVisual blockedVisual = blockedVisuals != null ? blockedVisuals[x, y] : null;
                     if (blockedVisual != null) blockedVisual.gameObject.SetActive(active);
 
+                    PipeVisual slotVisual = slotVisuals != null ? slotVisuals[x, y] : null;
+                    if (slotVisual != null) slotVisual.gameObject.SetActive(active);
+
                     PathPipe pipe = pipes[x, y];
                     if (pipe == null) continue;
                     pipe.gameObject.SetActive(active);
@@ -161,6 +168,8 @@ namespace MarbleOrchestra.Grid
             contents = new CellContentDefinition[Width, Height];
             blocked = new bool[Width, Height];
             blockedVisuals = new PipeVisual[Width, Height];
+            slotVisuals = new PipeVisual[Width, Height];
+            bool fifteenPuzzle = IsFifteenPuzzle;
 
             for (int y = 0; y < Height; y++)
             {
@@ -175,9 +184,20 @@ namespace MarbleOrchestra.Grid
                         continue;
                     }
 
-                    PipeDefinition definition = index < levelData.Pipes.Count ? levelData.Pipes[index] : null;
-                    pipes[x, y] = CreatePipe(new Vector2Int(x, y), definition);
                     contents[x, y] = index < levelData.Contents.Count ? levelData.Contents[index] : null;
+                    PipeDefinition definition = index < levelData.Pipes.Count ? levelData.Pipes[index] : null;
+
+                    // 15-Puzzle (see 0065): a cell without a card stays
+                    // genuinely empty - no PathPipe at all - so it's the
+                    // free slot cards slide into. Card Swap keeps building
+                    // an empty, swappable card there as before.
+                    if (fifteenPuzzle)
+                    {
+                        slotVisuals[x, y] = CreateSlotVisual(new Vector2Int(x, y));
+                        if (definition == null) continue;
+                    }
+
+                    pipes[x, y] = CreatePipe(new Vector2Int(x, y), definition);
                 }
             }
 
@@ -286,6 +306,79 @@ namespace MarbleOrchestra.Grid
             return true;
         }
 
+        /// A buildable cell without a card - the slot 15-Puzzle cards slide
+        /// into (see 0065). Always false in Card Swap, where every
+        /// buildable cell holds a (possibly empty) card.
+        public bool IsFree(Vector2Int coord)
+        {
+            return IsInBounds(coord) && !blocked[coord.x, coord.y] && pipes[coord.x, coord.y] == null;
+        }
+
+        private PuzzleCell GetPuzzleCell(Vector2Int coord)
+        {
+            if (IsBlocked(coord)) return PuzzleCell.Blocked;
+            PathPipe pipe = pipes[coord.x, coord.y];
+            if (pipe == null) return PuzzleCell.Free;
+            return pipe.IsLocked ? PuzzleCell.LockedCard : PuzzleCell.Card;
+        }
+
+        /// Which cards a 15-Puzzle slide starting at `from` would move (see
+        /// FifteenPuzzleRules) - confined to `from`'s own SubLevel, so a
+        /// slide never pushes cards across into a neighbouring puzzle.
+        /// Direction.None only succeeds if exactly one direction is open
+        /// (a plain click, see FifteenPuzzleRules.TryGetOnlySlide); a given
+        /// direction only tries that one (a drag).
+        public bool TryGetSlide(Vector2Int from, Direction direction, List<Vector2Int> line, out Direction resolvedDirection)
+        {
+            resolvedDirection = Direction.None;
+            if (!IsFifteenPuzzle || !IsInBounds(from)) return false;
+
+            RectInt bounds = GetOwnSubLevelArea(from);
+            if (direction == Direction.None)
+                return FifteenPuzzleRules.TryGetOnlySlide(from, bounds, GetPuzzleCell, line, out resolvedDirection);
+
+            if (!FifteenPuzzleRules.TryGetSlideLine(from, direction, bounds, GetPuzzleCell, line, out _)) return false;
+            resolvedDirection = direction;
+            return true;
+        }
+
+        /// Whether this card can slide anywhere at all (by click or drag).
+        public bool CanSlideAny(Vector2Int from)
+        {
+            if (!IsFifteenPuzzle || !IsInBounds(from)) return false;
+            return FifteenPuzzleRules.CanSlideAny(from, GetOwnSubLevelArea(from), GetPuzzleCell);
+        }
+
+        /// Performs a 15-Puzzle slide (see 0066): every card from `from`
+        /// up to the free cell moves one step in the resolved direction,
+        /// gliding there over slideDuration (see 0067). Like SwapCards,
+        /// the content layer stays bound to its cell. Returns true if
+        /// anything moved.
+        public bool SlideCards(Vector2Int from, Direction direction = Direction.None)
+        {
+            List<Vector2Int> line = new List<Vector2Int>();
+            if (!TryGetSlide(from, direction, line, out Direction resolved)) return false;
+
+            Vector2Int offset = resolved.ToGridOffset();
+
+            // Front of the line (next to the free cell) first, so every
+            // card always moves into a cell that has just been vacated.
+            for (int i = line.Count - 1; i >= 0; i--)
+            {
+                Vector2Int source = line[i];
+                Vector2Int target = source + offset;
+                PathPipe pipe = pipes[source.x, source.y];
+
+                pipes[target.x, target.y] = pipe;
+                pipes[source.x, source.y] = null;
+                pipe.SetCoord(target);
+                pipe.SlideTo(CellToLocalPosition(target), slideDuration);
+            }
+
+            Revalidate();
+            return true;
+        }
+
         public IReadOnlyList<PathValidationResult> Revalidate()
         {
             IReadOnlyList<PathValidationResult> results = PathValidator.EvaluateAll(this);
@@ -333,6 +426,23 @@ namespace MarbleOrchestra.Grid
 
             PipeVisual visual = go.AddComponent<PipeVisual>();
             visual.RefreshBlocked(look, level);
+            return visual;
+        }
+
+        /// The empty slot of a 15-Puzzle cell (see 0067) - built under
+        /// every buildable cell, not just the initially free ones, since
+        /// the free cells move with every slide; a card lying on top
+        /// covers it completely. No collider, like CreateBlockedVisual -
+        /// a free cell is never something to click on directly.
+        private PipeVisual CreateSlotVisual(Vector2Int coord)
+        {
+            GameObject go = new GameObject($"Slot_{coord.x}_{coord.y}");
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = CellToLocalPosition(coord);
+            go.transform.localScale = Vector3.one * cardScale;
+
+            PipeVisual visual = go.AddComponent<PipeVisual>();
+            visual.RefreshFreeSlot(level);
             return visual;
         }
 

@@ -1,10 +1,11 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 namespace MarbleOrchestra.Grid
 {
     /// <summary>
-    /// Two ways to swap two pipes: click pipe A, then click pipe B - or
+    /// Card Swap mode (see 0063) - two ways to swap two pipes: click pipe A, then click pipe B - or
     /// press pipe A, drag onto pipe B, release (see 0004). Purely
     /// translates input into PathGrid.SwapCards calls; no gameplay logic
     /// lives here. Disabled while MarbleController is simulating - the
@@ -23,6 +24,15 @@ namespace MarbleOrchestra.Grid
     /// than Physics2D, since the planning camera/grid no longer have to be
     /// front-on (see 0029's top-down planning view) - Physics2D would
     /// silently ignore any rotation beyond the Z axis.
+    /// 15-Puzzle mode (see 0066/0067) - the press drives
+    /// PathGrid.SlideCards instead, and the card never follows the cursor
+    /// freely: a click slides the card (and every card between it and the
+    /// free cell) only if exactly ONE direction is open - with several, a
+    /// click would have to guess, so it does nothing. A swipe picks the
+    /// direction explicitly: as soon as the pointer has moved far enough
+    /// along one grid axis, that slide runs as the same controlled
+    /// animation a click plays. Hovering a card that a click would move
+    /// highlights every card that slide would push along.
     /// </summary>
     public class GridInputHandler : MonoBehaviour
     {
@@ -42,6 +52,17 @@ namespace MarbleOrchestra.Grid
         private Vector3 dragOriginalLocalPosition;
         private PathPipe dragHoverTarget;
 
+        [Tooltip("15-Puzzle: how far (in cells) the pointer has to be swiped along one axis before it counts as a slide in that direction.")]
+        [SerializeField, Range(0.05f, 1f)] private float slideDragThresholdCells = 0.25f;
+
+        private readonly List<PathPipe> slidePreview = new List<PathPipe>(); // cards highlighted as "would move" (see 0067)
+        private readonly List<Vector2Int> slideLine = new List<Vector2Int>();
+        private Vector3 swipeStartGridLocal; // where the 15-Puzzle press started, in the grid's own local space
+        private bool swipeMoved; // pointer left dragThresholdPixels - release is no longer a click
+        private bool swipeDone; // this press already triggered its slide - ignore the rest of it
+
+        private bool IsFifteenPuzzle => grid != null && grid.IsFifteenPuzzle;
+
         private void Awake()
         {
             if (grid == null) grid = FindAnyObjectByType<PathGrid>();
@@ -51,8 +72,18 @@ namespace MarbleOrchestra.Grid
 
         private void Update()
         {
-            if (marbleController != null && marbleController.IsPlaying) return;
+            if (marbleController != null && marbleController.IsPlaying)
+            {
+                ClearSlidePreview();
+                return;
+            }
             if (Mouse.current == null) return;
+
+            if (IsFifteenPuzzle)
+            {
+                UpdateSlideInput();
+                return;
+            }
 
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
@@ -66,6 +97,105 @@ namespace MarbleOrchestra.Grid
             {
                 EndPress();
             }
+        }
+
+        /// 15-Puzzle counterpart of the Card Swap press/drag handling above
+        /// (see the class summary): press, then either release in place
+        /// (click) or swipe along one axis - never a free drag.
+        private void UpdateSlideInput()
+        {
+            if (Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                BeginSlidePress();
+            }
+            else if (pressedPipe != null && Mouse.current.leftButton.isPressed)
+            {
+                ContinueSlidePress();
+            }
+            else if (pressedPipe != null && Mouse.current.leftButton.wasReleasedThisFrame)
+            {
+                EndSlidePress();
+            }
+            else if (pressedPipe == null)
+            {
+                ShowSlidePreview(RaycastPipe(), Direction.None);
+            }
+        }
+
+        private void BeginSlidePress()
+        {
+            PathPipe clicked = RaycastPipe();
+            if (clicked == null || clicked.IsLocked) return;
+
+            // No free cell anywhere in its row/column (or a locked card in
+            // the way) - neither a click nor a swipe could move it.
+            if (!grid.CanSlideAny(clicked.Coord)) return;
+
+            Vector2 screenPos = Mouse.current.position.ReadValue();
+            if (!RaycastGridPlane(screenPos, out Vector3 worldPos)) return;
+
+            pressedPipe = clicked;
+            pressScreenPos = screenPos;
+            swipeStartGridLocal = grid.transform.InverseTransformPoint(worldPos);
+            swipeMoved = false;
+            swipeDone = false;
+        }
+
+        /// Fires the slide the moment the swipe has gone far enough along
+        /// one axis - the card then glides exactly one cell along that axis
+        /// (PathPipe.SlideTo), never further than the free cell allows. A
+        /// swipe in a blocked direction does nothing, and the press keeps
+        /// watching in case the pointer turns towards an open one.
+        private void ContinueSlidePress()
+        {
+            if (swipeDone) return;
+
+            Vector2 screenPos = Mouse.current.position.ReadValue();
+            if (!swipeMoved && (screenPos - pressScreenPos).sqrMagnitude >= dragThresholdPixels * dragThresholdPixels)
+                swipeMoved = true;
+
+            if (!RaycastGridPlane(screenPos, out Vector3 worldPos)) return;
+
+            Direction direction = GetSwipeDirection(grid.transform.InverseTransformPoint(worldPos) - swipeStartGridLocal);
+            if (direction == Direction.None)
+            {
+                ShowSlidePreview(pressedPipe, Direction.None);
+                return;
+            }
+
+            if (SlideAndPlaySound(pressedPipe.Coord, direction))
+            {
+                swipeDone = true;
+                ClearSlidePreview();
+            }
+            else
+            {
+                ShowSlidePreview(null, Direction.None);
+            }
+        }
+
+        /// A release that never became a swipe is a click - it only moves
+        /// the card if exactly one direction is open (see
+        /// FifteenPuzzleRules.TryGetOnlySlide).
+        private void EndSlidePress()
+        {
+            if (!swipeDone && !swipeMoved) SlideAndPlaySound(pressedPipe.Coord, Direction.None);
+
+            ClearSlidePreview();
+            pressedPipe = null;
+        }
+
+        /// The grid axis the pointer has moved furthest along since the
+        /// press (in the grid's own local space, so it holds for any
+        /// grid/camera orientation - see 0029), or None while it's still
+        /// within slideDragThresholdCells of where the press started.
+        private Direction GetSwipeDirection(Vector3 gridLocalDelta)
+        {
+            float threshold = grid.CellSize * slideDragThresholdCells;
+            if (Mathf.Abs(gridLocalDelta.x) < threshold && Mathf.Abs(gridLocalDelta.y) < threshold) return Direction.None;
+
+            if (Mathf.Abs(gridLocalDelta.x) >= Mathf.Abs(gridLocalDelta.y)) return gridLocalDelta.x > 0f ? Direction.Right : Direction.Left;
+            return gridLocalDelta.y > 0f ? Direction.Up : Direction.Down;
         }
 
         private void BeginPress()
@@ -139,6 +269,44 @@ namespace MarbleOrchestra.Grid
 
             if (target != null && target != pressedPipe && !target.IsLocked)
                 SwapAndPlaySound(pressedPipe.Coord, target.Coord);
+        }
+
+        private bool SlideAndPlaySound(Vector2Int from, Direction direction)
+        {
+            if (!grid.SlideCards(from, direction)) return false;
+            if (swapSound != null) AudioSource.PlayClipAtPoint(swapSound, targetCamera.transform.position, swapSoundVolume);
+            return true;
+        }
+
+        /// Highlights every card a slide from `pipe` would move (see 0067) -
+        /// for Direction.None only if a click would actually move it (one
+        /// open direction), otherwise only that direction. Nothing is
+        /// highlighted if the card can't move that way.
+        private void ShowSlidePreview(PathPipe pipe, Direction direction)
+        {
+            slideLine.Clear();
+            if (pipe != null && !pipe.IsLocked) grid.TryGetSlide(pipe.Coord, direction, slideLine, out _);
+
+            bool unchanged = slidePreview.Count == slideLine.Count;
+            for (int i = 0; unchanged && i < slideLine.Count; i++)
+                unchanged = slidePreview[i] != null && slidePreview[i].Coord == slideLine[i];
+            if (unchanged) return;
+
+            ClearSlidePreview();
+            foreach (Vector2Int coord in slideLine)
+            {
+                PathPipe linePipe = grid.GetPipe(coord);
+                if (linePipe == null) continue;
+                linePipe.SetSelected(true);
+                slidePreview.Add(linePipe);
+            }
+        }
+
+        private void ClearSlidePreview()
+        {
+            foreach (PathPipe pipe in slidePreview)
+                if (pipe != null) pipe.SetSelected(false);
+            slidePreview.Clear();
         }
 
         private void HandleClick(PathPipe clicked)

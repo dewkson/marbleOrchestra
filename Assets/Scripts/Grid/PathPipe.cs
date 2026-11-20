@@ -16,9 +16,45 @@ namespace MarbleOrchestra.Grid
 
         private PipeVisual visual;
 
+        private bool sliding;
+        private Vector3 slideFrom;
+        private Vector3 slideTo;
+        private float slideElapsed;
+        private float slideDuration;
+
         private void Awake()
         {
             visual = GetComponent<PipeVisual>();
+        }
+
+        /// Glides this card from wherever it currently is (its old cell, or
+        /// wherever a drag dropped it) to `localPosition` - the 15-Puzzle
+        /// slide animation (see 0067). Coord is already updated by the
+        /// caller, so gameplay never waits on the animation.
+        public void SlideTo(Vector3 localPosition, float duration)
+        {
+            if (duration <= 0f)
+            {
+                sliding = false;
+                transform.localPosition = localPosition;
+                return;
+            }
+
+            sliding = true;
+            slideFrom = transform.localPosition;
+            slideTo = localPosition;
+            slideElapsed = 0f;
+            slideDuration = duration;
+        }
+
+        private void Update()
+        {
+            if (!sliding) return;
+
+            slideElapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(slideElapsed / slideDuration);
+            transform.localPosition = Vector3.Lerp(slideFrom, slideTo, Mathf.SmoothStep(0f, 1f, t));
+            if (t >= 1f) sliding = false;
         }
 
         public void Initialize(PipeDefinition definition, Vector2Int coord, LevelData levelStyle)
