@@ -18,3 +18,4 @@ MonoBehaviour:
   backgroundColor: {r: 0.15, g: 0.15, b: 0.15, a: 1}
   role: 1
   locked: 1
+  cardImage: {fileID: 0}

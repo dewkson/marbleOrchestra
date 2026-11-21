@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.PipeDefinition
   pipeId: RightDown
   connections: 6
-  color: {r: 0.6051662, g: 0, b: 1, a: 1}
+  color: {r: 1, g: 1, b: 1, a: 1}
   backgroundColor: {r: 0.15, g: 0.15, b: 0.15, a: 1}
   role: 0
   locked: 0
+  cardImage: {fileID: 0}

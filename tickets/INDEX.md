@@ -15,6 +15,7 @@ Priorität (Critical → High → Medium → Low) sortiert.
 |----|-------|-----|-----------|--------|------|----------|
 | 0031 | Instrumente abstrakt im 2D-Grid visualisieren | Idea | 🟡 Medium | ⚪ Open | Level Editor | 2026-09-04 |
 | 0056 | Kartensystem überarbeiten (weniger ScriptableObjects) | Task | 🟡 Medium | ⚪ Open | Tooling | 2026-09-30 |
+| 0069 | Instrument-Sprites auf Trigger-Zellen in 2D-Planung | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-11-21 |
 | 0033 | Licht und Schatten optimieren | Idea | 🔵 Low | ⚪ Open | Other | 2026-09-04 |
 | 0036 | Instrumentenreaktionen in 3D mit Partikeleffekt anreichern | Feature | 🔵 Low | ⚪ Open | Gameplay | 2026-09-04 |
 | 0037 | Sound für Murmel-Bewegung einbinden | Feature | 🔵 Low | ⚪ Open | Audio | 2026-09-04 |
@@ -90,3 +91,4 @@ Priorität (Critical → High → Medium → Low) sortiert.
 | 0066 | Schiebe-Mechanik für Pipekarten im 15-Puzzle | Feature | 🟡 Medium | ✅ Done | Gameplay | 2026-11-20 |
 | 0067 | Visuelles Feedback und Animation fürs Schieben | Feature | 🔵 Low | ⚪ Open | UI | 2026-11-20 |
 | 0068 | Eigener Visuals-Reiter mit Trackblock-Farbflash im Grid Editor | Feature | 🟡 Medium | ✅ Done | Level Editor | 2026-11-21 |
+| 0069 | Instrument-Sprites auf Trigger-Zellen in 2D-Planung | Feature | 🟡 Medium | ⚪ Open | Gameplay | 2026-11-21 |
