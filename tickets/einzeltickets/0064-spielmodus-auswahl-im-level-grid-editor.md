@@ -3,7 +3,7 @@ id: 0064
 title: Spielmodus-Auswahl (Card Swap / 15-Puzzle) im Level Grid Editor
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Level Editor
 created: 2026-11-20
 ---

@@ -3,7 +3,7 @@ id: 0063
 title: Neuer Spielmodus "15-Puzzle" (Gesamtticket)
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Gameplay
 created: 2026-11-20
 ---

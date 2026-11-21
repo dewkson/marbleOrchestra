@@ -3,7 +3,7 @@ id: 0068
 title: Eigener Visuals-Reiter mit Trackblock-Farbflash im Grid Editor
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Level Editor
 created: 2026-11-21
 ---

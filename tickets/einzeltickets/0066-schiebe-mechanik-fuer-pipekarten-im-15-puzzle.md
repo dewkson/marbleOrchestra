@@ -3,7 +3,7 @@ id: 0066
 title: Schiebe-Mechanik für Pipekarten im 15-Puzzle
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Gameplay
 created: 2026-11-20
 ---

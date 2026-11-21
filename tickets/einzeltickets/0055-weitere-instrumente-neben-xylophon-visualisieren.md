@@ -3,7 +3,7 @@ id: 0055
 title: Weitere Instrumente neben Xylophon in 3D visualisieren
 type: Feature
 priority: Medium
-status: Open
+status: Wont Do
 area: Gameplay
 created: 2026-09-30
 ---

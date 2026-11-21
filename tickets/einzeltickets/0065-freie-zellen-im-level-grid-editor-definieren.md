@@ -3,7 +3,7 @@ id: 0065
 title: Freie Zellen im Level Grid Editor definieren (15-Puzzle)
 type: Feature
 priority: Medium
-status: Open
+status: Done
 area: Level Editor
 created: 2026-11-20
 ---
