@@ -13,15 +13,30 @@ namespace MarbleOrchestra.Grid.Editor
     /// toggle its Locked/Start/Goal attributes; right-click to erase (a
     /// blocked cell unblocks). Content layer: pick a brush from the
     /// palette of existing assets, click cells to paint, right-click to
-    /// erase. Replaces authoring via the flat Inspector list.
+    /// erase. Visuals layer (see 0068): base block colors per SubLevel,
+    /// per-cell 3D block colors and per-cell visual effects (e.g. a
+    /// SubLevel-wide color flash), all independent of the cell's content.
+    /// Replaces authoring via the flat Inspector list.
     /// </summary>
     public class LevelGridEditorWindow : EditorWindow
     {
         private enum PaintLayer
         {
             Pipe,
-            Content
+            Content,
+            Visuals
         }
+
+        private enum VisualTool
+        {
+            Select,
+            Paint,
+            Erase
+        }
+
+        private static readonly string[] LayerTabLabels = { "Pipe", "Content", "Visuals" };
+        private static readonly string[] VisualToolLabels = { "Auswählen", "Effekt malen", "Radierer" };
+        private static readonly Color DefaultTerrainColor = new Color(0.30f, 0.45f, 0.20f); // TrackBlockSpawner's own default terrain color (see 0032)
 
         private const float CellSize = 48f;
 
@@ -69,9 +84,7 @@ namespace MarbleOrchestra.Grid.Editor
 
         private bool useCustomContent;
         private AudioClip customClip;
-        private Color customFlashColor = Color.white;
         private InstrumentType customInstrument = InstrumentType.Xylophone;
-        private InstrumentVisual customVisual;
 
         private bool subLevelsFoldout = true;
         private int selectedSubLevelIndex = -1;
@@ -82,6 +95,12 @@ namespace MarbleOrchestra.Grid.Editor
         private Color multiEditBackgroundColor = new Color(0.15f, 0.15f, 0.15f);
         private Sprite multiEditSprite;
         private Color multiEditBlockColor = new Color(0.30f, 0.45f, 0.20f); // matches TrackBlockSpawner's own default terrain color (see 0032)
+
+        private VisualTool visualTool = VisualTool.Select;
+        private VisualEffectType brushEffectType = VisualEffectType.SubLevelColorFlash;
+        private Color brushFlashColor = Color.white;
+        private float brushFlashDuration = 0.4f;
+        private bool brushExcludeBlocked = true;
 
         private static readonly Color[] SubLevelPalette =
         {
@@ -131,7 +150,7 @@ namespace MarbleOrchestra.Grid.Editor
             pipeDragCandidateIndex = null;
 
             int required = level.Width * level.Height;
-            if (level.Pipes.Count != required || level.Contents.Count != required || level.Blocked.Count != required || level.HeightOverrides.Count != required || level.BlockedLooks.Count != required || level.BlockColorOverrides.Count != required)
+            if (level.Pipes.Count != required || level.Contents.Count != required || level.Blocked.Count != required || level.HeightOverrides.Count != required || level.BlockedLooks.Count != required || level.BlockColorOverrides.Count != required || level.VisualEffects.Count != required)
             {
                 Undo.RecordObject(level, "Fix Level Grid List Sizes");
                 level.EnsureListSizes();
@@ -185,9 +204,10 @@ namespace MarbleOrchestra.Grid.Editor
             DrawSubLevelPanel();
             EditorGUILayout.Space();
 
-            activeLayer = (PaintLayer)GUILayout.Toolbar((int)activeLayer, new[] { "Pipe", "Content" });
-            if (activeLayer != PaintLayer.Pipe)
+            PaintLayer newLayer = (PaintLayer)GUILayout.Toolbar((int)activeLayer, LayerTabLabels);
+            if (newLayer != activeLayer)
             {
+                activeLayer = newLayer;
                 SelectSingleCell(null);
                 pipeDragCandidateIndex = null;
             }
@@ -504,6 +524,13 @@ namespace MarbleOrchestra.Grid.Editor
                 return;
             }
 
+            if (activeLayer == PaintLayer.Visuals)
+            {
+                DrawVisualsPalette();
+                EditorGUILayout.EndVertical();
+                return;
+            }
+
             EditorGUILayout.LabelField("Contents", EditorStyles.boldLabel);
 
             paletteScroll = EditorGUILayout.BeginScrollView(paletteScroll, GUILayout.Height(160));
@@ -722,7 +749,6 @@ namespace MarbleOrchestra.Grid.Editor
                 EditorGUILayout.HelpBox("Blocked cell. Isolated blocked/unused regions the surrounding terrain can't interpolate a height for settle at the height below, falling back to the SubLevel's own Start Height if none is set.", MessageType.None);
                 DrawHeightOverrideField(index);
                 DrawBlockedLookFields(index);
-                DrawBlockColorOverrideField(index);
                 return;
             }
 
@@ -771,7 +797,6 @@ namespace MarbleOrchestra.Grid.Editor
             }
 
             DrawCardLookFields(index, level.Pipes[index]);
-            DrawCardDerivedBlockColorInfo(level.Pipes[index]);
         }
 
         /// Bulk counterpart to DrawCellAttributesPanel/DrawCardLookFields
@@ -787,7 +812,7 @@ namespace MarbleOrchestra.Grid.Editor
         {
             EditorGUILayout.Space();
             EditorGUILayout.LabelField($"Multi Edit ({selectedCellIndices.Count} Zellen)", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("Wird auf alle ausgewählten Zellen mit Pipe angewendet (Bild zusätzlich auf blockierte Zellen). Background Color färbt Karte UND 3D-Block. Block Color greift nur auf Zellen ohne Karte.", MessageType.None);
+            EditorGUILayout.HelpBox("Wird auf alle ausgewählten Zellen mit Pipe angewendet (Bild zusätzlich auf blockierte Zellen). Background Color färbt die Karte (und ihren 3D-Block, solange im Visuals-Reiter keine Basisfarbe gesetzt ist). 3D-Blockfarben werden im Visuals-Reiter gepflegt.", MessageType.None);
 
             EditorGUILayout.BeginHorizontal();
             multiEditBackgroundColor = EditorGUILayout.ColorField("Background Color", multiEditBackgroundColor);
@@ -798,12 +823,6 @@ namespace MarbleOrchestra.Grid.Editor
             multiEditSprite = (Sprite)EditorGUILayout.ObjectField("Image", multiEditSprite, typeof(Sprite), false);
             if (GUILayout.Button("Apply", GUILayout.Width(50))) ApplyImageToSelection(multiEditSprite);
             EditorGUILayout.EndHorizontal();
-
-            EditorGUILayout.BeginHorizontal();
-            multiEditBlockColor = EditorGUILayout.ColorField("Block Color (3D, nur Zellen ohne Karte)", multiEditBlockColor);
-            if (GUILayout.Button("Apply", GUILayout.Width(50))) ApplyBlockColorToSelection(multiEditBlockColor);
-            EditorGUILayout.EndHorizontal();
-            if (GUILayout.Button("Clear Block Color")) ApplyBlockColorToSelection(null);
 
             EditorGUILayout.Space();
             EditorGUILayout.BeginHorizontal();
@@ -1056,16 +1075,16 @@ namespace MarbleOrchestra.Grid.Editor
         /// is shown here for reference rather than as an editable
         /// override - recoloring the card (Background Color, above)
         /// recolors its block with it.
-        private void DrawCardDerivedBlockColorInfo(PipeDefinition pipe)
+        private void DrawCardDerivedBlockColorInfo(int index, PipeDefinition pipe)
         {
             if (pipe == null) return;
 
             using (new EditorGUI.DisabledScope(true))
             {
-                EditorGUILayout.ColorField("Block Color (3D)", pipe.BackgroundColor);
+                EditorGUILayout.ColorField("Block Color (3D)", ResolveEditorBlockColor(index));
             }
 
-            EditorGUILayout.HelpBox("Die 3D-Blockfarbe kommt von der Karte selbst (Background Color) und wandert mit ihr mit. Zum Ändern die Kartenfarbe anpassen.", MessageType.None);
+            EditorGUILayout.HelpBox("Ohne Basisfarbe kommt die 3D-Blockfarbe von der Karte selbst (Background Color, Pipe-Reiter) und wandert mit ihr mit. Eine Basisfarbe des SubLevels (oben) ersetzt sie.", MessageType.None);
         }
 
         /// A toggle-gated color field for this cell's 3D TrackBlock color
@@ -1105,6 +1124,299 @@ namespace MarbleOrchestra.Grid.Editor
             }
         }
 
+        // ---------------------------------------------------------------
+        // Visuals layer (see 0068)
+        // ---------------------------------------------------------------
+
+        /// Palette column of the Visuals layer: level-wide switches, base
+        /// block colors per SubLevel, the effect tool/brush and the
+        /// selected cell(s) - everything about how the 3D blocks look and
+        /// react, kept apart from the Pipe (cards) and Content (sound)
+        /// layers.
+        private void DrawVisualsPalette()
+        {
+            EditorGUILayout.LabelField("Visuals", EditorStyles.boldLabel);
+            DrawInstrumentAnimationToggle();
+
+            EditorGUILayout.Space();
+            DrawBaseColorPanel();
+
+            EditorGUILayout.Space();
+            DrawVisualToolPanel();
+
+            if (visualTool != VisualTool.Select) return;
+
+            if (selectedCellIndices.Count > 1) DrawVisualMultiEditPanel();
+            else DrawVisualCellPanel();
+        }
+
+        private void DrawInstrumentAnimationToggle()
+        {
+            bool enabled = EditorGUILayout.ToggleLeft(
+                new GUIContent("Instrument-Animation", "Flash, Scale-Up und Hit-Clip des 3D-Instrumentenelements (Xylophon-Leiste, Drums, externe Modelle) beim Treffer. Aus = Visuals kommen nur noch aus den Effekten dieses Reiters."),
+                level.InstrumentHitAnimation);
+            if (enabled == level.InstrumentHitAnimation) return;
+
+            Undo.RecordObject(level, "Toggle Instrument Hit Animation");
+            level.SetInstrumentHitAnimation(enabled);
+            EditorUtility.SetDirty(level);
+        }
+
+        /// Base 3D block color per SubLevel (plus the level-wide one for
+        /// cells outside every SubLevel). When set it replaces the cards'
+        /// own colors in that area - a card-less cell's own Block Color
+        /// still wins (see PathGrid.GetBlockColorOverride). It is also the
+        /// color a Color Flash lerps back to.
+        private void DrawBaseColorPanel()
+        {
+            EditorGUILayout.LabelField(new GUIContent("Basisfarbe Trackblocks", "Ersetzt die Kartenfarben der 3D-Blöcke im jeweiligen Bereich. Eine eigene Block Color einer Zelle ohne Karte hat Vorrang."), EditorStyles.boldLabel);
+
+            for (int i = 0; i < level.SubLevels.Count; i++)
+            {
+                DrawBaseColorRow(level.SubLevels[i].Name, level.SubLevels[i].BlockColors, SubLevelColor(i));
+            }
+
+            DrawBaseColorRow(level.SubLevels.Count == 0 ? "Ganzes Grid" : "Ohne SubLevel", level.DefaultBlockColors, new Color(0.6f, 0.6f, 0.6f));
+        }
+
+        private void DrawBaseColorRow(string label, BlockColorSettings settings, Color swatchColor)
+        {
+            EditorGUILayout.BeginHorizontal();
+            Rect swatch = GUILayoutUtility.GetRect(10, 14, GUILayout.Width(10), GUILayout.Height(14));
+            EditorGUI.DrawRect(swatch, swatchColor);
+            bool use = EditorGUILayout.ToggleLeft(label, settings.UseBaseColor, GUILayout.Width(100));
+            Color color = settings.BaseColor;
+            using (new EditorGUI.DisabledScope(!use))
+            {
+                color = EditorGUILayout.ColorField(GUIContent.none, settings.BaseColor, GUILayout.Width(60));
+            }
+            EditorGUILayout.EndHorizontal();
+
+            if (use == settings.UseBaseColor && color == settings.BaseColor) return;
+
+            Undo.RecordObject(level, "Set Block Base Color");
+            settings.Set(use, color);
+            EditorUtility.SetDirty(level);
+        }
+
+        private void DrawVisualToolPanel()
+        {
+            EditorGUILayout.LabelField("Effekte", EditorStyles.boldLabel);
+            VisualTool newTool = (VisualTool)GUILayout.Toolbar((int)visualTool, VisualToolLabels, EditorStyles.miniButton);
+            if (newTool != visualTool)
+            {
+                visualTool = newTool;
+                if (visualTool != VisualTool.Select) SelectSingleCell(null);
+            }
+
+            switch (visualTool)
+            {
+                case VisualTool.Select:
+                    EditorGUILayout.HelpBox("Zelle anklicken (Shift/Ctrl für Mehrfachauswahl), um Blockfarbe und Effekt zu bearbeiten. Rechtsklick entfernt den Effekt einer Zelle.", MessageType.None);
+                    break;
+                case VisualTool.Paint:
+                    EditorGUILayout.HelpBox("Zellen anklicken, um den Effekt unten zu setzen. Er feuert, wenn die Murmel die Zelle triggert (Start/Ziel ausgenommen). Rechtsklick entfernt ihn.", MessageType.None);
+                    DrawEffectBrushFields();
+                    break;
+                case VisualTool.Erase:
+                    EditorGUILayout.HelpBox("Zellen anklicken, um ihren Effekt zu entfernen.", MessageType.None);
+                    break;
+            }
+        }
+
+        private void DrawEffectBrushFields()
+        {
+            brushEffectType = (VisualEffectType)EditorGUILayout.EnumPopup("Effekt", brushEffectType);
+            if (brushEffectType == VisualEffectType.SubLevelColorFlash)
+            {
+                brushFlashColor = EditorGUILayout.ColorField("Flash Color", brushFlashColor);
+                brushFlashDuration = Mathf.Max(0.01f, EditorGUILayout.FloatField(new GUIContent("Dauer (s)", "Sekunden vom Aufblitzen zurück zur Basisfarbe."), brushFlashDuration));
+                brushExcludeBlocked = EditorGUILayout.ToggleLeft(ExcludeBlockedLabel, brushExcludeBlocked);
+            }
+        }
+
+        private static readonly GUIContent ExcludeBlockedLabel = new GUIContent("Blocked Cells ausschließen", "Blockierte Zellen blitzen nicht mit - nur Zellen, die der Spieler mit Karten belegen kann.");
+
+        private CellVisualEffect BuildBrushEffect() => new CellVisualEffect(brushEffectType, brushFlashColor, brushFlashDuration, brushExcludeBlocked);
+
+        private void HandleVisualsCellClick(int index, bool additive)
+        {
+            switch (visualTool)
+            {
+                case VisualTool.Select:
+                    if (additive)
+                    {
+                        if (!selectedCellIndices.Remove(index)) selectedCellIndices.Add(index);
+                        selectedCellIndex = SoleSelectedIndex();
+                    }
+                    else
+                    {
+                        SelectSingleCell(index);
+                    }
+                    Repaint();
+                    break;
+                case VisualTool.Paint:
+                    if (!level.IsBlockedAt(index)) SetVisualEffect(index, BuildBrushEffect(), "Paint Visual Effect");
+                    break;
+                case VisualTool.Erase:
+                    SetVisualEffect(index, null, "Clear Visual Effect");
+                    break;
+            }
+        }
+
+        private void SetVisualEffect(int index, CellVisualEffect effect, string undoName)
+        {
+            CellVisualEffect current = level.GetVisualEffectAt(index);
+            bool unchanged = effect == null || !effect.IsSet ? current == null : effect.SameAs(current);
+            if (unchanged) return;
+
+            Undo.RecordObject(level, undoName);
+            level.SetVisualEffectAt(index, effect);
+            EditorUtility.SetDirty(level);
+            Repaint();
+        }
+
+        /// Single selected cell in the Visuals layer: its 3D block color
+        /// (own override for a card-less cell, read-only resolved color
+        /// for a card cell) and its visual effect.
+        private void DrawVisualCellPanel()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Selected Cell", EditorStyles.boldLabel);
+
+            if (!selectedCellIndex.HasValue)
+            {
+                EditorGUILayout.HelpBox("Click a cell to select it.", MessageType.None);
+                return;
+            }
+
+            int index = selectedCellIndex.Value;
+            EditorGUILayout.LabelField($"Zelle {index % level.Width},{index / level.Width}", EditorStyles.miniLabel);
+
+            if (HasCardAt(index))
+            {
+                DrawCardDerivedBlockColorInfo(index, level.Pipes[index]);
+            }
+            else
+            {
+                DrawBlockColorOverrideField(index);
+            }
+
+            if (level.IsBlockedAt(index)) return; // a blocked cell never carries a track, so it can't trigger an effect
+
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Effekt", EditorStyles.boldLabel);
+
+            PipeDefinition pipe = HasCardAt(index) ? level.Pipes[index] : null;
+            if (pipe != null && pipe.Role != PipeRole.Normal)
+            {
+                EditorGUILayout.HelpBox("Start/Ziel triggern keine Effekte.", MessageType.None);
+            }
+
+            CellVisualEffect current = level.GetVisualEffectAt(index);
+            VisualEffectType type = (VisualEffectType)EditorGUILayout.EnumPopup("Effekt", current != null ? current.Type : VisualEffectType.None);
+            Color color = current != null ? current.FlashColor : brushFlashColor;
+            float duration = current != null ? current.Duration : brushFlashDuration;
+            bool excludeBlocked = current != null ? current.ExcludeBlockedCells : brushExcludeBlocked;
+
+            if (type == VisualEffectType.SubLevelColorFlash)
+            {
+                color = EditorGUILayout.ColorField("Flash Color", color);
+                duration = Mathf.Max(0.01f, EditorGUILayout.FloatField(new GUIContent("Dauer (s)", "Sekunden vom Aufblitzen zurück zur Basisfarbe."), duration));
+                excludeBlocked = EditorGUILayout.ToggleLeft(ExcludeBlockedLabel, excludeBlocked);
+            }
+
+            SetVisualEffect(index, type == VisualEffectType.None ? null : new CellVisualEffect(type, color, duration, excludeBlocked), "Set Visual Effect");
+        }
+
+        private void DrawVisualMultiEditPanel()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField($"Multi Edit ({selectedCellIndices.Count} Zellen)", EditorStyles.boldLabel);
+
+            EditorGUILayout.HelpBox("Block Color greift nur auf Zellen ohne Karte (Karten-Zellen: Basisfarbe oben oder Kartenfarbe).", MessageType.None);
+            EditorGUILayout.BeginHorizontal();
+            multiEditBlockColor = EditorGUILayout.ColorField("Block Color", multiEditBlockColor);
+            if (GUILayout.Button("Apply", GUILayout.Width(50))) ApplyBlockColorToSelection(multiEditBlockColor);
+            EditorGUILayout.EndHorizontal();
+            if (GUILayout.Button("Clear Block Color")) ApplyBlockColorToSelection(null);
+
+            EditorGUILayout.Space();
+            DrawEffectBrushFields();
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Effekt setzen")) ApplyVisualEffectToSelection(BuildBrushEffect());
+            if (GUILayout.Button("Effekt entfernen")) ApplyVisualEffectToSelection(null);
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.Space();
+            if (GUILayout.Button("Clear Selection")) SelectSingleCell(null);
+        }
+
+        private void ApplyVisualEffectToSelection(CellVisualEffect effect)
+        {
+            Undo.RecordObject(level, effect != null ? "Set Visual Effect (Multi)" : "Clear Visual Effect (Multi)");
+            bool changed = false;
+            foreach (int index in selectedCellIndices)
+            {
+                if (level.IsBlockedAt(index)) continue;
+                level.SetVisualEffectAt(index, effect);
+                changed = true;
+            }
+
+            if (!changed) return;
+            EditorUtility.SetDirty(level);
+            Repaint();
+        }
+
+        /// The color this cell's 3D block will get - mirrors
+        /// PathGrid.GetBlockColorOverride (card-less override > SubLevel
+        /// base color > card color > spawner terrain color) on the
+        /// authored data, for the Visuals layer's preview strip.
+        private Color ResolveEditorBlockColor(int index)
+        {
+            bool hasCard = HasCardAt(index);
+            if (!hasCard)
+            {
+                Color? cellOverride = level.GetBlockColorOverrideAt(index);
+                if (cellOverride.HasValue) return cellOverride.Value;
+            }
+
+            Color? baseColor = level.ResolveBlockBaseColor(SubLevelIndexAt(index));
+            if (baseColor.HasValue) return baseColor.Value;
+
+            return hasCard ? level.Pipes[index].BackgroundColor : DefaultTerrainColor;
+        }
+
+        private int SubLevelIndexAt(int index)
+        {
+            Vector2Int coord = new Vector2Int(index % level.Width, index / level.Width);
+            for (int i = 0; i < level.SubLevels.Count; i++)
+            {
+                if (level.SubLevels[i].Area.Contains(coord)) return i;
+            }
+            return -1;
+        }
+
+        /// Bottom strip of a cell in the Visuals layer: the 3D block color it resolves to.
+        private void DrawBlockColorStrip(Rect rect, int index)
+        {
+            Rect strip = new Rect(rect.x + 1, rect.yMax - 9, rect.width - 2, 8);
+            EditorGUI.DrawRect(strip, new Color(0f, 0f, 0f, 0.6f));
+            Color color = ResolveEditorBlockColor(index);
+            color.a = 1f;
+            EditorGUI.DrawRect(new Rect(strip.x + 1, strip.y + 1, strip.width - 2, strip.height - 2), color);
+        }
+
+        /// Small flash-colored badge (bottom-right) on every cell with a visual effect.
+        private static void DrawVisualEffectMarker(Rect rect, CellVisualEffect effect)
+        {
+            Rect marker = new Rect(rect.xMax - 16, rect.yMax - 26, 14, 14);
+            EditorGUI.DrawRect(marker, Color.black);
+            Color color = effect.FlashColor;
+            color.a = 1f;
+            EditorGUI.DrawRect(new Rect(marker.x + 2, marker.y + 2, marker.width - 4, marker.height - 4), color);
+        }
+
         private void DrawCustomContentBuilder()
         {
             EditorGUILayout.Space();
@@ -1112,9 +1424,7 @@ namespace MarbleOrchestra.Grid.Editor
             EditorGUILayout.LabelField("Custom Sound Trigger", EditorStyles.boldLabel);
 
             customClip = (AudioClip)EditorGUILayout.ObjectField("Clip", customClip, typeof(AudioClip), false);
-            customFlashColor = EditorGUILayout.ColorField("Flash Color", customFlashColor);
-            customInstrument = (InstrumentType)EditorGUILayout.EnumPopup("Instrument (3D)", customInstrument);
-            customVisual = (InstrumentVisual)EditorGUILayout.ObjectField("3D Model (optional)", customVisual, typeof(InstrumentVisual), false);
+            customInstrument = (InstrumentType)EditorGUILayout.EnumPopup(new GUIContent("Instrument (Pad)", "Form des Pads, auf das die Murmel fällt. Visuelle Effekte werden im Visuals-Reiter gepflegt."), customInstrument);
 
             if (GUILayout.Button(useCustomContent ? "Custom (active)" : "Use Custom"))
             {
@@ -1227,7 +1537,19 @@ namespace MarbleOrchestra.Grid.Editor
                 DrawBlockedOverlay(rect, blockedLook != null ? 0.25f : 0.6f);
             }
 
-            if (activeLayer == PaintLayer.Pipe && selectedCellIndices.Contains(index))
+            if (activeLayer == PaintLayer.Visuals && !isBlocked)
+            {
+                DrawBlockColorStrip(rect, index);
+            }
+
+            CellVisualEffect effect = isBlocked ? null : level.GetVisualEffectAt(index);
+            if (effect != null)
+            {
+                DrawVisualEffectMarker(rect, effect);
+            }
+
+            bool selectionVisible = activeLayer == PaintLayer.Pipe || (activeLayer == PaintLayer.Visuals && visualTool == VisualTool.Select);
+            if (selectionVisible && selectedCellIndices.Contains(index))
             {
                 DrawSelectedCellBorder(rect);
             }
@@ -1512,6 +1834,12 @@ namespace MarbleOrchestra.Grid.Editor
         /// is ambiguous for that gesture.
         private void HandleCellClick(int index, bool additive)
         {
+            if (activeLayer == PaintLayer.Visuals)
+            {
+                HandleVisualsCellClick(index, additive);
+                return;
+            }
+
             if (activeLayer == PaintLayer.Pipe)
             {
                 if (additive)
@@ -1584,7 +1912,7 @@ namespace MarbleOrchestra.Grid.Editor
 
             Undo.RecordObject(level, "Paint Cell");
             CellContentDefinition content = useCustomContent
-                ? GetOrCreateCustomContent(customClip, customFlashColor, customInstrument, customVisual)
+                ? GetOrCreateCustomContent(customClip, customInstrument)
                 : selectedBrush as CellContentDefinition;
             level.SetContentAt(index, content);
             EditorUtility.SetDirty(level);
@@ -1645,30 +1973,28 @@ namespace MarbleOrchestra.Grid.Editor
             return id;
         }
 
-        private SoundTriggerContent GetOrCreateCustomContent(AudioClip clip, Color flashColor, InstrumentType instrument, InstrumentVisual visual)
+        private SoundTriggerContent GetOrCreateCustomContent(AudioClip clip, InstrumentType instrument)
         {
             foreach (CellContentDefinition existing in availableContents)
             {
                 if (existing is SoundTriggerContent sound &&
-                    sound.Clip == clip && sound.FlashColor == flashColor && sound.Instrument == instrument && sound.Visual == visual)
+                    sound.Clip == clip && sound.Instrument == instrument)
                 {
                     return sound;
                 }
             }
 
-            return CreateCustomContentAsset(clip, flashColor, instrument, visual);
+            return CreateCustomContentAsset(clip, instrument);
         }
 
-        private SoundTriggerContent CreateCustomContentAsset(AudioClip clip, Color flashColor, InstrumentType instrument, InstrumentVisual visual)
+        private SoundTriggerContent CreateCustomContentAsset(AudioClip clip, InstrumentType instrument)
         {
             SoundTriggerContent asset = CreateInstance<SoundTriggerContent>();
 
             SerializedObject serialized = new SerializedObject(asset);
             serialized.FindProperty("clip").objectReferenceValue = clip;
-            serialized.FindProperty("flashColor").colorValue = flashColor;
             serialized.FindProperty("instrument").enumValueIndex = (int)instrument;
-            serialized.FindProperty("visual").objectReferenceValue = visual;
-            string contentId = BuildContentId(clip, instrument, visual);
+            string contentId = BuildContentId(clip, instrument);
             serialized.FindProperty("contentId").stringValue = contentId;
             serialized.FindProperty("label").stringValue = BuildContentLabel(contentId);
             serialized.ApplyModifiedPropertiesWithoutUndo();
@@ -1686,10 +2012,9 @@ namespace MarbleOrchestra.Grid.Editor
             return asset;
         }
 
-        private static string BuildContentId(AudioClip clip, InstrumentType instrument, InstrumentVisual visual)
+        private static string BuildContentId(AudioClip clip, InstrumentType instrument)
         {
             string id = clip != null ? clip.name : "Empty";
-            if (visual != null) return $"{id}_{visual.name}";
             return instrument != InstrumentType.Xylophone ? $"{id}_{instrument}" : id;
         }
 
@@ -1839,6 +2164,15 @@ namespace MarbleOrchestra.Grid.Editor
         /// quick blocking - otherwise clears whatever the active layer owns.
         private void ClearCell(int index)
         {
+            if (activeLayer == PaintLayer.Visuals)
+            {
+                // Right-click in the Visuals layer only ever removes the
+                // cell's effect - never (un)blocks it, which would wipe
+                // pipes/content from a tab that doesn't show them.
+                SetVisualEffect(index, null, "Clear Visual Effect");
+                return;
+            }
+
             Undo.RecordObject(level, "Clear Cell");
             bool hasPipe = index < level.Pipes.Count && level.Pipes[index] != null;
             bool hasContent = index < level.Contents.Count && level.Contents[index] != null;

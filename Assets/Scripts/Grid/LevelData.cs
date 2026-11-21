@@ -59,7 +59,11 @@ namespace MarbleOrchestra.Grid
         [Tooltip("This SubLevel's own Takt in steps - e.g. a short kick loop next to a longer melody. 0 = use the level's Takt (LevelData.LoopLengthSteps). Every track starts on the same beat 0, so SubLevels whose Takte are multiples of each other always share a downbeat.")]
         [SerializeField] private int loopLengthSteps;
 
+        [Tooltip("Optional base color for every 3D TrackBlock in this SubLevel (see 0068) - wins over the cards' own colors, a per-cell Block Color still wins over it. Also the color a Color Flash lerps back to.")]
+        [SerializeField] private BlockColorSettings blockColors = new BlockColorSettings();
+
         public string Name => subLevelName;
+        public BlockColorSettings BlockColors => blockColors ?? (blockColors = new BlockColorSettings());
         public RectInt Area => area;
         public float StartHeight => startHeight;
         public int LoopLengthSteps => Mathf.Max(0, loopLengthSteps);
@@ -115,6 +119,12 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private List<CardLook> blockedLooks = new List<CardLook>();
         [Tooltip("Optional per-cell 3D TrackBlock color override (see 0050) - replaces TrackBlockSpawner's global terrain color for this cell's 3D block/filler. Null = use the spawner's default.")]
         [SerializeField] private List<ColorOverride> blockColorOverrides = new List<ColorOverride>();
+        [Tooltip("Optional per-cell visual effect (see 0068), fired when the marble triggers this cell's block - authored in the Level Grid Editor's Visuals tab, independent of the cell's content. Type None = no effect.")]
+        [SerializeField] private List<CellVisualEffect> visualEffects = new List<CellVisualEffect>();
+        [Tooltip("Base block color for cells outside every SubLevel, or the whole grid when the level has no SubLevels (see 0068).")]
+        [SerializeField] private BlockColorSettings defaultBlockColors = new BlockColorSettings();
+        [Tooltip("Whether a Trigger block's instrument element (Xylophone bar, drum, external model) still flashes, scales up and plays its hit clip when hit. Off = visuals only come from the Visuals tab's effects (see 0068).")]
+        [SerializeField] private bool instrumentHitAnimation = true;
         [Tooltip("SubLevels (see 0046) carve this grid into named, ordered puzzle areas the player progresses through one at a time. Empty = the whole grid is a single implicit SubLevel.")]
         [SerializeField] private List<SubLevelDefinition> subLevels = new List<SubLevelDefinition>();
 
@@ -149,6 +159,10 @@ namespace MarbleOrchestra.Grid
         public IReadOnlyList<CardLook> BlockedLooks => blockedLooks;
         public IReadOnlyList<ColorOverride> BlockColorOverrides => blockColorOverrides;
         public IReadOnlyList<SubLevelDefinition> SubLevels => subLevels;
+        public IReadOnlyList<CellVisualEffect> VisualEffects => visualEffects;
+        public BlockColorSettings DefaultBlockColors => defaultBlockColors ?? (defaultBlockColors = new BlockColorSettings());
+        public bool InstrumentHitAnimation => instrumentHitAnimation;
+        public void SetInstrumentHitAnimation(bool enabled) => instrumentHitAnimation = enabled;
 
         public void SetPipeAt(int index, PipeDefinition pipe)
         {
@@ -242,13 +256,43 @@ namespace MarbleOrchestra.Grid
         public Color? GetBlockColorOverrideAt(int index)
         {
             if (index < 0 || index >= blockColorOverrides.Count) return null;
-            return blockColorOverrides[index]?.Color;
+            ColorOverride entry = blockColorOverrides[index];
+            // Unity serializes a null entry as a default-constructed one
+            // (color 0,0,0,0) - a fully transparent color is never a
+            // deliberate block color, so it reads as "not set".
+            if (entry == null || entry.Color.a <= 0f) return null;
+            return entry.Color;
         }
 
         public void SetBlockColorOverrideAt(int index, Color? color)
         {
             if (index < 0 || index >= blockColorOverrides.Count) return;
             blockColorOverrides[index] = color.HasValue ? new ColorOverride(color.Value) : null;
+        }
+
+        /// This cell's visual effect (see 0068), or null if it has none.
+        public CellVisualEffect GetVisualEffectAt(int index)
+        {
+            if (index < 0 || index >= visualEffects.Count) return null;
+            CellVisualEffect effect = visualEffects[index];
+            return effect != null && effect.IsSet ? effect : null;
+        }
+
+        public void SetVisualEffectAt(int index, CellVisualEffect effect)
+        {
+            if (index < 0 || index >= visualEffects.Count) return;
+            visualEffects[index] = effect != null && effect.IsSet ? effect : null;
+        }
+
+        /// Base block color of a SubLevel (see 0068) - index -1 (a cell in
+        /// no SubLevel, or a level without SubLevels) uses the level-wide
+        /// default. Null = no base color set.
+        public Color? ResolveBlockBaseColor(int subLevelIndex)
+        {
+            BlockColorSettings settings = subLevelIndex >= 0 && subLevelIndex < subLevels.Count
+                ? subLevels[subLevelIndex].BlockColors
+                : DefaultBlockColors;
+            return settings.UseBaseColor ? settings.BaseColor : (Color?)null;
         }
 
         public void AddSubLevel(string subLevelName, RectInt area)
@@ -354,6 +398,7 @@ namespace MarbleOrchestra.Grid
             ResizeList(heightOverrides, required, float.NaN);
             ResizeList(blockedLooks, required);
             ResizeList(blockColorOverrides, required);
+            ResizeList(visualEffects, required);
         }
 
         public void ResizeGrid(int newWidth, int newHeight)
@@ -367,6 +412,7 @@ namespace MarbleOrchestra.Grid
             List<float> newHeightOverrides = RemapGrid(heightOverrides, width, height, newWidth, newHeight, float.NaN);
             List<CardLook> newBlockedLooks = RemapGrid(blockedLooks, width, height, newWidth, newHeight);
             List<ColorOverride> newBlockColorOverrides = RemapGrid(blockColorOverrides, width, height, newWidth, newHeight);
+            List<CellVisualEffect> newVisualEffects = RemapGrid(visualEffects, width, height, newWidth, newHeight);
 
             width = newWidth;
             height = newHeight;
@@ -376,6 +422,7 @@ namespace MarbleOrchestra.Grid
             heightOverrides = newHeightOverrides;
             blockedLooks = newBlockedLooks;
             blockColorOverrides = newBlockColorOverrides;
+            visualEffects = newVisualEffects;
         }
 
         private static List<T> RemapGrid<T>(List<T> source, int oldWidth, int oldHeight, int newWidth, int newHeight, T fillValue = default)

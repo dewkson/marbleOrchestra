@@ -21,10 +21,8 @@ namespace MarbleOrchestra.Grid
         private const float DrumRadiusFraction = 0.36f; // of halfCell
 
         /// Height of the landing surface above the block's shoulder plane.
-        public static float PadTopY(InstrumentType type, float grooveRadius, InstrumentVisual visual = null)
+        public static float PadTopY(InstrumentType type, float grooveRadius)
         {
-            if (HasModel(visual)) return visual.LandingLocal.y;
-
             switch (type)
             {
                 case InstrumentType.Timpani: return grooveRadius * 0.8f;
@@ -35,10 +33,8 @@ namespace MarbleOrchestra.Grid
         }
 
         /// Distance from the block's center to the landing point, toward the fall side.
-        public static float PadCenterOffset(InstrumentType type, float grooveRadius, float sideWidth, InstrumentVisual visual = null)
+        public static float PadCenterOffset(InstrumentType type, float grooveRadius, float sideWidth)
         {
-            if (HasModel(visual)) return (grooveRadius + sideWidth) * visual.LandingOffsetFraction;
-
             if (type == InstrumentType.Xylophone) return XylophoneBlockDecoration.PadCenterOffset(grooveRadius, sideWidth);
 
             float halfCell = grooveRadius + sideWidth;
@@ -48,10 +44,8 @@ namespace MarbleOrchestra.Grid
         private static float Radius(float halfCell) => halfCell * DrumRadiusFraction;
 
         /// Returns the element's MeshRenderer (to hand to InstrumentPadFeedback).
-        public static InstrumentElement Build(InstrumentType type, TrackBlock block, Vector3 fallSideLocal, float grooveRadius, float sideWidth, Material material, InstrumentVisual visual = null)
+        public static InstrumentElement Build(InstrumentType type, TrackBlock block, Vector3 fallSideLocal, float grooveRadius, float sideWidth, Material material)
         {
-            if (HasModel(visual)) return BuildModel(visual, block, fallSideLocal, grooveRadius, sideWidth);
-
             if (type == InstrumentType.Xylophone)
                 return InstrumentElement.Tinted(XylophoneBlockDecoration.Build(block, fallSideLocal, grooveRadius, sideWidth, material));
 
@@ -102,81 +96,19 @@ namespace MarbleOrchestra.Grid
             return InstrumentElement.Tinted(renderer);
         }
 
-        private static bool HasModel(InstrumentVisual visual) => visual != null && visual.Prefab != null;
-
         private static Vector3 FallSide(Vector3 fallSideLocal)
         {
             Vector3 side = new Vector3(fallSideLocal.x, 0f, fallSideLocal.z);
             return side.sqrMagnitude > 1e-6f ? side.normalized : Vector3.back; // no input direction (shouldn't happen on a Trigger block) - assume the usual straight-through entry side
         }
 
-        /// The model's pivot in the block's local space: out toward the fall
-        /// side by the Landing Offset, and sideways (across the fall
-        /// direction) by the Lateral Offset. Seen along the marble's fall
-        /// (from the fall side toward the block's center), positive Lateral
-        /// Offset is to the right.
-        private static Vector3 ModelPivotLocal(Vector3 side, float grooveRadius, float sideWidth, InstrumentVisual visual)
-        {
-            float halfCell = grooveRadius + sideWidth;
-            Vector3 lateral = Vector3.Cross(Vector3.up, -side); // right-hand side seen along the fall
-            return side * PadCenterOffset(InstrumentType.Xylophone, grooveRadius, sideWidth, visual)
-                + lateral * (halfCell * visual.LateralOffsetFraction);
-        }
-
-        private static Quaternion ModelRotation(Vector3 side, InstrumentVisual visual) =>
-            Quaternion.LookRotation(side, Vector3.up) * Quaternion.Euler(0f, visual.YawOffsetDegrees, 0f);
-
         /// Where the marble lands, in the block's local space - what
-        /// TriggerFallMarbleTrace aims its fall at. For built-in geometry
-        /// that's the top center of the element on the fall side; for an
-        /// external model it's the LandingPoint after the model's pivot
-        /// placement and Yaw Offset rotation, so it may lie off the fall axis.
-        public static Vector3 PadLandingLocal(InstrumentType type, Vector3 fallSideLocal, float grooveRadius, float sideWidth, InstrumentVisual visual)
+        /// TriggerFallMarbleTrace aims its fall at: the top center of the
+        /// element on the fall side.
+        public static Vector3 PadLandingLocal(InstrumentType type, Vector3 fallSideLocal, float grooveRadius, float sideWidth)
         {
             Vector3 side = FallSide(fallSideLocal);
-
-            if (HasModel(visual))
-            {
-                Vector3 pivot = ModelPivotLocal(side, grooveRadius, sideWidth, visual);
-                Vector3 landing = ModelRotation(side, visual) * visual.LandingLocal;
-                return new Vector3(pivot.x + landing.x, landing.y, pivot.z + landing.z);
-            }
-
             return side * PadCenterOffset(type, grooveRadius, sideWidth) + Vector3.up * PadTopY(type, grooveRadius);
-        }
-
-        /// Places an external model: pivot on the shoulder plane, front (+Z)
-        /// toward the fall side, shifted so its LandingPoint sits exactly
-        /// where PadTopY/PadCenterOffset tell TriggerFallMarbleTrace it is.
-        private static InstrumentElement BuildModel(InstrumentVisual visual, TrackBlock block, Vector3 fallSideLocal, float grooveRadius, float sideWidth)
-        {
-            Vector3 side = FallSide(fallSideLocal);
-
-            // The model's PIVOT sits on the fall side and it rotates around
-            // that pivot (Yaw Offset); where the LandingPoint ends up
-            // follows from that - see PadLandingLocal, which the marble's
-            // trace reads, so both always agree.
-            GameObject instance = Object.Instantiate(visual.Prefab, block.transform);
-            instance.name = visual.Prefab.name;
-            instance.transform.localRotation = ModelRotation(side, visual);
-            instance.transform.localScale = Vector3.one * visual.Scale;
-            instance.transform.localPosition = ModelPivotLocal(side, grooveRadius, sideWidth, visual);
-
-            foreach (Collider collider in instance.GetComponentsInChildren<Collider>(true)) Object.Destroy(collider); // the marble follows a trace, never physics
-
-            AnimationClip clip = visual.HitClip;
-            Animator animator = null;
-            if (clip != null)
-            {
-                animator = instance.GetComponentInChildren<Animator>();
-                if (animator == null) animator = instance.AddComponent<Animator>();
-                animator.runtimeAnimatorController = null; // the clip is driven directly by InstrumentPadFeedback
-                animator.applyRootMotion = false;
-            }
-
-            bool flash = clip == null || visual.FlashAlongsideClip;
-            return InstrumentElement.Model(instance.transform, instance.GetComponentsInChildren<Renderer>(), animator, clip, flash,
-                visual.OverridePulseScale ? visual.PulseScaleAmount : -1f);
         }
 
         /// Truncated cone around the local Y axis (bottom/top caps included).

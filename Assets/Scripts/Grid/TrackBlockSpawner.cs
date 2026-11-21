@@ -131,6 +131,12 @@ namespace MarbleOrchestra.Grid
             sharedMaterial = CreateMaterial(terrainColor);
             sharedGrooveMaterial = CreateMaterial(grooveColor);
             sharedTunnelMaterial = CreateMaterial(tunnelColor);
+
+            // Visuals-tab effects (see 0068) need a central player that
+            // knows the spawned blocks - lives next to this spawner, so no
+            // scene has to be set up for it.
+            if (!TryGetComponent(out BlockVisualEffectSystem visualEffects)) visualEffects = gameObject.AddComponent<BlockVisualEffectSystem>();
+            visualEffects.Init(this, grid);
         }
 
         /// Builds (or refreshes) the whole 3D visualization - every
@@ -363,7 +369,7 @@ namespace MarbleOrchestra.Grid
         /// own top for the marble to land ON the pad instead of starting
         /// inside solid geometry. Anything smaller (e.g. a content asset
         /// left at 0) is raised to this, with a warning.
-        private float MinTriggerFallHeight(InstrumentType instrument, InstrumentVisual visual) => grooveRadius + InstrumentBlockDecoration.PadTopY(instrument, grooveRadius, visual);
+        private float MinTriggerFallHeight(InstrumentType instrument) => grooveRadius + InstrumentBlockDecoration.PadTopY(instrument, grooveRadius);
 
         /// Flat shoulder width to each side of the groove, derived so the
         /// block's total width (2*grooveRadius + 2*SideWidth) exactly
@@ -456,7 +462,7 @@ namespace MarbleOrchestra.Grid
         /// plain through-rolling Normal block turn. Called once per block
         /// at spawn time, after Size/Profile/Yaw/Tilt are final (the
         /// traces read those).
-        private IMarbleTrace CreateTrace(TrackBlock block, BlockType type, bool isTurn, float fallHeight, Vector3 fallSideLocal, float railExtension, InstrumentType instrument, InstrumentVisual visual)
+        private IMarbleTrace CreateTrace(TrackBlock block, BlockType type, bool isTurn, float fallHeight, Vector3 fallSideLocal, float railExtension, InstrumentType instrument)
         {
             float halfLength = block.Size.y * 0.5f;
 
@@ -464,7 +470,7 @@ namespace MarbleOrchestra.Grid
             {
                 float grooveLandingT = Mathf.InverseLerp(-halfLength, halfLength, -railExtension + grooveRadius);
                 return new TriggerFallMarbleTrace(block, fallSideLocal, fallHeight,
-                    InstrumentBlockDecoration.PadLandingLocal(instrument, fallSideLocal, grooveRadius, SideWidth, visual),
+                    InstrumentBlockDecoration.PadLandingLocal(instrument, fallSideLocal, grooveRadius, SideWidth),
                     grooveLandingT, triggerFallBeatFraction, triggerBounceHeight);
             }
 
@@ -684,7 +690,7 @@ namespace MarbleOrchestra.Grid
                 if (!chainedHeights.TryGetValue(parent, out float parentHeight)) continue; // parent outside this pass (shouldn't happen - BFS order guarantees it came first)
 
                 ITriggerCellContent triggerContent = grid.GetContent(coord) as ITriggerCellContent;
-                float fallHeight = triggerContent != null ? Mathf.Max(triggerContent.FallHeight, MinTriggerFallHeight(triggerContent.Instrument, triggerContent.Visual)) : 0f;
+                float fallHeight = triggerContent != null ? Mathf.Max(triggerContent.FallHeight, MinTriggerFallHeight(triggerContent.Instrument)) : 0f;
                 chainedHeights[coord] = parentHeight - fallHeight;
             }
         }
@@ -794,7 +800,7 @@ namespace MarbleOrchestra.Grid
 
             BlockType type = isStart ? BlockType.Start : isGoal ? BlockType.Goal : BlockType.Normal;
             block.SetDefinition(new BlockDefinition(cell, inputDir, outputDir, clampedHeight, type, 0f, 0f,
-                TriggerBehavior.None, null, BlockDefinition.DefaultBiome, Color.white));
+                TriggerBehavior.None, null, BlockDefinition.DefaultBiome));
 
             if (isStart || isGoal)
             {
@@ -1030,7 +1036,7 @@ namespace MarbleOrchestra.Grid
             block.TiltDegrees = 0f;
 
             block.SetDefinition(new BlockDefinition(cell, Direction.None, Direction.None, clampedHeight,
-                BlockType.Filler, 0f, 0f, TriggerBehavior.None, null, BlockDefinition.DefaultBiome, Color.white));
+                BlockType.Filler, 0f, 0f, TriggerBehavior.None, null, BlockDefinition.DefaultBiome));
 
             // grooveRadius 0 here (unlike a real track block): a flat
             // filler has no groove to keep decorations clear of, so they
@@ -1131,8 +1137,7 @@ namespace MarbleOrchestra.Grid
 
                 float requestedFallHeight = type == BlockType.Trigger ? triggerContent.FallHeight : 0f;
                 InstrumentType instrument = type == BlockType.Trigger ? triggerContent.Instrument : InstrumentType.Xylophone;
-                InstrumentVisual visual = type == BlockType.Trigger ? triggerContent.Visual : null;
-                float minFallHeight = MinTriggerFallHeight(instrument, visual);
+                float minFallHeight = MinTriggerFallHeight(instrument);
                 float fallHeight = type == BlockType.Trigger ? Mathf.Max(requestedFallHeight, minFallHeight) : 0f;
 
                 if (fallHeight > requestedFallHeight + 1e-4f)
@@ -1207,16 +1212,19 @@ namespace MarbleOrchestra.Grid
                 // they always agree on where "from" is.
                 Vector3 fallSideLocal = Quaternion.Euler(0f, -block.YawDegrees, 0f) * (-inputDir.ToLocalVector3());
 
-                block.SetTrace(CreateTrace(block, type, isTurn, effectiveFallHeight, fallSideLocal, railExtension, instrument, visual));
+                block.SetTrace(CreateTrace(block, type, isTurn, effectiveFallHeight, fallSideLocal, railExtension, instrument));
 
                 // Start/Goal stay silent even with sound content: they sit
                 // outside the loop's bar, overlapping the neighbouring laps
                 // (see MarbleController.RunTrack/0043).
                 SoundTriggerContent soundContent = type == BlockType.Trigger ? content as SoundTriggerContent : null;
-                TriggerBehavior trigger = soundContent != null ? TriggerBehavior.OnEnter : TriggerBehavior.None; // XylophonePadContent is visual-only, no trigger
-                Color flashColor = soundContent != null ? soundContent.FlashColor : Color.white;
+                // A Visuals-tab effect (see 0068) also needs the block to
+                // trigger - even on a plain Normal cell without any
+                // content, so visuals can run on their own beat too.
+                bool hasVisualEffect = (type == BlockType.Normal || type == BlockType.Trigger) && grid.GetVisualEffect(cell) != null;
+                TriggerBehavior trigger = soundContent != null || hasVisualEffect ? TriggerBehavior.OnEnter : TriggerBehavior.None; // XylophonePadContent alone is visual-only, no trigger
                 block.SetDefinition(new BlockDefinition(cell, inputDir, outputDir, actualEntryY, type, fallHeight,
-                    inclinationDegrees, trigger, soundContent?.Clip, BlockDefinition.DefaultBiome, flashColor));
+                    inclinationDegrees, trigger, soundContent?.Clip, BlockDefinition.DefaultBiome));
 
                 if (isStart || isGoal)
                 {
@@ -1230,8 +1238,13 @@ namespace MarbleOrchestra.Grid
                     // a block decides its own reactions) - this just hands
                     // the two to each other. A block without that
                     // component simply keeps the element's plain material.
-                    InstrumentElement element = InstrumentBlockDecoration.Build(instrument, block, fallSideLocal, grooveRadius, SideWidth, blockMaterial, visual);
-                    block.GetComponent<InstrumentPadFeedback>()?.Attach(element);
+                    InstrumentElement element = InstrumentBlockDecoration.Build(instrument, block, fallSideLocal, grooveRadius, SideWidth, blockMaterial);
+                    InstrumentPadFeedback feedback = block.GetComponent<InstrumentPadFeedback>();
+                    if (feedback != null)
+                    {
+                        feedback.Attach(element);
+                        feedback.HitAnimationEnabled = grid.Level == null || grid.Level.InstrumentHitAnimation; // see 0068 - Visuals tab can switch the pad's own flash/scale-up off
+                    }
                 }
                 else
                 {
@@ -1243,6 +1256,36 @@ namespace MarbleOrchestra.Grid
             }
 
             return new TrackInstance { Path = path, Root = root.transform, Blocks = blocks };
+        }
+
+        /// Every currently spawned block (track, preview and filler) whose
+        /// cell lies inside `area` - what a SubLevel-wide visual effect
+        /// (see 0068/BlockVisualEffectSystem) recolors. Clears `result`
+        /// first.
+        public void CollectBlocksInArea(RectInt area, List<TrackBlock> result)
+        {
+            result.Clear();
+            foreach (TrackInstance track in tracks)
+            {
+                foreach (TrackBlock block in track.Blocks)
+                {
+                    if (block != null && area.Contains(block.Definition.Coord)) result.Add(block);
+                }
+            }
+            CollectChildBlocksInArea(fillerRoot, area, result);
+            CollectChildBlocksInArea(previewRoot, area, result);
+        }
+
+        private readonly List<TrackBlock> childBlockBuffer = new List<TrackBlock>();
+
+        private void CollectChildBlocksInArea(GameObject root, RectInt area, List<TrackBlock> result)
+        {
+            if (root == null) return;
+            root.GetComponentsInChildren(childBlockBuffer);
+            foreach (TrackBlock block in childBlockBuffer)
+            {
+                if (area.Contains(block.Definition.Coord)) result.Add(block);
+            }
         }
 
         /// The TrackBlock spawned at this grid cell, if any track

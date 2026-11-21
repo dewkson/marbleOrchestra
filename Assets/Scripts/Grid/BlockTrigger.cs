@@ -16,6 +16,16 @@ namespace MarbleOrchestra.Grid
     {
         public event Action Triggered;
 
-        public void Fire() => Triggered?.Invoke();
+        /// Fired for EVERY block's trigger (see 0068) - lets a central
+        /// listener such as BlockVisualEffectSystem react without
+        /// subscribing to blocks that TrackBlockSpawner keeps destroying
+        /// and rebuilding (same reasoning as InstrumentReaction.Played).
+        public static event Action<BlockTrigger> AnyFired;
+
+        public void Fire()
+        {
+            Triggered?.Invoke();
+            AnyFired?.Invoke(this);
+        }
     }
 }

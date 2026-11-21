@@ -274,14 +274,52 @@ namespace MarbleOrchestra.Grid
         /// override authored in the Level Grid Editor
         /// (LevelData.GetBlockColorOverrideAt): there's no card there to
         /// take a color from, and that terrain stays put anyway.
+        ///
+        /// Since 0068 the owning SubLevel's own base color (Visuals tab,
+        /// LevelData.ResolveBlockBaseColor) sits in between: when set, it
+        /// replaces the card colors of that SubLevel's blocks, but a
+        /// card-less cell's own override still wins over it. Priority:
+        /// card-less cell override > SubLevel base color > card color >
+        /// spawner terrain color (null).
         public Color? GetBlockColorOverride(Vector2Int coord)
         {
             if (level == null || !IsInBounds(coord)) return null;
 
             PathPipe pipe = pipes != null ? pipes[coord.x, coord.y] : null;
-            if (pipe != null && pipe.Definition != null) return pipe.Definition.BackgroundColor;
+            bool hasCard = pipe != null && pipe.Definition != null;
 
-            return level.GetBlockColorOverrideAt(coord.y * Width + coord.x);
+            if (!hasCard)
+            {
+                Color? cellOverride = level.GetBlockColorOverrideAt(coord.y * Width + coord.x);
+                if (cellOverride.HasValue) return cellOverride;
+            }
+
+            Color? baseColor = level.ResolveBlockBaseColor(SubLevelIndexOrNone(coord));
+            if (baseColor.HasValue) return baseColor;
+
+            return hasCard ? pipe.Definition.BackgroundColor : (Color?)null;
+        }
+
+        /// This cell's visual effect (see 0068), or null if it has none.
+        public CellVisualEffect GetVisualEffect(Vector2Int coord)
+        {
+            if (level == null || !IsInBounds(coord)) return null;
+            return level.GetVisualEffectAt(coord.y * Width + coord.x);
+        }
+
+        /// The area a SubLevel-wide visual effect fired from this cell
+        /// covers (see 0068): its own SubLevel's Area, or the whole grid
+        /// for a level without SubLevels / a cell outside all of them.
+        public RectInt GetVisualEffectArea(Vector2Int coord)
+        {
+            int index = SubLevelIndexOrNone(coord);
+            return index >= 0 ? level.SubLevels[index].Area : new RectInt(0, 0, Width, Height);
+        }
+
+        private int SubLevelIndexOrNone(Vector2Int coord)
+        {
+            if (level == null || level.SubLevels.Count == 0) return -1;
+            return TryGetSubLevelIndexAt(coord, out int index) ? index : -1;
         }
 
         public IReadOnlyList<PathPipe> FindPipesByRole(PipeRole role)
