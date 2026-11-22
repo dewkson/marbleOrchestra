@@ -39,6 +39,7 @@ namespace MarbleOrchestra.Grid.Editor
         private static readonly Color DefaultTerrainColor = new Color(0.30f, 0.45f, 0.20f); // TrackBlockSpawner's own default terrain color (see 0032)
 
         private const float CellSize = 48f;
+        private const float ContentIconScale = 0.7f; // content icon size relative to the cell (see 0031)
 
         [MenuItem("MarbleOrchestra/Level Grid Editor")]
         public static void Open()
@@ -85,6 +86,7 @@ namespace MarbleOrchestra.Grid.Editor
         private bool useCustomContent;
         private AudioClip customClip;
         private InstrumentType customInstrument = InstrumentType.Xylophone;
+        private Sprite customIcon;
 
         private bool subLevelsFoldout = true;
         private int selectedSubLevelIndex = -1;
@@ -100,7 +102,6 @@ namespace MarbleOrchestra.Grid.Editor
         private VisualEffectType brushEffectType = VisualEffectType.SubLevelColorFlash;
         private Color brushFlashColor = Color.white;
         private float brushFlashDuration = 0.4f;
-        private bool brushExcludeBlocked = true;
 
         private static readonly Color[] SubLevelPalette =
         {
@@ -546,7 +547,7 @@ namespace MarbleOrchestra.Grid.Editor
             {
                 bool selected = !useCustomContent && selectedBrush == content;
                 string label = $"{content.ContentId} ({content.GetType().Name})";
-                if (DrawPaletteEntry(label, new Color(0.4f, 0.6f, 0.9f), selected))
+                if (DrawPaletteEntry(label, new Color(0.4f, 0.6f, 0.9f), selected, content.Icon))
                 {
                     selectedBrush = content;
                     useCustomContent = false;
@@ -1227,17 +1228,14 @@ namespace MarbleOrchestra.Grid.Editor
         private void DrawEffectBrushFields()
         {
             brushEffectType = (VisualEffectType)EditorGUILayout.EnumPopup("Effekt", brushEffectType);
-            if (brushEffectType == VisualEffectType.SubLevelColorFlash)
+            if (CellVisualEffect.IsColorFlash(brushEffectType))
             {
                 brushFlashColor = EditorGUILayout.ColorField("Flash Color", brushFlashColor);
                 brushFlashDuration = Mathf.Max(0.01f, EditorGUILayout.FloatField(new GUIContent("Dauer (s)", "Sekunden vom Aufblitzen zurück zur Basisfarbe."), brushFlashDuration));
-                brushExcludeBlocked = EditorGUILayout.ToggleLeft(ExcludeBlockedLabel, brushExcludeBlocked);
             }
         }
 
-        private static readonly GUIContent ExcludeBlockedLabel = new GUIContent("Blocked Cells ausschließen", "Blockierte Zellen blitzen nicht mit - nur Zellen, die der Spieler mit Karten belegen kann.");
-
-        private CellVisualEffect BuildBrushEffect() => new CellVisualEffect(brushEffectType, brushFlashColor, brushFlashDuration, brushExcludeBlocked);
+        private CellVisualEffect BuildBrushEffect() => new CellVisualEffect(brushEffectType, brushFlashColor, brushFlashDuration);
 
         private void HandleVisualsCellClick(int index, bool additive)
         {
@@ -1317,16 +1315,14 @@ namespace MarbleOrchestra.Grid.Editor
             VisualEffectType type = (VisualEffectType)EditorGUILayout.EnumPopup("Effekt", current != null ? current.Type : VisualEffectType.None);
             Color color = current != null ? current.FlashColor : brushFlashColor;
             float duration = current != null ? current.Duration : brushFlashDuration;
-            bool excludeBlocked = current != null ? current.ExcludeBlockedCells : brushExcludeBlocked;
 
-            if (type == VisualEffectType.SubLevelColorFlash)
+            if (CellVisualEffect.IsColorFlash(type))
             {
                 color = EditorGUILayout.ColorField("Flash Color", color);
                 duration = Mathf.Max(0.01f, EditorGUILayout.FloatField(new GUIContent("Dauer (s)", "Sekunden vom Aufblitzen zurück zur Basisfarbe."), duration));
-                excludeBlocked = EditorGUILayout.ToggleLeft(ExcludeBlockedLabel, excludeBlocked);
             }
 
-            SetVisualEffect(index, type == VisualEffectType.None ? null : new CellVisualEffect(type, color, duration, excludeBlocked), "Set Visual Effect");
+            SetVisualEffect(index, type == VisualEffectType.None ? null : new CellVisualEffect(type, color, duration), "Set Visual Effect");
         }
 
         private void DrawVisualMultiEditPanel()
@@ -1407,11 +1403,13 @@ namespace MarbleOrchestra.Grid.Editor
             EditorGUI.DrawRect(new Rect(strip.x + 1, strip.y + 1, strip.width - 2, strip.height - 2), color);
         }
 
-        /// Small flash-colored badge (bottom-right) on every cell with a visual effect.
+        /// Small flash-colored badge (bottom-right) on every cell with a
+        /// visual effect - black rim for the SubLevel-wide flash, white rim
+        /// for the single-block flash.
         private static void DrawVisualEffectMarker(Rect rect, CellVisualEffect effect)
         {
             Rect marker = new Rect(rect.xMax - 16, rect.yMax - 26, 14, 14);
-            EditorGUI.DrawRect(marker, Color.black);
+            EditorGUI.DrawRect(marker, effect.Type == VisualEffectType.BlockColorFlash ? Color.white : Color.black);
             Color color = effect.FlashColor;
             color.a = 1f;
             EditorGUI.DrawRect(new Rect(marker.x + 2, marker.y + 2, marker.width - 4, marker.height - 4), color);
@@ -1425,6 +1423,7 @@ namespace MarbleOrchestra.Grid.Editor
 
             customClip = (AudioClip)EditorGUILayout.ObjectField("Clip", customClip, typeof(AudioClip), false);
             customInstrument = (InstrumentType)EditorGUILayout.EnumPopup(new GUIContent("Instrument (Pad)", "Form des Pads, auf das die Murmel fällt. Visuelle Effekte werden im Visuals-Reiter gepflegt."), customInstrument);
+            customIcon = (Sprite)EditorGUILayout.ObjectField(new GUIContent("Icon", "Bild des Instruments in der 2D-Zelle des Editors (z.B. Assets/Sprites/Instruments)."), customIcon, typeof(Sprite), false);
 
             if (GUILayout.Button(useCustomContent ? "Custom (active)" : "Use Custom"))
             {
@@ -1435,12 +1434,20 @@ namespace MarbleOrchestra.Grid.Editor
             EditorGUILayout.EndVertical();
         }
 
-        private bool DrawPaletteEntry(string label, Color swatchColor, bool selected)
+        private bool DrawPaletteEntry(string label, Color swatchColor, bool selected, Sprite icon = null)
         {
             EditorGUILayout.BeginHorizontal(selected ? EditorStyles.helpBox : GUIStyle.none);
 
             Rect swatchRect = GUILayoutUtility.GetRect(18, 18, GUILayout.Width(18), GUILayout.Height(18));
-            EditorGUI.DrawRect(swatchRect, swatchColor.a > 0f ? swatchColor : new Color(0.2f, 0.2f, 0.2f));
+            if (icon != null)
+            {
+                EditorGUI.DrawRect(swatchRect, new Color(0.2f, 0.2f, 0.2f));
+                DrawSpriteInRect(swatchRect, icon);
+            }
+            else
+            {
+                EditorGUI.DrawRect(swatchRect, swatchColor.a > 0f ? swatchColor : new Color(0.2f, 0.2f, 0.2f));
+            }
 
             bool clicked = GUILayout.Button(label, GUILayout.ExpandWidth(true));
 
@@ -1522,6 +1529,16 @@ namespace MarbleOrchestra.Grid.Editor
 
             if (content != null)
             {
+                if (content.Icon != null)
+                {
+                    // Instrument icon (see 0031) centered in the cell; the
+                    // label stays top-left to tell apart contents sharing an
+                    // icon (e.g. two different snare clips).
+                    float iconSize = rect.width * ContentIconScale;
+                    Rect iconRect = new Rect(rect.center.x - iconSize * 0.5f, rect.center.y - iconSize * 0.5f, iconSize, iconSize);
+                    DrawSpriteInRect(iconRect, content.Icon);
+                }
+
                 Rect marker = new Rect(rect.x + 2, rect.y + 2, 14, 14);
                 EditorGUI.DrawRect(marker, new Color(0f, 0f, 0f, 0.55f));
                 GUI.Label(marker, content.Label, GetContentLabelStyle());
@@ -1912,7 +1929,7 @@ namespace MarbleOrchestra.Grid.Editor
 
             Undo.RecordObject(level, "Paint Cell");
             CellContentDefinition content = useCustomContent
-                ? GetOrCreateCustomContent(customClip, customInstrument)
+                ? GetOrCreateCustomContent(customClip, customInstrument, customIcon)
                 : selectedBrush as CellContentDefinition;
             level.SetContentAt(index, content);
             EditorUtility.SetDirty(level);
@@ -1973,27 +1990,28 @@ namespace MarbleOrchestra.Grid.Editor
             return id;
         }
 
-        private SoundTriggerContent GetOrCreateCustomContent(AudioClip clip, InstrumentType instrument)
+        private SoundTriggerContent GetOrCreateCustomContent(AudioClip clip, InstrumentType instrument, Sprite icon)
         {
             foreach (CellContentDefinition existing in availableContents)
             {
                 if (existing is SoundTriggerContent sound &&
-                    sound.Clip == clip && sound.Instrument == instrument)
+                    sound.Clip == clip && sound.Instrument == instrument && sound.Icon == icon)
                 {
                     return sound;
                 }
             }
 
-            return CreateCustomContentAsset(clip, instrument);
+            return CreateCustomContentAsset(clip, instrument, icon);
         }
 
-        private SoundTriggerContent CreateCustomContentAsset(AudioClip clip, InstrumentType instrument)
+        private SoundTriggerContent CreateCustomContentAsset(AudioClip clip, InstrumentType instrument, Sprite icon)
         {
             SoundTriggerContent asset = CreateInstance<SoundTriggerContent>();
 
             SerializedObject serialized = new SerializedObject(asset);
             serialized.FindProperty("clip").objectReferenceValue = clip;
             serialized.FindProperty("instrument").enumValueIndex = (int)instrument;
+            serialized.FindProperty("icon").objectReferenceValue = icon;
             string contentId = BuildContentId(clip, instrument);
             serialized.FindProperty("contentId").stringValue = contentId;
             serialized.FindProperty("label").stringValue = BuildContentLabel(contentId);

@@ -141,11 +141,22 @@ namespace MarbleOrchestra.Grid
         // Which of the active SubLevel's tracks the guided camera follows
         // (see 0057), plus the optional automatic round-robin through them.
         private int trackIndex;
+        private int lastViewedSubLevel = -1;
         private bool autoCycleTracks = true; // on by default
         private Transform cycleTarget;
         private bool hasCycleTarget;
 
         public bool IsFreeCamera => isFreeCamera;
+
+        /// True while the 2D<->3D swing is running - also the very frame
+        /// IsPlaying flipped but Update hasn't started the swing yet.
+        public bool IsTransitioning => transitionRoutine != null
+            || (marbleController != null && marbleController.IsPlaying != wasPlaying);
+
+        /// Forgets the tracked framing so the next transition starts from
+        /// the 2D plan pose CameraFitter just snapped to (e.g. after a
+        /// SubLevel switch) instead of the previous SubLevel's.
+        public void ResyncToPlanPose() => focusKnown = false;
         public bool AutoCycleTracks => autoCycleTracks;
         public int TrackCount => marbleController != null ? marbleController.ActiveTrackCount : 0;
 
@@ -215,6 +226,7 @@ namespace MarbleOrchestra.Grid
             if (isPlaying != wasPlaying)
             {
                 wasPlaying = isPlaying;
+                lastViewedSubLevel = marbleController.ViewedSubLevelIndex;
                 trackIndex = 0;
                 hasCycleTarget = false;
                 ReturnToGuidedCamera(); // entering or leaving simulation always drops any free-cam pan/zoom from the previous run
@@ -229,6 +241,18 @@ namespace MarbleOrchestra.Grid
             // mode (see 0044), in which case their pan/zoom input drives
             // it instead.
             if (!isPlaying || transitionRoutine != null) return;
+
+            // Play-mode SubLevel jump (see FreeCameraReturnButtonUI): start
+            // over on the new SubLevel's first track, back in guided mode -
+            // FollowMarble's SmoothDamp eases the camera across.
+            int viewed = marbleController.ViewedSubLevelIndex;
+            if (viewed != lastViewedSubLevel)
+            {
+                lastViewedSubLevel = viewed;
+                trackIndex = 0;
+                hasCycleTarget = false;
+                ReturnToGuidedCamera();
+            }
 
             HandleFreeCameraInput();
             if (!isFreeCamera)

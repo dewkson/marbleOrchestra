@@ -16,7 +16,12 @@ namespace MarbleOrchestra.Grid
     {
         [SerializeField] private string contentId = "Content";
         [SerializeField] private string label = "?";
+
+        [Tooltip("Abstraktes Bild des Instruments/Contents (see 0031) - wird im Level Grid Editor in der Zelle und in der Content-Palette gezeigt. Leer = nur Label.")]
+        [SerializeField] private Sprite icon;
+
         public string ContentId => contentId;
         public string Label => label;
+        public Sprite Icon => icon;
     }
 }

@@ -8,10 +8,9 @@ namespace MarbleOrchestra.Grid
     /// Small orthographic top-down "2D minimap" of the level surface, shown
     /// as an overlay at the top of the right screen column (see
     /// GameViewLayout) while the 3D play mode runs (see 0058). Frames the
-    /// active SubLevel's whole grid area (see 0046) looking straight
-    /// down world -Y; the viewport itself takes the aspect of those bounds
-    /// (always the full column width), so there are no empty stripes around the
-    /// level. Builds its own secondary Camera (child of this object) and
+    /// combined area of every SubLevel with a valid track (see 0046) looking straight
+    /// down world -Y; the viewport itself always fills the space reserved
+    /// for it (fixed frame), the content is fitted centered inside. Builds its own secondary Camera (child of this object) and
     /// a white border at runtime - no scene/prefab setup needed.
     /// CameraModeTransition adds this component itself at Awake if the
     /// scene doesn't have one. The M key shows/hides it.
@@ -84,18 +83,33 @@ namespace MarbleOrchestra.Grid
             minimapCam.transform.rotation = Quaternion.Euler(90f, 0f, 0f); // straight down, screen-up = world +Z
         }
 
-        /// World-space bounds of the active SubLevel's whole grid area (the
-        /// whole grid if none are defined) - same corner-cell approach as
-        /// CameraFitter, so the minimap shows the full level, not just the
-        /// cells that currently carry a valid track.
+        /// World-space bounds of every SubLevel that currently has a valid
+        /// track (MarbleController.GetValidSubLevelIndices - the ones
+        /// looping right now), or of the active SubLevel if none qualifies
+        /// (the whole grid without SubLevels). Same corner-cell approach as
+        /// CameraFitter, so whole SubLevel areas show, not just the track cells.
         private bool TryComputeAreaBounds(out Bounds bounds)
         {
             bounds = default;
             if (grid == null || grid.Width <= 0 || grid.Height <= 0) return false;
 
-            RectInt area = grid.ActiveSubLevelArea;
-            Vector2Int min = new Vector2Int(area.xMin, area.yMin);
-            Vector2Int max = new Vector2Int(area.xMax - 1, area.yMax - 1);
+            System.Collections.Generic.List<int> valid = marbleController != null
+                ? marbleController.GetValidSubLevelIndices()
+                : new System.Collections.Generic.List<int>();
+
+            RectInt area = valid.Count > 0 ? grid.GetSubLevelArea(valid[0]) : grid.ActiveSubLevelArea;
+            int xMin = area.xMin, yMin = area.yMin, xMax = area.xMax, yMax = area.yMax;
+            for (int i = 1; i < valid.Count; i++)
+            {
+                RectInt other = grid.GetSubLevelArea(valid[i]);
+                xMin = Mathf.Min(xMin, other.xMin);
+                yMin = Mathf.Min(yMin, other.yMin);
+                xMax = Mathf.Max(xMax, other.xMax);
+                yMax = Mathf.Max(yMax, other.yMax);
+            }
+
+            Vector2Int min = new Vector2Int(xMin, yMin);
+            Vector2Int max = new Vector2Int(xMax - 1, yMax - 1);
 
             bounds = new Bounds(grid.transform.TransformPoint(grid.CellToLocalPosition(min)), Vector3.zero);
             bounds.Encapsulate(grid.transform.TransformPoint(grid.CellToLocalPosition(new Vector2Int(max.x, min.y))));
@@ -104,21 +118,25 @@ namespace MarbleOrchestra.Grid
             return true;
         }
 
-        /// Sizes the viewport to the bounds' aspect (full column width, right-aligned at the top) and frames the bounds
-        /// exactly in it.
+        /// The viewport (and its white border) always has the same size:
+        /// the full space reserved for the minimap - Desktop the column
+        /// width below the top margin, Mobile the left half of the bottom
+        /// strip - so it never jumps when the shown SubLevels change. The
+        /// bounds are framed centered inside it; the leftover space shows
+        /// the background color.
         private void Fit(Bounds bounds)
         {
             float contentW = 2f * bounds.extents.x + 2f * padding;
             float contentH = 2f * bounds.extents.z + 2f * padding;
 
-            // Desktop: always exactly as wide as the buttons below it. Mobile
-            // (see 0060): the left half of the bottom strip, also capped by its height.
-            float fit = Mathf.Min(MapMaxWidth / contentW, GameViewLayout.SideInnerHeightRef / contentH);
+            float boxW = MapMaxWidth;
+            float boxH = GameViewLayout.SideInnerHeightRef;
             float topRef = GameViewLayout.IsMobile ? GameViewLayout.SideContentTopRef : EdgeMargin;
-            BottomRef = topRef + contentH * fit;
+            BottomRef = topRef + boxH;
+
             float scale = GameViewLayout.CanvasScale; // canvas reference pixels -> real pixels
-            float widthPx = contentW * fit * scale;
-            float heightPx = contentH * fit * scale;
+            float widthPx = boxW * scale;
+            float heightPx = boxH * scale;
             float edgePx = EdgeMargin * scale;
             float topPx = topRef * scale;
             float leftPx = GameViewLayout.IsMobile ? edgePx : Screen.width - edgePx - widthPx;
@@ -129,7 +147,10 @@ namespace MarbleOrchestra.Grid
                 widthPx / Screen.width,
                 heightPx / Screen.height);
             minimapCam.rect = rect;
-            minimapCam.orthographicSize = contentH / 2f;
+
+            // Fit the content in both directions; the tighter one decides.
+            float aspect = boxW / Mathf.Max(1f, boxH);
+            minimapCam.orthographicSize = Mathf.Max(contentH / 2f, contentW / 2f / aspect);
 
             float distance = bounds.extents.y + heightAboveTracks;
             minimapCam.transform.position = bounds.center + Vector3.up * distance;

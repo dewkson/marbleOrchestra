@@ -20,7 +20,12 @@ namespace MarbleOrchestra.Grid
     /// While planning in a level with several SubLevels, the same slot
     /// instead holds "Zurück"/"Weiter" SubLevel buttons, each shown only
     /// while usable - "Weiter" once the active SubLevel has a valid track
-    /// (see MarbleController.CanAdvanceSubLevel).
+    /// (see MarbleController.CanAdvanceSubLevel); a click during the
+    /// return animation from play mode is carried out once it finished.
+    /// While playing, the same two buttons (same size and arrangement)
+    /// sit right above the play button and jump the guided camera to the
+    /// previous/next SubLevel with a valid track (see
+    /// MarbleController.ViewNextSubLevel).
     /// Lives on its own GameObject; cameraModeTransition and
     /// marbleController are wired in the Inspector or auto-found at Awake.
     /// </summary>
@@ -30,6 +35,9 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private MarbleController marbleController;
         [SerializeField] private string guidedLabel = "Geführte Kamera";
         [SerializeField] private string freeLabel = "Freie Kamera";
+        [SerializeField] private int levelTitleFontSize = 48;
+        [Tooltip("Abstand (Referenzpixel) zwischen Überschrift und dem Trenner zwischen Spielbereich und UI.")]
+        [SerializeField] private float levelTitleGapAboveBorder = 20f;
 
         // Right column layout (see GameViewLayout): below the minimap (top-right),
         // with some room in between. On Mobile (see 0060) the minimap sits in
@@ -52,6 +60,12 @@ namespace MarbleOrchestra.Grid
         private GameObject subLevelPanelGO;
         private RectTransform subLevelPanelRect, prevSubLevelRect, nextSubLevelRect;
         private GameObject prevSubLevelGO, nextSubLevelGO;
+        private Text prevSubLevelText, nextSubLevelText;
+
+        // Name of the level/SubLevel on screen (see UpdateLevelTitle).
+        private RectTransform levelTitleRect;
+        private Text levelTitleText;
+        private const float LevelTitleHeight = 70f;
 
         private void Awake()
         {
@@ -90,28 +104,94 @@ namespace MarbleOrchestra.Grid
             if (tracksVisible) autoCycleText.text = AutoLabel(cameraModeTransition.AutoCycleTracks);
 
             UpdateSubLevelPanel(top);
+            UpdateLevelTitle();
         }
 
-        /// Desktop: below the minimap like the other buttons, both side by
-        /// side across the column. Mobile: its own row across the full
-        /// screen width right below the play button (see
-        /// GameViewLayout.SubLevelNavTopRef).
+        /// Name of the SubLevel in focus (the edited one, while playing the
+        /// one the camera follows) as named in the level editor, as plain
+        /// text: Mobile centered a little above the horizontal border
+        /// between main view and UI, Desktop at the top, right against the
+        /// vertical border.
+        private void UpdateLevelTitle()
+        {
+            string title = grid != null && marbleController != null ? grid.GetSubLevelName(marbleController.ViewedSubLevelIndex) : string.Empty;
+            bool show = !string.IsNullOrEmpty(title);
+            if (levelTitleRect.gameObject.activeSelf != show) levelTitleRect.gameObject.SetActive(show);
+            if (!show) return;
+
+            if (levelTitleText.text != title) levelTitleText.text = title;
+            if (levelTitleText.fontSize != levelTitleFontSize) levelTitleText.fontSize = levelTitleFontSize;
+            float width = levelTitleText.preferredWidth + 2f * M;
+
+            if (GameViewLayout.IsMobile)
+            {
+                levelTitleRect.anchorMin = levelTitleRect.anchorMax = new Vector2(0.5f, 1f);
+                levelTitleRect.pivot = new Vector2(0.5f, 0f); // bottom edge sits the gap above the border
+                levelTitleRect.anchoredPosition = new Vector2(0f, -GameViewLayout.SideTopRef + levelTitleGapAboveBorder);
+            }
+            else
+            {
+                float sideWidth = GameViewLayout.ReferenceWidth * (1f - GameViewLayout.DesktopMainViewFraction);
+                levelTitleRect.anchorMin = levelTitleRect.anchorMax = levelTitleRect.pivot = new Vector2(1f, 1f);
+                levelTitleRect.anchoredPosition = new Vector2(-sideWidth, -M / 2f);
+            }
+            levelTitleRect.sizeDelta = new Vector2(width, LevelTitleHeight);
+        }
+
+        /// Desktop: planning below the (hidden) minimap at the top of the
+        /// column, playing right above the play button - both side by side
+        /// across the column. Mobile: its own row across the full screen
+        /// width right below the play button (see
+        /// GameViewLayout.SubLevelNavTopRef), in both modes.
         private void UpdateSubLevelPanel(float top)
         {
-            float rowWidth = GameViewLayout.IsMobile ? GameViewLayout.ReferenceWidth - 2f * M : W;
-            float half = rowWidth / 2f - 10f;
-            subLevelPanelRect.anchoredPosition = new Vector2(0f, -(GameViewLayout.IsMobile ? GameViewLayout.SubLevelNavTopRef : top));
-            SetRect(prevSubLevelRect, new Vector2(-M - rowWidth / 2f - 10f, 0f), new Vector2(half, GameViewLayout.SubLevelNavRowHeight));
+            bool playing = marbleController != null && marbleController.IsPlaying;
+            // Mobile: each half exactly as wide as the column below it (minimap
+            // left, buttons right, M apart). Desktop: two halves across the column.
+            float gap = GameViewLayout.IsMobile ? M : 20f;
+            float rowWidth = GameViewLayout.IsMobile ? 2f * W + gap : W;
+            float half = (rowWidth - gap) / 2f;
+            float rowTop = GameViewLayout.IsMobile ? GameViewLayout.SubLevelNavTopRef
+                : playing ? GameViewLayout.DesktopPlaySubLevelNavTopRef
+                : top;
+            subLevelPanelRect.anchoredPosition = new Vector2(0f, -rowTop);
+            SetRect(prevSubLevelRect, new Vector2(-M - half - gap, 0f), new Vector2(half, GameViewLayout.SubLevelNavRowHeight));
             SetRect(nextSubLevelRect, new Vector2(-M, 0f), new Vector2(half, GameViewLayout.SubLevelNavRowHeight));
 
-            bool visible = marbleController != null && GameViewLayout.HasSubLevelNavRow && !marbleController.IsPlaying;
+            bool visible = marbleController != null && GameViewLayout.HasSubLevelNavRow;
             if (subLevelPanelGO.activeSelf != visible) subLevelPanelGO.SetActive(visible);
             if (!visible) return;
 
-            // Each button only exists while it can actually be pressed: "Zurück" whenever
-            // there is an earlier SubLevel, "Weiter" once the active one is solved.
-            SetActiveIfChanged(prevSubLevelGO, marbleController.CanGoToPreviousSubLevel);
-            SetActiveIfChanged(nextSubLevelGO, marbleController.CanAdvanceSubLevel);
+            // Each button only exists while it can actually be pressed. Planning:
+            // "Zurück" whenever there is an earlier SubLevel, "Weiter" once the
+            // active one is solved. Playing: only towards SubLevels with a valid track.
+            SetActiveIfChanged(prevSubLevelGO, playing ? marbleController.CanViewPreviousSubLevel : marbleController.CanGoToPreviousSubLevel);
+            SetActiveIfChanged(nextSubLevelGO, playing ? marbleController.CanViewNextSubLevel : marbleController.CanAdvanceSubLevel);
+
+            // Labelled with the name (from the level editor) of the SubLevel each button leads to.
+            if (prevSubLevelGO.activeSelf) SetLabel(prevSubLevelText, marbleController.PreviousSubLevelTarget);
+            if (nextSubLevelGO.activeSelf) SetLabel(nextSubLevelText, marbleController.NextSubLevelTarget);
+        }
+
+        private void SetLabel(Text label, int subLevelIndex)
+        {
+            if (subLevelIndex < 0) return;
+            string text = grid != null ? grid.GetSubLevelName(subLevelIndex) : string.Empty;
+            if (label.text != text) label.text = text;
+        }
+
+        private void HandlePrevSubLevelClicked()
+        {
+            if (marbleController == null) return;
+            if (marbleController.IsPlaying) marbleController.ViewPreviousSubLevel();
+            else marbleController.RequestPreviousSubLevel();
+        }
+
+        private void HandleNextSubLevelClicked()
+        {
+            if (marbleController == null) return;
+            if (marbleController.IsPlaying) marbleController.ViewNextSubLevel();
+            else marbleController.RequestAdvanceSubLevel();
         }
 
         private static void SetActiveIfChanged(GameObject go, bool active)
@@ -167,18 +247,43 @@ namespace MarbleOrchestra.Grid
             autoRect = (RectTransform)CreateButton(trackPanelGO.transform, "AutoCycleButton", AutoLabel(false), new Vector2(-M, -132f), new Vector2(W, 56f), () => cameraModeTransition?.ToggleAutoCycleTracks(), out autoCycleText).transform;
             trackPanelGO.SetActive(false);
 
-            // SubLevel navigation while planning - same slot as the camera button, which only shows while playing.
+            // SubLevel navigation: while planning in the camera button's slot, while playing above the play button.
             subLevelPanelGO = new GameObject("SubLevelPanel", typeof(RectTransform));
             subLevelPanelGO.transform.SetParent(canvasGO.transform, false);
             subLevelPanelRect = (RectTransform)subLevelPanelGO.transform;
             subLevelPanelRect.anchorMin = subLevelPanelRect.anchorMax = subLevelPanelRect.pivot = new Vector2(1f, 1f);
             subLevelPanelRect.sizeDelta = Vector2.zero;
 
-            prevSubLevelGO = CreateButton(subLevelPanelGO.transform, "PrevSubLevelButton", "Zurück", Vector2.zero, Vector2.zero, () => marbleController?.TryGoToPreviousSubLevel(), out _);
+            prevSubLevelGO = CreateButton(subLevelPanelGO.transform, "PrevSubLevelButton", "", Vector2.zero, Vector2.zero, HandlePrevSubLevelClicked, out prevSubLevelText);
+            prevSubLevelText.fontSize = GameViewLayout.SubLevelNavFontSize;
             prevSubLevelRect = (RectTransform)prevSubLevelGO.transform;
-            nextSubLevelGO = CreateButton(subLevelPanelGO.transform, "NextSubLevelButton", "Weiter", Vector2.zero, Vector2.zero, () => marbleController?.TryAdvanceSubLevel(), out _);
+            nextSubLevelGO = CreateButton(subLevelPanelGO.transform, "NextSubLevelButton", "", Vector2.zero, Vector2.zero, HandleNextSubLevelClicked, out nextSubLevelText);
+            nextSubLevelText.fontSize = GameViewLayout.SubLevelNavFontSize;
             nextSubLevelRect = (RectTransform)nextSubLevelGO.transform;
             subLevelPanelGO.SetActive(false);
+
+            // Level title as plain text near the main view / UI border.
+            GameObject titleGO = new GameObject("LevelTitle", typeof(RectTransform));
+            titleGO.transform.SetParent(canvasGO.transform, false);
+            levelTitleRect = (RectTransform)titleGO.transform;
+
+            GameObject titleLabelGO = new GameObject("Label", typeof(RectTransform));
+            titleLabelGO.transform.SetParent(titleGO.transform, false);
+            levelTitleText = titleLabelGO.AddComponent<Text>();
+            levelTitleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            levelTitleText.fontSize = levelTitleFontSize;
+            levelTitleText.alignment = TextAnchor.MiddleCenter;
+            levelTitleText.color = Color.white;
+            levelTitleText.raycastTarget = false;
+            levelTitleText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            Shadow titleShadow = titleLabelGO.AddComponent<Shadow>(); // keeps it readable over the level without a background
+            titleShadow.effectColor = new Color(0f, 0f, 0f, 0.8f);
+            titleShadow.effectDistance = new Vector2(2f, -2f);
+            RectTransform titleLabelRect = (RectTransform)titleLabelGO.transform;
+            titleLabelRect.anchorMin = Vector2.zero;
+            titleLabelRect.anchorMax = Vector2.one;
+            titleLabelRect.offsetMin = titleLabelRect.offsetMax = Vector2.zero;
+            titleGO.SetActive(false);
         }
 
         private static string AutoLabel(bool on) => on ? "Automatischer Bahnwechsel: an" : "Automatischer Bahnwechsel: aus";

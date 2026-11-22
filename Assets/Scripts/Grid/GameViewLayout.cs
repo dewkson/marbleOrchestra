@@ -69,7 +69,23 @@ namespace MarbleOrchestra.Grid
         public const float PlayButtonHeight = 170f;
         private const float GapBelowPlayButton = SideMargin; // same as above the button
 
-        public const float SubLevelNavRowHeight = 56f;
+        /// "Zurück"/"Weiter" SubLevel buttons: Desktop as tall as the play
+        /// button; Mobile twice a normal button, so the bottom strip keeps
+        /// room for the minimap.
+        public static float SubLevelNavRowHeight => IsMobile ? 112f : PlayButtonHeight;
+        public const int SubLevelNavFontSize = 36; // same as the play button's label
+
+        /// Desktop, play mode: the camera button plus the track-switch panel
+        /// below the minimap (see FreeCameraReturnButtonUI), incl. the gap
+        /// above them - reserved so a tall minimap never covers them.
+        public const float CameraButtonsBlockRef = 24f + 188f;
+
+        /// Canvas height in reference pixels (match-width scaling).
+        public static float ScreenHeightRef => Screen.height / CanvasScale;
+
+        /// Desktop, play mode: the SubLevel buttons sit right above the
+        /// play button. Distance from the screen top to their row.
+        public static float DesktopPlaySubLevelNavTopRef => ScreenHeightRef - SideMargin - PlayButtonHeight - SideMargin - SubLevelNavRowHeight;
 
         /// Set by FreeCameraReturnButtonUI while the level has several
         /// SubLevels: on Mobile the SubLevel buttons get their own
@@ -89,10 +105,14 @@ namespace MarbleOrchestra.Grid
             ? SubLevelNavTopRef + (HasSubLevelNavRow ? SubLevelNavRowHeight + SideMargin : 0f)
             : 0f;
 
-        /// Height (reference pixels) available to the minimap.
+        /// Height (reference pixels) available to the minimap. Desktop:
+        /// whatever is left of the column above the camera buttons, the
+        /// SubLevel row (if any) and the play button.
         public static float SideInnerHeightRef => IsMobile
-            ? Screen.height / CanvasScale - SideContentTopRef - SideMargin
-            : float.MaxValue;
+            ? ScreenHeightRef - SideContentTopRef - SideMargin
+            : Mathf.Max(80f, ScreenHeightRef - SideMargin - CameraButtonsBlockRef - SideMargin
+                - (HasSubLevelNavRow ? SubLevelNavRowHeight + SideMargin : 0f)
+                - PlayButtonHeight - SideMargin);
 
         /// Screen pixels per canvas reference pixel (CanvasScaler match-width).
         public static float CanvasScale => Screen.width / ReferenceWidth;

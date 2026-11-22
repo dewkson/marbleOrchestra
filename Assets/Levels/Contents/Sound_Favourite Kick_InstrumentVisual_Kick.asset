@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.SoundTriggerContent
   contentId: Favourite Kick_InstrumentVisual_Kick
   label: F
+  icon: {fileID: 21300000, guid: 10134e74e516463683ea040707a4088b, type: 3}
   fallHeight: 0.3
   instrument: 0
   visual: {fileID: 11400000, guid: 5e3e244fe9a8a4b49b370ad6bbb5268c, type: 2}

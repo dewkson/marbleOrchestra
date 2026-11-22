@@ -76,7 +76,15 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private float growDuration = 1.1f; // seconds the grow-to-gameplay lerp takes - matches CameraModeTransition's own transitionDuration default so the height animation and the camera's 2D->isometric swing read as one synchronized moment, even though the two aren't code-coupled
         [SerializeField, Range(0f, 15f)] private float normalInclinationDegrees = 3f; // continuous downhill slope every straight Normal block's own surface has, in its travel direction - see 0039 follow-up. Curved Normal blocks stay flat (0) - a sloped curve is out of scope for now, see TrackBlock.SetCurve/0040
         [SerializeField, Range(0.05f, 0.9f)] private float triggerFallBeatFraction = 0.5f; // how much of a Trigger block's own beat the marble's fall onto its pad takes - the SAME for every Trigger block regardless of FallHeight, so all notes sound at the same phase and the music stays on the grid (see TriggerFallMarbleTrace/0038)
-        [SerializeField] private float triggerBounceHeight = 0.06f; // how high the marble hops off a Trigger block's pad before dropping into the groove; 0 = no bounce, it just drops on
+        [Tooltip("An: Trigger-Blöcke bekommen das abstrakte Instrument-Pad (Xylofon-Leiste, Trommel, Hi-Hat), auf das die Murmel fällt. Aus: kein Pad, die Murmel fällt direkt in die Rille - der Ton kommt im selben Beat-Moment.")]
+        [SerializeField] private bool showInstrumentPads = false;
+        [Tooltip("Ohne Pads: Anteil des Beats, den der Fall in die Rille dauert (= Moment des Tons). Größer = flacherer, weiterer Wurf; kleiner = steilerer Plumps. Gleich für alle Trigger-Blöcke, damit die Töne im Raster bleiben. (triggerFallBeatFraction gilt nur mit Pads.)")]
+        [SerializeField, Range(0.05f, 0.9f)] private float triggerDropBeatFraction = 0.35f;
+        [Tooltip("Ohne Pads: Höhe jedes Nachhüpfers relativ zum vorherigen Fall/Hüpfer (0 = kein Hüpfen). Gleiche Schwerkraft wie der Fall, die Hüpferlänge ergibt sich daraus.")]
+        [SerializeField, Range(0f, 0.6f)] private float triggerBounceRestitution = 0.2f;
+        [Tooltip("Ohne Pads: maximale Anzahl Nachhüpfer nach dem Aufprall in der Rille.")]
+        [SerializeField, Range(0, 8)] private int triggerMaxBounces = 2;
+        [SerializeField] private float triggerBounceHeight = 0.06f; // pads only (showInstrumentPads): how high the marble hops off a Trigger block's pad before dropping into the groove; 0 = no bounce, it just drops on
         [SerializeField] private Color terrainColor = new Color(0.30f, 0.45f, 0.20f); // grass/moss green - the "Default" biome's first look (see 0032)
         [SerializeField] private Color grooveColor = new Color(0.40f, 0.27f, 0.15f); // earthy brown for the rollable groove itself, distinct from the grass shoulders (see 0032)
         [SerializeField] private Color tunnelColor = new Color(0.05f, 0.05f, 0.06f); // near-black interior of the Start/Goal tunnel portal (see TunnelPortalDecoration)
@@ -369,7 +377,11 @@ namespace MarbleOrchestra.Grid
         /// own top for the marble to land ON the pad instead of starting
         /// inside solid geometry. Anything smaller (e.g. a content asset
         /// left at 0) is raised to this, with a warning.
-        private float MinTriggerFallHeight(InstrumentType instrument) => grooveRadius + InstrumentBlockDecoration.PadTopY(instrument, grooveRadius);
+        /// Without pads (showInstrumentPads off) there's nothing to clear -
+        /// the marble falls straight into the open groove - so any
+        /// FallHeight >= 0 is buildable.
+        private float MinTriggerFallHeight(InstrumentType instrument) =>
+            showInstrumentPads ? grooveRadius + InstrumentBlockDecoration.PadTopY(instrument, grooveRadius) : 0f;
 
         /// Flat shoulder width to each side of the groove, derived so the
         /// block's total width (2*grooveRadius + 2*SideWidth) exactly
@@ -469,6 +481,11 @@ namespace MarbleOrchestra.Grid
             if (type == BlockType.Trigger)
             {
                 float grooveLandingT = Mathf.InverseLerp(-halfLength, halfLength, -railExtension + grooveRadius);
+                // No pad: a real throw straight into the groove, at the
+                // marble's own rolling pace (see GrooveDropMarbleTrace).
+                if (!showInstrumentPads)
+                    return new GrooveDropMarbleTrace(block, fallHeight, triggerDropBeatFraction,triggerBounceRestitution, triggerMaxBounces);
+
                 return new TriggerFallMarbleTrace(block, fallSideLocal, fallHeight,
                     InstrumentBlockDecoration.PadLandingLocal(instrument, fallSideLocal, grooveRadius, SideWidth),
                     grooveLandingT, triggerFallBeatFraction, triggerBounceHeight);
@@ -1230,7 +1247,7 @@ namespace MarbleOrchestra.Grid
                 {
                     TunnelPortalDecoration.Build(block, closedAtEntry: isStart, grooveRadius, SideWidth, blockSize, railExtension, blockMaterial, sharedTunnelMaterial);
                 }
-                else if (type == BlockType.Trigger)
+                else if (type == BlockType.Trigger && showInstrumentPads)
                 {
                     // The instrument element is built here, but how it
                     // LOOKS and how it reacts to being hit belongs to the
@@ -1262,7 +1279,10 @@ namespace MarbleOrchestra.Grid
         /// cell lies inside `area` - what a SubLevel-wide visual effect
         /// (see 0068/BlockVisualEffectSystem) recolors. Clears `result`
         /// first.
-        public void CollectBlocksInArea(RectInt area, List<TrackBlock> result)
+        /// includeFiller: false leaves out the filler terrain (see 0047) of
+        /// card-less cells - free and blocked ones - so only blocks
+        /// carrying a rail (real tracks + preview grooves) are collected.
+        public void CollectBlocksInArea(RectInt area, List<TrackBlock> result, bool includeFiller = true)
         {
             result.Clear();
             foreach (TrackInstance track in tracks)
@@ -1272,7 +1292,7 @@ namespace MarbleOrchestra.Grid
                     if (block != null && area.Contains(block.Definition.Coord)) result.Add(block);
                 }
             }
-            CollectChildBlocksInArea(fillerRoot, area, result);
+            if (includeFiller) CollectChildBlocksInArea(fillerRoot, area, result);
             CollectChildBlocksInArea(previewRoot, area, result);
         }
 

@@ -84,8 +84,35 @@ namespace MarbleOrchestra.Grid
         /// very frame Play() was pressed the blocks may not exist yet.
         private const float TrackSpawnTimeoutSeconds = 1f;
 
+        private CameraModeTransition cameraTransition;
+
+        /// SubLevel step (+1 "Weiter", -1 "Zurück") requested while the
+        /// play->planning return was still animating - carried out the
+        /// moment it has finished (see ProcessPendingSubLevelStep), since
+        /// switching mid-animation left the camera and blocks in a mixed state.
+        private int pendingSubLevelStep;
+
+        /// While playing: the SubLevel the guided camera follows - starts
+        /// on the edited one at Play, but can be switched to any other
+        /// SubLevel that currently has a valid track (see
+        /// ViewNextSubLevel). -1 = not playing, use the active one.
+        private int viewedSubLevelIndex = -1;
+
         public bool IsPlaying => starting || activeRunCount > 0;
-        public bool CanPlay => HasCompletedTrack();
+        /// Testing needs a valid track in the SubLevel being edited - an
+        /// earlier, already solved SubLevel's track doesn't count (it still
+        /// loops alongside once playing). Without SubLevels the whole grid
+        /// is the active area, so this is simply "any valid track".
+        public bool CanPlay => HasCompletedTrackInActiveSubLevel();
+
+        /// The SubLevel the guided camera and minimap focus on: the viewed
+        /// one while playing, otherwise the one being edited.
+        public int ViewedSubLevelIndex => IsPlaying && viewedSubLevelIndex >= 0 ? viewedSubLevelIndex : grid.ActiveSubLevelIndex;
+
+        /// True while the 3D->2D return is still animating (blocks sinking,
+        /// camera swinging back to top-down).
+        public bool IsReturningToPlanning => !IsPlaying
+            && (stopRoutine != null || (cameraTransition != null && cameraTransition.IsTransitioning));
         public float MarbleRadius => marbleRadius;
         public float MarbleRadius3D => marbleRadius3D;
 
@@ -104,7 +131,7 @@ namespace MarbleOrchestra.Grid
             {
                 foreach (Marble marble in marbles)
                 {
-                    if (grid.IsInActiveSubLevel(marble.StartCoord)) return marble.transform;
+                    if (marble != null && IsInViewedSubLevel(marble.StartCoord)) return marble.transform;
                 }
                 return null;
             }
@@ -137,11 +164,102 @@ namespace MarbleOrchestra.Grid
             List<Vector2Int> starts = new List<Vector2Int>();
             foreach (Marble marble in marbles)
             {
-                if (marble == null || !grid.IsInActiveSubLevel(marble.StartCoord)) continue;
+                if (marble == null || !IsInViewedSubLevel(marble.StartCoord)) continue;
                 if (!starts.Contains(marble.StartCoord)) starts.Add(marble.StartCoord);
             }
             starts.Sort((a, b) => a.y != b.y ? a.y.CompareTo(b.y) : a.x.CompareTo(b.x));
             return starts;
+        }
+
+        private bool IsInViewedSubLevel(Vector2Int coord)
+        {
+            if (grid.SubLevelCount == 0) return true;
+            return grid.TryGetSubLevelIndexAt(coord, out int index) && index == ViewedSubLevelIndex;
+        }
+
+        /// Indices (ascending) of every unlocked SubLevel that currently
+        /// has a valid Start-to-Goal track - the ones that loop while
+        /// playing, and so the ones worth jumping to / showing on the minimap.
+        public List<int> GetValidSubLevelIndices()
+        {
+            List<int> indices = new List<int>();
+            if (grid == null || grid.SubLevelCount == 0) return indices;
+
+            foreach (PathValidationResult result in grid.LastValidations)
+            {
+                if (!result.GoalReached || result.OrderedPath.Count == 0) continue;
+                Vector2Int start = result.OrderedPath[0];
+                if (!grid.IsInUnlockedSubLevel(start) || !grid.TryGetSubLevelIndexAt(start, out int index)) continue;
+                if (!indices.Contains(index)) indices.Add(index);
+            }
+            indices.Sort();
+            return indices;
+        }
+
+        /// Index the "Zurück"/"Weiter" button would go to, or -1: while
+        /// playing the nearest SubLevel with a valid track, while planning
+        /// simply the neighbour of the edited one.
+        public int PreviousSubLevelTarget => IsPlaying
+            ? (FindValidSubLevel(-1, out int p) ? p : -1)
+            : (grid.HasPreviousSubLevel ? grid.ActiveSubLevelIndex - 1 : -1);
+        public int NextSubLevelTarget => IsPlaying
+            ? (FindValidSubLevel(1, out int n) ? n : -1)
+            : (grid.HasNextSubLevel ? grid.ActiveSubLevelIndex + 1 : -1);
+
+        public bool CanViewPreviousSubLevel => IsPlaying && FindValidSubLevel(-1, out _);
+        public bool CanViewNextSubLevel => IsPlaying && FindValidSubLevel(1, out _);
+
+        /// Play mode: moves the guided camera to the nearest earlier/later
+        /// SubLevel with a valid track. Pure view switch - the simulation
+        /// keeps running and the edited SubLevel stays the same.
+        public bool ViewPreviousSubLevel() => StepViewedSubLevel(-1);
+        public bool ViewNextSubLevel() => StepViewedSubLevel(1);
+
+        private bool StepViewedSubLevel(int direction)
+        {
+            if (!IsPlaying || !FindValidSubLevel(direction, out int index)) return false;
+            viewedSubLevelIndex = index;
+            return true;
+        }
+
+        private bool FindValidSubLevel(int direction, out int found)
+        {
+            found = -1;
+            int current = ViewedSubLevelIndex;
+            foreach (int index in GetValidSubLevelIndices())
+            {
+                if (direction < 0 && index < current) found = index; // ascending: keeps the nearest earlier one
+                if (direction > 0 && index > current) { found = index; break; }
+            }
+            return found >= 0;
+        }
+
+        /// "Weiter" from the UI/keyboard: carried out right away, or - while
+        /// the return from play mode is still animating - queued and
+        /// carried out as soon as it has finished.
+        public void RequestAdvanceSubLevel()
+        {
+            if (IsReturningToPlanning) pendingSubLevelStep = 1;
+            else TryAdvanceSubLevel();
+        }
+
+        /// "Zurück", queued the same way as RequestAdvanceSubLevel.
+        public void RequestPreviousSubLevel()
+        {
+            if (IsReturningToPlanning) pendingSubLevelStep = -1;
+            else TryGoToPreviousSubLevel();
+        }
+
+        private void ProcessPendingSubLevelStep()
+        {
+            if (pendingSubLevelStep == 0 || IsReturningToPlanning) return;
+
+            int step = pendingSubLevelStep;
+            pendingSubLevelStep = 0;
+            if (IsPlaying) return; // play was started again meanwhile - drop the request
+
+            if (step > 0) TryAdvanceSubLevel();
+            else TryGoToPreviousSubLevel();
         }
 
         private void Awake()
@@ -149,17 +267,28 @@ namespace MarbleOrchestra.Grid
             if (grid == null) grid = FindAnyObjectByType<PathGrid>();
             if (terrain == null) terrain = FindAnyObjectByType<TrackBlockSpawner>();
             if (cameraFitter == null) cameraFitter = FindAnyObjectByType<CameraFitter>();
+            cameraTransition = FindAnyObjectByType<CameraModeTransition>();
         }
 
         private void Update()
         {
+            ProcessPendingSubLevelStep();
+
             if (Keyboard.current == null) return;
 
             if (Keyboard.current.spaceKey.wasPressedThisFrame) TogglePlay();
             if (Keyboard.current.sKey.wasPressedThisFrame) Stop();
             if (Keyboard.current.rKey.wasPressedThisFrame) ResetMarble();
-            if (Keyboard.current.nKey.wasPressedThisFrame) TryAdvanceSubLevel();
-            if (Keyboard.current.bKey.wasPressedThisFrame) TryGoToPreviousSubLevel();
+            if (Keyboard.current.nKey.wasPressedThisFrame)
+            {
+                if (IsPlaying) ViewNextSubLevel();
+                else RequestAdvanceSubLevel();
+            }
+            if (Keyboard.current.bKey.wasPressedThisFrame)
+            {
+                if (IsPlaying) ViewPreviousSubLevel();
+                else RequestPreviousSubLevel();
+            }
         }
 
         /// Switches between planning (stopped, pipes editable) and
@@ -192,6 +321,8 @@ namespace MarbleOrchestra.Grid
                 FinishStop();
             }
 
+            pendingSubLevelStep = 0;
+            viewedSubLevelIndex = grid.ActiveSubLevelIndex;
             starting = true;
             StartCoroutine(PlayRoutine());
             return true;
@@ -258,6 +389,7 @@ namespace MarbleOrchestra.Grid
             starting = false;
             activeRunCount = 0;
             stopRoutine = null;
+            viewedSubLevelIndex = -1;
 
             // Sink the blocks while CameraModeTransition swings back to
             // top-down, and only then tear them down and show the 2D grid
@@ -314,8 +446,9 @@ namespace MarbleOrchestra.Grid
             }
 
             grid.AdvanceToNextSubLevel();
-            ResetMarble();
+            StopForSubLevelSwitch();
             cameraFitter?.Fit();
+            cameraTransition?.ResyncToPlanPose();
             return true;
         }
 
@@ -327,23 +460,23 @@ namespace MarbleOrchestra.Grid
         {
             if (!grid.GoToPreviousSubLevel()) return false;
 
-            ResetMarble();
+            StopForSubLevelSwitch();
             cameraFitter?.Fit();
+            cameraTransition?.ResyncToPlanPose();
             return true;
+        }
+
+        /// A running simulation is stopped as before; while already planning
+        /// only leftover marbles are cleared - Stop() would start another
+        /// (empty) sink-down animation and delay the next queued click.
+        private void StopForSubLevelSwitch()
+        {
+            if (IsPlaying || stopRoutine != null) ResetMarble();
+            else ClearMarbles();
         }
 
         public bool CanAdvanceSubLevel => grid.HasNextSubLevel && HasCompletedTrackInActiveSubLevel();
         public bool CanGoToPreviousSubLevel => grid.HasPreviousSubLevel;
-
-        private bool HasCompletedTrack()
-        {
-            IReadOnlyList<PathValidationResult> results = grid.LastValidations;
-            for (int i = 0; i < results.Count; i++)
-            {
-                if (results[i].GoalReached) return true;
-            }
-            return false;
-        }
 
         private bool HasCompletedTrackInActiveSubLevel()
         {

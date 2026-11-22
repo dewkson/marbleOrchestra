@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.SoundTriggerContent
   contentId: Pressure Snare_InstrumentVisual_Snare
   label: P
+  icon: {fileID: 21300000, guid: d79c054ea4e04862b8f05f0e5f2e6974, type: 3}
   fallHeight: 0.3
   instrument: 2
   visual: {fileID: 11400000, guid: 1ccb6047e3740c04e97bab8f94d7d246, type: 2}

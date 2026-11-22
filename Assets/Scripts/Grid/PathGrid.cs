@@ -16,12 +16,23 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private float cardScale = 1f;
         [Tooltip("Seconds a card takes to glide into its new cell after a 15-Puzzle slide (see 0067). 0 = jump instantly.")]
         [SerializeField] private float slideDuration = 0.15f;
+        [Header("Content Icons (see 0069)")]
+        [Tooltip("Größe des Instrument-Icons relativ zur Karte.")]
+        [SerializeField, Range(0.1f, 1f)] private float contentIconScale = 0.55f;
+        [Tooltip("Versatz des Icons von der Kartenmitte (in Kartengrößen), z.B. (0.25, -0.25) für unten rechts.")]
+        [SerializeField] private Vector2 contentIconOffset = Vector2.zero;
+        [SerializeField] private Color contentIconTint = Color.white;
+        [Tooltip("Deckkraft des Icons, solange eine Pipekarte auf der Zelle liegt (1 = voll sichtbar, 0 = unsichtbar).")]
+        [SerializeField, Range(0f, 1f)] private float coveredContentIconAlpha = 0.85f;
+        [Tooltip("Über allen Karten-Renderern (max. 5), aber unter einer gezogenen Karte (+100).")]
+        [SerializeField] private int contentIconSortingOrder = 10;
 
         private PathPipe[,] pipes;
         private CellContentDefinition[,] contents;
         private bool[,] blocked;
         private PipeVisual[,] blockedVisuals; // one per blocked cell, with or without a picture (see 0030/0054) - purely decorative, no collider
         private PipeVisual[,] slotVisuals; // 15-Puzzle only (see 0067): an empty slot under every buildable cell, drawn below the cards so it only shows where a cell is free - no collider
+        private SpriteRenderer[,] contentIcons; // instrument icon per content cell (see 0069) - bound to the cell like the content itself, so it stays put while cards swap/slide underneath; no collider
         private int activeSubLevelIndex;
         private int highestReachedSubLevelIndex; // stays put when stepping back, so SubLevels already reached keep validating/playing (see IsInUnlockedSubLevel)
 
@@ -52,6 +63,23 @@ namespace MarbleOrchestra.Grid
                 int index = Mathf.Clamp(activeSubLevelIndex, 0, level.SubLevels.Count - 1);
                 return level.SubLevels[index].Area;
             }
+        }
+
+        /// Area of the SubLevel at this list index (clamped), or the whole
+        /// grid without SubLevels.
+        public RectInt GetSubLevelArea(int index)
+        {
+            if (level == null || level.SubLevels.Count == 0) return new RectInt(0, 0, Width, Height);
+            return level.SubLevels[Mathf.Clamp(index, 0, level.SubLevels.Count - 1)].Area;
+        }
+
+        /// Display name of the SubLevel at this list index as set in the
+        /// level editor; without SubLevels the level asset's own name.
+        public string GetSubLevelName(int index)
+        {
+            if (level == null) return string.Empty;
+            if (level.SubLevels.Count == 0) return level.name;
+            return level.SubLevels[Mathf.Clamp(index, 0, level.SubLevels.Count - 1)].Name;
         }
 
         public bool IsInActiveSubLevel(Vector2Int coord)
@@ -163,6 +191,9 @@ namespace MarbleOrchestra.Grid
                     PipeVisual slotVisual = slotVisuals != null ? slotVisuals[x, y] : null;
                     if (slotVisual != null) slotVisual.gameObject.SetActive(active);
 
+                    SpriteRenderer contentIcon = contentIcons != null ? contentIcons[x, y] : null;
+                    if (contentIcon != null) contentIcon.gameObject.SetActive(active);
+
                     PathPipe pipe = pipes[x, y];
                     if (pipe == null) continue;
                     pipe.gameObject.SetActive(active);
@@ -190,6 +221,7 @@ namespace MarbleOrchestra.Grid
             blocked = new bool[Width, Height];
             blockedVisuals = new PipeVisual[Width, Height];
             slotVisuals = new PipeVisual[Width, Height];
+            contentIcons = new SpriteRenderer[Width, Height];
             bool fifteenPuzzle = IsFifteenPuzzle;
 
             for (int y = 0; y < Height; y++)
@@ -206,6 +238,10 @@ namespace MarbleOrchestra.Grid
                     }
 
                     contents[x, y] = index < levelData.Contents.Count ? levelData.Contents[index] : null;
+                    if (contents[x, y] != null && contents[x, y].Icon != null)
+                    {
+                        contentIcons[x, y] = CreateContentIcon(new Vector2Int(x, y), contents[x, y].Icon);
+                    }
                     PipeDefinition definition = index < levelData.Pipes.Count ? levelData.Pipes[index] : null;
 
                     // 15-Puzzle (see 0065): a cell without a card stays
@@ -458,7 +494,32 @@ namespace MarbleOrchestra.Grid
                 pipe.SetConnectivity(connectivity);
             }
 
+            UpdateContentIconCoverage();
             return results;
+        }
+
+        /// A content icon shows fully on a cell without a pipe card and
+        /// slightly transparent (coveredContentIconAlpha) while a card lies
+        /// on it. Runs from Revalidate, which every swap/slide/build ends
+        /// with. An empty card (no PipeDefinition) doesn't count as covering it.
+        private void UpdateContentIconCoverage()
+        {
+            if (contentIcons == null) return;
+
+            for (int y = 0; y < Height; y++)
+            {
+                for (int x = 0; x < Width; x++)
+                {
+                    SpriteRenderer icon = contentIcons[x, y];
+                    if (icon == null) continue;
+
+                    PathPipe pipe = pipes[x, y];
+                    bool covered = pipe != null && pipe.Definition != null;
+                    Color color = contentIconTint;
+                    if (covered) color.a *= coveredContentIconAlpha;
+                    icon.color = color;
+                }
+            }
         }
 
         public Vector3 CellToLocalPosition(Vector2Int coord)
@@ -503,6 +564,31 @@ namespace MarbleOrchestra.Grid
             PipeVisual visual = go.AddComponent<PipeVisual>();
             visual.RefreshFreeSlot(level);
             return visual;
+        }
+
+        /// The instrument icon of a content cell in the 2D planning view
+        /// (see 0069) - its own child of the grid rather than part of the
+        /// card, since content belongs to the cell and cards move across
+        /// it. Sized to contentIconScale of a card regardless of the
+        /// sprite's pixels-per-unit. Hidden with the rest of the grid when
+        /// Play switches to 3D (MarbleController deactivates the grid).
+        private SpriteRenderer CreateContentIcon(Vector2Int coord, Sprite icon)
+        {
+            GameObject go = new GameObject($"ContentIcon_{coord.x}_{coord.y}");
+            go.transform.SetParent(transform, false);
+            Vector2 offset = contentIconOffset * cardScale;
+            go.transform.localPosition = CellToLocalPosition(coord) + new Vector3(offset.x, offset.y, 0f);
+
+            Vector2 size = icon.bounds.size;
+            float target = cardScale * contentIconScale;
+            float longest = Mathf.Max(size.x, size.y);
+            go.transform.localScale = Vector3.one * (longest > 0f ? target / longest : 1f);
+
+            SpriteRenderer renderer = go.AddComponent<SpriteRenderer>();
+            renderer.sprite = icon;
+            renderer.color = contentIconTint;
+            renderer.sortingOrder = contentIconSortingOrder;
+            return renderer;
         }
 
         private PathPipe CreatePipe(Vector2Int coord, PipeDefinition definition)

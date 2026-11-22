@@ -15,6 +15,7 @@ namespace MarbleOrchestra.Grid
     {
         None,
         SubLevelColorFlash, // every TrackBlock of the triggering cell's SubLevel jumps to FlashColor, then lerps back to its own base color over Duration
+        BlockColorFlash, // like SubLevelColorFlash, but only the triggering cell's own block(s) - appended last so saved indices stay valid
     }
 
     /// <summary>
@@ -30,25 +31,25 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private VisualEffectType type = VisualEffectType.None;
         [SerializeField] private Color flashColor = Color.white;
         [SerializeField, Min(0.01f)] private float duration = 0.4f; // seconds from the flash peak back to the base color
-        [SerializeField] private bool excludeBlockedCells = true; // true: blocked cells' filler blocks keep their color, only cells the player can put cards on flash
 
         public VisualEffectType Type => type;
         public Color FlashColor => flashColor;
         public float Duration => Mathf.Max(0.01f, duration);
-        public bool ExcludeBlockedCells => excludeBlockedCells;
         public bool IsSet => type != VisualEffectType.None;
 
-        public CellVisualEffect(VisualEffectType type, Color flashColor, float duration, bool excludeBlockedCells)
+        /// Whether this effect type uses FlashColor/Duration (every flash variant).
+        public static bool IsColorFlash(VisualEffectType type) =>
+            type == VisualEffectType.SubLevelColorFlash || type == VisualEffectType.BlockColorFlash;
+
+        public CellVisualEffect(VisualEffectType type, Color flashColor, float duration)
         {
             this.type = type;
             this.flashColor = flashColor;
             this.duration = Mathf.Max(0.01f, duration);
-            this.excludeBlockedCells = excludeBlockedCells;
         }
 
         public bool SameAs(CellVisualEffect other) =>
-            other != null && other.type == type && other.flashColor == flashColor && Mathf.Approximately(other.duration, duration)
-            && other.excludeBlockedCells == excludeBlockedCells;
+            other != null && other.type == type && other.flashColor == flashColor && Mathf.Approximately(other.duration, duration);
     }
 
     /// <summary>

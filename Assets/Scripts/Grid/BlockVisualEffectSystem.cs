@@ -11,11 +11,12 @@ namespace MarbleOrchestra.Grid
     /// instrument still drives the visuals, but neither the content asset
     /// nor the block prefab knows anything about them.
     /// SubLevelColorFlash: every TrackBlock of the triggering cell's
-    /// SubLevel (track, preview and filler blocks alike) jumps to the
-    /// flash color and lerps back to its own base color over the effect's
+    /// SubLevel that carries a rail (real track and preview blocks - not
+    /// the filler terrain of free or blocked cells) jumps to the flash
+    /// color and lerps back to its own base color over the effect's
     /// duration. A new trigger in the same SubLevel restarts the flash.
-    /// With ExcludeBlockedCells, blocked cells' filler blocks are left
-    /// out, so only cells the player can put cards on flash.
+    /// BlockColorFlash: the same flash, limited to the triggering cell's
+    /// own block(s).
     /// The color goes through a MaterialPropertyBlock on the block's main
     /// material slot only (index 0 - shoulders/walls), since
     /// TrackBlockSpawner shares one Material between many blocks; the
@@ -80,6 +81,11 @@ namespace MarbleOrchestra.Grid
                 case VisualEffectType.SubLevelColorFlash:
                     StartColorFlash(grid.GetVisualEffectArea(coord), effect);
                     break;
+                case VisualEffectType.BlockColorFlash:
+                    // A 1x1 area: only the blocks standing on this very
+                    // cell, keyed apart from any SubLevel-wide flash.
+                    StartColorFlash(new RectInt(coord.x, coord.y, 1, 1), effect);
+                    break;
             }
         }
 
@@ -95,12 +101,10 @@ namespace MarbleOrchestra.Grid
             flash.Color = effect.FlashColor;
             flash.Duration = effect.Duration;
             flash.Elapsed = 0f;
-            spawner.CollectBlocksInArea(area, flash.Blocks); // re-collected on every trigger - tracks are rebuilt between plays
-            if (effect.ExcludeBlockedCells)
-            {
-                ResetBlocks(flash, onlyBlocked: true); // a restart with the option just switched on must not leave them tinted
-                flash.Blocks.RemoveAll(b => b == null || grid.IsBlocked(b.Definition.Coord));
-            }
+            // Re-collected on every trigger - tracks are rebuilt between
+            // plays. Rail blocks only: the filler terrain of free and
+            // blocked cells keeps its color.
+            spawner.CollectBlocksInArea(area, flash.Blocks, includeFiller: false);
             Apply(flash, 0f);
         }
 
@@ -139,13 +143,13 @@ namespace MarbleOrchestra.Grid
         }
 
         /// An empty property block removes the override, so the block shows its own material again.
-        private void ResetBlocks(ColorFlash flash, bool onlyBlocked = false)
+        private void ResetBlocks(ColorFlash flash)
         {
             if (properties == null) return;
             properties.Clear();
             foreach (TrackBlock block in flash.Blocks)
             {
-                if (block == null || (onlyBlocked && !grid.IsBlocked(block.Definition.Coord))) continue;
+                if (block == null) continue;
                 if (block.TryGetComponent(out MeshRenderer renderer)) renderer.SetPropertyBlock(properties, MainMaterialIndex);
             }
         }
