@@ -296,9 +296,10 @@ MonoBehaviour:
   followSmoothTime: 0.3
   freeCamDragThresholdPixels: 8
   scrollZoomSpeed: 0.1
-  pinchZoomSpeed: 0.11
+  pinchZoomSensitivity: 0.8
   minFreeOrthographicSize: 0.3
   maxFreeOrthographicSize: 50
+  maxZoomOutFactor: 5
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -527,6 +528,14 @@ MonoBehaviour:
   cellSize: 1.2
   cardScale: 1.15
   slideDuration: 0.15
+  contentIconScale: 0.55
+  contentIconOffset: {x: 0, y: 0}
+  contentIconTint: {r: 1, g: 1, b: 1, a: 1}
+  coveredContentIconAlpha: 0.85
+  contentIconSortingOrder: 10
+  instrumentOutlineOutset: 0.05
+  instrumentOutlineSortingOrder: -5
+  cardFrameAlpha: 0.55
 --- !u!4 &1612605611
 Transform:
   m_ObjectHideFlags: 0
@@ -687,6 +696,10 @@ MonoBehaviour:
   growDuration: 1.1
   normalInclinationDegrees: 3
   triggerFallBeatFraction: 0.144
+  showInstrumentPads: 0
+  triggerDropBeatFraction: 0.35
+  triggerBounceRestitution: 0.2
+  triggerMaxBounces: 2
   triggerBounceHeight: 0.08
   terrainColor: {r: 0.4039216, g: 0.5803922, b: 0.21176472, a: 1}
   grooveColor: {r: 1, g: 1, b: 1, a: 1}
@@ -898,8 +911,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MarbleOrchestra.Grid.FreeCameraReturnButtonUI
   cameraModeTransition: {fileID: 330585549}
   marbleController: {fileID: 1612605612}
-  guidedLabel: "Gef\xFChrte Kamera"
-  freeLabel: Freie Kamera
+  levelTitleFontSize: 48
+  levelTitleGapAboveBorder: 20
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

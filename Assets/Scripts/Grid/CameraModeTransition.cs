@@ -88,7 +88,7 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private float pinchZoomSensitivity = 0.8f;
         [SerializeField] private float minFreeOrthographicSize = 0.3f;
         [SerializeField] private float maxFreeOrthographicSize = 50f;
-        [SerializeField] private float maxZoomOutFactor = 2f; // free-cam zoom-out limit, relative to the whole-track framing
+        [SerializeField] private float maxZoomOutFactor = 5f; // free-cam zoom-out limit, relative to the whole-track framing
 
         /// A camera pose expressed as the point it FRAMES plus how far
         /// back it sits from that point along its own forward axis -
