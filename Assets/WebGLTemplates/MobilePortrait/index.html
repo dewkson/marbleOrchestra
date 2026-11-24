@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
+    <meta name="theme-color" content="#000000">
+    <link rel="manifest" href="manifest.webmanifest">
+    <title>{{{ PRODUCT_NAME }}}</title>
+    <style>
+      html, body {
+        margin: 0; padding: 0; width: 100%; height: 100%;
+        overflow: hidden; background: #000;
+        touch-action: none; overscroll-behavior: none;
+        -webkit-user-select: none; user-select: none;
+        -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+      }
+      #unity-canvas {
+        position: fixed; inset: 0;
+        width: 100vw; height: 100vh; height: 100dvh;
+        display: block; background: #000; outline: none;
+      }
+      .overlay {
+        position: fixed; inset: 0; z-index: 10;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 18px; background: #111; color: #eee;
+        font: 600 20px/1.4 system-ui, -apple-system, sans-serif; text-align: center; padding: 24px;
+      }
+      #progress { width: 60%; max-width: 280px; height: 6px; background: #333; border-radius: 3px; overflow: hidden; }
+      #progress-fill { width: 0%; height: 100%; background: #c8a165; transition: width .2s; }
+      #start-hint { display: none; font-size: 22px; }
+      #rotate { display: none; z-index: 20; }
+      @media (orientation: landscape) and (max-height: 600px) {
+        #rotate { display: flex; }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+
+    <div id="loader" class="overlay">
+      <div>{{{ PRODUCT_NAME }}}</div>
+      <div id="progress"><div id="progress-fill"></div></div>
+      <div id="start-hint">Tippen zum Starten</div>
+    </div>
+
+    <div id="rotate" class="overlay">
+      <div style="font-size:48px">&#x21BB;</div>
+      <div>Bitte das Handy ins Hochformat drehen</div>
+    </div>
+
+    <script src="Build/{{{ LOADER_FILENAME }}}"></script>
+    <script>
+      var canvas = document.getElementById("unity-canvas");
+      var loader = document.getElementById("loader");
+      var fill = document.getElementById("progress-fill");
+      var startHint = document.getElementById("start-hint");
+
+      var config = {
+        dataUrl: "Build/{{{ DATA_FILENAME }}}",
+        frameworkUrl: "Build/{{{ FRAMEWORK_FILENAME }}}",
+        codeUrl: "Build/{{{ CODE_FILENAME }}}",
+#if MEMORY_FILENAME
+        memoryUrl: "Build/{{{ MEMORY_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+        symbolsUrl: "Build/{{{ SYMBOLS_FILENAME }}}",
+#endif
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+        productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+        productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+        // Native 3x phone resolutions are expensive to render - 2x still
+        // looks sharp and keeps the frame rate up.
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+        matchWebGLToCanvasSize: true,
+      };
+
+      // Fullscreen + portrait lock need a user gesture (and the lock only
+      // works in fullscreen, Android Chrome). iOS Safari has no fullscreen
+      // API for pages - there "Zum Home-Bildschirm" gives the fullscreen app.
+      function goFullscreenPortrait() {
+        var el = document.documentElement;
+        var req = el.requestFullscreen || el.webkitRequestFullscreen;
+        var p = req ? req.call(el, { navigationUI: "hide" }) : null;
+        var lock = function () {
+          if (screen.orientation && screen.orientation.lock)
+            screen.orientation.lock("portrait").catch(function () {});
+        };
+        if (p && p.then) p.then(lock).catch(function () {}); else lock();
+      }
+
+      createUnityInstance(canvas, config, function (progress) {
+        fill.style.width = (100 * progress) + "%";
+      }).then(function () {
+        document.getElementById("progress").style.display = "none";
+        startHint.style.display = "block";
+        loader.addEventListener("click", function () {
+          goFullscreenPortrait();
+          loader.style.display = "none";
+          canvas.focus();
+        }, { once: true });
+      }).catch(function (message) {
+        alert(message);
+      });
+
+      // Re-enter fullscreen on the next tap if the user left it (e.g. back gesture).
+      canvas.addEventListener("touchend", function () {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement &&
+            !window.matchMedia("(display-mode: fullscreen), (display-mode: standalone)").matches)
+          goFullscreenPortrait();
+      });
+    </script>
+  </body>
+</html>

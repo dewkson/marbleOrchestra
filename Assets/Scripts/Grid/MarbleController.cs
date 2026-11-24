@@ -86,16 +86,19 @@ namespace MarbleOrchestra.Grid
 
         private CameraModeTransition cameraTransition;
 
-        /// SubLevel step (+1 "Weiter", -1 "Zurück") requested while the
-        /// play->planning return was still animating - carried out the
-        /// moment it has finished (see ProcessPendingSubLevelStep), since
-        /// switching mid-animation left the camera and blocks in a mixed state.
-        private int pendingSubLevelStep;
+        private SubLevelSwitchAnimator subLevelAnimator;
+
+        /// SubLevel to edit next, requested while the play->planning return
+        /// (or a previous SubLevel switch) was still animating - carried out
+        /// the moment it has finished (see ProcessPendingSubLevelSwitch),
+        /// since switching mid-animation left the camera and blocks in a
+        /// mixed state. -1 = nothing pending.
+        private int pendingSubLevelTarget = -1;
 
         /// While playing: the SubLevel the guided camera follows - starts
         /// on the edited one at Play, but can be switched to any other
         /// SubLevel that currently has a valid track (see
-        /// ViewNextSubLevel). -1 = not playing, use the active one.
+        /// PressNextSubLevel). -1 = not playing, use the active one.
         private int viewedSubLevelIndex = -1;
 
         public bool IsPlaying => starting || activeRunCount > 0;
@@ -113,6 +116,12 @@ namespace MarbleOrchestra.Grid
         /// camera swinging back to top-down).
         public bool IsReturningToPlanning => !IsPlaying
             && (stopRoutine != null || (cameraTransition != null && cameraTransition.IsTransitioning));
+
+        /// True while the 2D planning view animates from one SubLevel to
+        /// another (see SubLevelSwitchAnimator) - editing is locked meanwhile.
+        public bool IsSwitchingSubLevel => subLevelAnimator != null && subLevelAnimator.IsAnimating;
+
+        private bool IsSubLevelSwitchBusy => IsReturningToPlanning || IsSwitchingSubLevel;
         public float MarbleRadius => marbleRadius;
         public float MarbleRadius3D => marbleRadius3D;
 
@@ -196,70 +205,83 @@ namespace MarbleOrchestra.Grid
             return indices;
         }
 
-        /// Index the "Zurück"/"Weiter" button would go to, or -1: while
-        /// playing the nearest SubLevel with a valid track, while planning
-        /// simply the neighbour of the edited one.
-        public int PreviousSubLevelTarget => IsPlaying
-            ? (FindValidSubLevel(-1, out int p) ? p : -1)
-            : (grid.HasPreviousSubLevel ? grid.ActiveSubLevelIndex - 1 : -1);
-        public int NextSubLevelTarget => IsPlaying
-            ? (FindValidSubLevel(1, out int n) ? n : -1)
-            : (grid.HasNextSubLevel ? grid.ActiveSubLevelIndex + 1 : -1);
+        private bool IsSubLevelValid(int index) => GetValidSubLevelIndices().Contains(index);
 
-        public bool CanViewPreviousSubLevel => IsPlaying && FindValidSubLevel(-1, out _);
-        public bool CanViewNextSubLevel => IsPlaying && FindValidSubLevel(1, out _);
-
-        /// Play mode: moves the guided camera to the nearest earlier/later
-        /// SubLevel with a valid track. Pure view switch - the simulation
-        /// keeps running and the edited SubLevel stays the same.
-        public bool ViewPreviousSubLevel() => StepViewedSubLevel(-1);
-        public bool ViewNextSubLevel() => StepViewedSubLevel(1);
-
-        private bool StepViewedSubLevel(int direction)
+        /// Whether the player may switch the planning view to this SubLevel:
+        /// any SubLevel reached so far, plus the first not-yet-reached one
+        /// once the last reached SubLevel has a valid track.
+        private bool CanEditSubLevel(int index)
         {
-            if (!IsPlaying || !FindValidSubLevel(direction, out int index)) return false;
-            viewedSubLevelIndex = index;
-            return true;
+            if (grid.SubLevelCount == 0 || index < 0 || index >= grid.SubLevelCount) return false;
+            int highest = grid.HighestReachedSubLevelIndex;
+            if (index <= highest) return true;
+            return index == highest + 1 && IsSubLevelValid(highest);
         }
 
-        private bool FindValidSubLevel(int direction, out int found)
+        /// The SubLevel the "Zurück"/"Weiter" button leads to, or -1 if it
+        /// should be hidden. Always the direct neighbour - of the edited
+        /// SubLevel while planning, of the viewed one while playing.
+        public int PreviousSubLevelTarget
         {
-            found = -1;
-            int current = ViewedSubLevelIndex;
-            foreach (int index in GetValidSubLevelIndices())
+            get
             {
-                if (direction < 0 && index < current) found = index; // ascending: keeps the nearest earlier one
-                if (direction > 0 && index > current) { found = index; break; }
+                int target = ViewedSubLevelIndex - 1;
+                return grid.SubLevelCount > 0 && target >= 0 ? target : -1;
             }
-            return found >= 0;
         }
 
-        /// "Weiter" from the UI/keyboard: carried out right away, or - while
-        /// the return from play mode is still animating - queued and
-        /// carried out as soon as it has finished.
-        public void RequestAdvanceSubLevel()
+        public int NextSubLevelTarget
         {
-            if (IsReturningToPlanning) pendingSubLevelStep = 1;
-            else TryAdvanceSubLevel();
+            get
+            {
+                if (grid.SubLevelCount == 0) return -1;
+                int target = ViewedSubLevelIndex + 1;
+                if (target >= grid.SubLevelCount) return -1;
+                if (!IsPlaying) return CanAdvanceSubLevel ? target : -1;
+                return IsSubLevelValid(target) || CanEditSubLevel(target) ? target : -1;
+            }
         }
 
-        /// "Zurück", queued the same way as RequestAdvanceSubLevel.
-        public void RequestPreviousSubLevel()
+        public void PressPreviousSubLevel() => PressSubLevel(PreviousSubLevelTarget);
+        public void PressNextSubLevel() => PressSubLevel(NextSubLevelTarget);
+
+        /// A SubLevel button / N / B key. While playing: a SubLevel with a
+        /// valid track is simply watched (the guided camera jumps there,
+        /// the simulation keeps running); any other one is meant to be
+        /// built, so play mode is left first and the switch to it runs
+        /// once the return animation has finished. While planning: switches
+        /// right away, or queued while an animation is still running.
+        private void PressSubLevel(int target)
         {
-            if (IsReturningToPlanning) pendingSubLevelStep = -1;
-            else TryGoToPreviousSubLevel();
+            if (target < 0) return;
+
+            if (IsPlaying)
+            {
+                if (IsSubLevelValid(target))
+                {
+                    viewedSubLevelIndex = target;
+                    return;
+                }
+                if (!CanEditSubLevel(target)) return;
+
+                pendingSubLevelTarget = target;
+                ResetMarble(); // back to planning first - ProcessPendingSubLevelSwitch takes over after the animation
+                return;
+            }
+
+            if (IsSubLevelSwitchBusy) pendingSubLevelTarget = target;
+            else TryGoToSubLevel(target);
         }
 
-        private void ProcessPendingSubLevelStep()
+        private void ProcessPendingSubLevelSwitch()
         {
-            if (pendingSubLevelStep == 0 || IsReturningToPlanning) return;
+            if (pendingSubLevelTarget < 0 || IsSubLevelSwitchBusy) return;
 
-            int step = pendingSubLevelStep;
-            pendingSubLevelStep = 0;
+            int target = pendingSubLevelTarget;
+            pendingSubLevelTarget = -1;
             if (IsPlaying) return; // play was started again meanwhile - drop the request
 
-            if (step > 0) TryAdvanceSubLevel();
-            else TryGoToPreviousSubLevel();
+            TryGoToSubLevel(target);
         }
 
         private void Awake()
@@ -268,27 +290,23 @@ namespace MarbleOrchestra.Grid
             if (terrain == null) terrain = FindAnyObjectByType<TrackBlockSpawner>();
             if (cameraFitter == null) cameraFitter = FindAnyObjectByType<CameraFitter>();
             cameraTransition = FindAnyObjectByType<CameraModeTransition>();
+
+            subLevelAnimator = GetComponent<SubLevelSwitchAnimator>();
+            if (subLevelAnimator == null) subLevelAnimator = gameObject.AddComponent<SubLevelSwitchAnimator>();
+            subLevelAnimator.Init(grid, cameraFitter);
         }
 
         private void Update()
         {
-            ProcessPendingSubLevelStep();
+            ProcessPendingSubLevelSwitch();
 
             if (Keyboard.current == null) return;
 
             if (Keyboard.current.spaceKey.wasPressedThisFrame) TogglePlay();
             if (Keyboard.current.sKey.wasPressedThisFrame) Stop();
             if (Keyboard.current.rKey.wasPressedThisFrame) ResetMarble();
-            if (Keyboard.current.nKey.wasPressedThisFrame)
-            {
-                if (IsPlaying) ViewNextSubLevel();
-                else RequestAdvanceSubLevel();
-            }
-            if (Keyboard.current.bKey.wasPressedThisFrame)
-            {
-                if (IsPlaying) ViewPreviousSubLevel();
-                else RequestPreviousSubLevel();
-            }
+            if (Keyboard.current.nKey.wasPressedThisFrame) PressNextSubLevel();
+            if (Keyboard.current.bKey.wasPressedThisFrame) PressPreviousSubLevel();
         }
 
         /// Switches between planning (stopped, pipes editable) and
@@ -321,7 +339,8 @@ namespace MarbleOrchestra.Grid
                 FinishStop();
             }
 
-            pendingSubLevelStep = 0;
+            pendingSubLevelTarget = -1;
+            subLevelAnimator?.FinishNow(); // Play during a SubLevel switch: jump to its end first
             viewedSubLevelIndex = grid.ActiveSubLevelIndex;
             starting = true;
             StartCoroutine(PlayRoutine());
@@ -433,36 +452,33 @@ namespace MarbleOrchestra.Grid
         /// skip ahead without ever solving this one.
         public bool TryAdvanceSubLevel()
         {
-            if (!grid.HasNextSubLevel)
+            if (!CanAdvanceSubLevel)
             {
-                Debug.LogWarning("MarbleController: Es gibt kein weiteres Sublevel.");
+                Debug.LogWarning("MarbleController: Naechstes Sublevel ignoriert - es gibt keins, oder das aktive hat noch keine gueltige Bahn.");
                 return false;
             }
-
-            if (!HasCompletedTrackInActiveSubLevel())
-            {
-                Debug.LogWarning("MarbleController: Naechstes Sublevel ignoriert, aktuell existiert keine gueltige Bahn im aktiven Sublevel.");
-                return false;
-            }
-
-            grid.AdvanceToNextSubLevel();
-            StopForSubLevelSwitch();
-            cameraFitter?.Fit();
-            cameraTransition?.ResyncToPlanPose();
-            return true;
+            return TryGoToSubLevel(grid.ActiveSubLevelIndex + 1);
         }
 
         /// Steps back to the previous SubLevel for rework - always allowed.
         /// Later SubLevels already reached stay unlocked (see
-        /// PathGrid.GoToPreviousSubLevel); only their GoalReached tracks
-        /// play, so a broken track anywhere is simply silent.
-        public bool TryGoToPreviousSubLevel()
+        /// PathGrid.GoToSubLevel); only their GoalReached tracks play, so a
+        /// broken track anywhere is simply silent.
+        public bool TryGoToPreviousSubLevel() => grid.HasPreviousSubLevel && TryGoToSubLevel(grid.ActiveSubLevelIndex - 1);
+
+        /// Makes the given SubLevel the edited one and animates the 2D
+        /// planning view over to it (see SubLevelSwitchAnimator).
+        private bool TryGoToSubLevel(int target)
         {
-            if (!grid.GoToPreviousSubLevel()) return false;
+            if (!CanEditSubLevel(target)) return false;
+
+            int from = grid.ActiveSubLevelIndex;
+            if (!grid.GoToSubLevel(target)) return false;
 
             StopForSubLevelSwitch();
-            cameraFitter?.Fit();
-            cameraTransition?.ResyncToPlanPose();
+            if (subLevelAnimator != null && isActiveAndEnabled) subLevelAnimator.Play(from, target);
+            else cameraFitter?.Fit();
+            cameraTransition?.ResyncToPlanPose(); // next 2D->3D swing starts from the new SubLevel's plan pose
             return true;
         }
 

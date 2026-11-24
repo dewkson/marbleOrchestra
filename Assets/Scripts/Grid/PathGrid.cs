@@ -45,6 +45,7 @@ namespace MarbleOrchestra.Grid
 
         public int ActiveSubLevelIndex => activeSubLevelIndex;
         public int SubLevelCount => level != null ? level.SubLevels.Count : 0;
+        public int HighestReachedSubLevelIndex => highestReachedSubLevelIndex;
         public bool HasNextSubLevel => activeSubLevelIndex < SubLevelCount - 1;
         public bool HasPreviousSubLevel => SubLevelCount > 0 && activeSubLevelIndex > 0;
 
@@ -168,6 +169,52 @@ namespace MarbleOrchestra.Grid
             Revalidate();
             return true;
         }
+
+        /// Makes any SubLevel the EDITABLE one (MarbleController decides
+        /// whether that is allowed) - also counts as reached, like
+        /// AdvanceToNextSubLevel.
+        public bool GoToSubLevel(int index)
+        {
+            if (level == null || index < 0 || index >= level.SubLevels.Count || index == activeSubLevelIndex) return false;
+
+            activeSubLevelIndex = index;
+            highestReachedSubLevelIndex = Mathf.Max(highestReachedSubLevelIndex, index);
+            UpdateActiveSubLevelVisibility();
+            Revalidate();
+            return true;
+        }
+
+        /// Every visual bound to a cell of this SubLevel - card, blocked
+        /// cell, empty 15-Puzzle slot, content icon - with its cell, for
+        /// SubLevelSwitchAnimator's fly-in/fly-out.
+        public void CollectSubLevelVisuals(int index, List<KeyValuePair<Vector2Int, Transform>> into)
+        {
+            if (pipes == null) return;
+            RectInt area = GetSubLevelArea(index);
+
+            for (int y = Mathf.Max(0, area.yMin); y < Mathf.Min(Height, area.yMax); y++)
+            {
+                for (int x = Mathf.Max(0, area.xMin); x < Mathf.Min(Width, area.xMax); x++)
+                {
+                    Vector2Int coord = new Vector2Int(x, y);
+                    if (blockedVisuals != null && blockedVisuals[x, y] != null) into.Add(new KeyValuePair<Vector2Int, Transform>(coord, blockedVisuals[x, y].transform));
+                    if (slotVisuals != null && slotVisuals[x, y] != null) into.Add(new KeyValuePair<Vector2Int, Transform>(coord, slotVisuals[x, y].transform));
+                    if (contentIcons != null && contentIcons[x, y] != null) into.Add(new KeyValuePair<Vector2Int, Transform>(coord, contentIcons[x, y].transform));
+                    if (pipes[x, y] != null) into.Add(new KeyValuePair<Vector2Int, Transform>(coord, pipes[x, y].transform));
+                }
+            }
+        }
+
+        /// Temporarily shows a non-active SubLevel's visuals (during a
+        /// SubLevel switch animation); RefreshSubLevelVisibility undoes it.
+        public void ShowSubLevelVisuals(int index)
+        {
+            List<KeyValuePair<Vector2Int, Transform>> visuals = new List<KeyValuePair<Vector2Int, Transform>>();
+            CollectSubLevelVisuals(index, visuals);
+            foreach (KeyValuePair<Vector2Int, Transform> visual in visuals) visual.Value.gameObject.SetActive(true);
+        }
+
+        public void RefreshSubLevelVisibility() => UpdateActiveSubLevelVisibility();
 
         /// Only the active SubLevel's own pipes are shown/interactable in
         /// the 2D planning view (see 0046's follow-up) - a cell outside it

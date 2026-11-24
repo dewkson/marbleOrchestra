@@ -1,0 +1,9 @@
+{
+  "name": "Marble Orchestra",
+  "short_name": "Marble Orchestra",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000"
+}

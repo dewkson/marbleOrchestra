@@ -82,9 +82,13 @@ namespace MarbleOrchestra.Grid
         [Header("Free Camera (see 0044)")]
         [SerializeField] private float freeCamDragThresholdPixels = 8f; // same idea as GridInputHandler's own threshold - short of this a press is still just a press, not yet a pan
         [SerializeField] private float scrollZoomSpeed = 0.01f; // orthographicSize change per Mouse.scroll.y unit - tune in the Inspector, scroll units vary by platform
-        [SerializeField] private float pinchZoomSpeed = 0.01f; // orthographicSize change per pixel of two-finger distance change
+        // Pinch zoom is relative: orthographicSize scales by the finger
+        // distance ratio, raised to this power. 1 = the content follows the
+        // fingers exactly; below 1 zooms more gently.
+        [SerializeField] private float pinchZoomSensitivity = 0.8f;
         [SerializeField] private float minFreeOrthographicSize = 0.3f;
         [SerializeField] private float maxFreeOrthographicSize = 50f;
+        [SerializeField] private float maxZoomOutFactor = 2f; // free-cam zoom-out limit, relative to the whole-track framing
 
         /// A camera pose expressed as the point it FRAMES plus how far
         /// back it sits from that point along its own forward axis -
@@ -525,11 +529,15 @@ namespace MarbleOrchestra.Grid
                 return;
             }
 
-            float delta = distance - pinchLastDistance;
+            float previous = pinchLastDistance;
             pinchLastDistance = distance;
-            if (Mathf.Approximately(delta, 0f)) return;
+            if (Mathf.Approximately(distance, previous) || distance < 1f) return;
 
-            ApplyZoomDelta(-delta * pinchZoomSpeed);
+            // Relative, not per pixel: doubling the finger distance halves
+            // the size regardless of screen resolution / pixel density or
+            // the current zoom level.
+            float factor = Mathf.Pow(previous / distance, pinchZoomSensitivity);
+            ApplyZoomDelta(cam.orthographicSize * (factor - 1f));
         }
 
         private int ActiveTouchCount()
@@ -565,7 +573,18 @@ namespace MarbleOrchestra.Grid
         private void ApplyZoomDelta(float delta)
         {
             isFreeCamera = true;
-            cam.orthographicSize = Mathf.Clamp(cam.orthographicSize + delta, minFreeOrthographicSize, maxFreeOrthographicSize);
+            float max = Mathf.Max(minFreeOrthographicSize, Mathf.Min(maxFreeOrthographicSize, MaxZoomOutSize()));
+            cam.orthographicSize = Mathf.Clamp(cam.orthographicSize + delta, minFreeOrthographicSize, max);
+        }
+
+        /// Zooming out stops a bit beyond the whole-track framing of the
+        /// active SubLevel - further out there is nothing left to see.
+        private float MaxZoomOutSize()
+        {
+            if (terrain == null || !terrain.TryGetTracksWorldBounds(out Bounds bounds)) return maxFreeOrthographicSize;
+            BoundsCameraMath.Extents extents = BoundsCameraMath.MeasureExtents(bounds, transform.rotation);
+            float wholeTrack = Mathf.Max(extents.Up, extents.Right / cam.aspect) + padding;
+            return wholeTrack * maxZoomOutFactor;
         }
 
         /// Interpolates the FRAMING - the point on screen, the rotation

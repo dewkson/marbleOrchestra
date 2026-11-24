@@ -23,9 +23,10 @@ namespace MarbleOrchestra.Grid
     /// (see MarbleController.CanAdvanceSubLevel); a click during the
     /// return animation from play mode is carried out once it finished.
     /// While playing, the same two buttons (same size and arrangement)
-    /// sit right above the play button and jump the guided camera to the
-    /// previous/next SubLevel with a valid track (see
-    /// MarbleController.ViewNextSubLevel).
+    /// sit right above the play button: towards a SubLevel with a valid
+    /// track they jump the guided camera there, otherwise they leave play
+    /// mode and switch to that SubLevel once back in planning (see
+    /// MarbleController.PressNextSubLevel).
     /// Lives on its own GameObject; cameraModeTransition and
     /// marbleController are wired in the Inspector or auto-found at Awake.
     /// </summary>
@@ -162,11 +163,10 @@ namespace MarbleOrchestra.Grid
             if (subLevelPanelGO.activeSelf != visible) subLevelPanelGO.SetActive(visible);
             if (!visible) return;
 
-            // Each button only exists while it can actually be pressed. Planning:
-            // "Zurück" whenever there is an earlier SubLevel, "Weiter" once the
-            // active one is solved. Playing: only towards SubLevels with a valid track.
-            SetActiveIfChanged(prevSubLevelGO, playing ? marbleController.CanViewPreviousSubLevel : marbleController.CanGoToPreviousSubLevel);
-            SetActiveIfChanged(nextSubLevelGO, playing ? marbleController.CanViewNextSubLevel : marbleController.CanAdvanceSubLevel);
+            // Each button only exists while it can actually be pressed (see
+            // MarbleController.PreviousSubLevelTarget / NextSubLevelTarget).
+            SetActiveIfChanged(prevSubLevelGO, marbleController.PreviousSubLevelTarget >= 0);
+            SetActiveIfChanged(nextSubLevelGO, marbleController.NextSubLevelTarget >= 0);
 
             // Labelled with the name (from the level editor) of the SubLevel each button leads to.
             if (prevSubLevelGO.activeSelf) SetLabel(prevSubLevelText, marbleController.PreviousSubLevelTarget);
@@ -180,19 +180,9 @@ namespace MarbleOrchestra.Grid
             if (label.text != text) label.text = text;
         }
 
-        private void HandlePrevSubLevelClicked()
-        {
-            if (marbleController == null) return;
-            if (marbleController.IsPlaying) marbleController.ViewPreviousSubLevel();
-            else marbleController.RequestPreviousSubLevel();
-        }
+        private void HandlePrevSubLevelClicked() => marbleController?.PressPreviousSubLevel();
 
-        private void HandleNextSubLevelClicked()
-        {
-            if (marbleController == null) return;
-            if (marbleController.IsPlaying) marbleController.ViewNextSubLevel();
-            else marbleController.RequestAdvanceSubLevel();
-        }
+        private void HandleNextSubLevelClicked() => marbleController?.PressNextSubLevel();
 
         private static void SetActiveIfChanged(GameObject go, bool active)
         {

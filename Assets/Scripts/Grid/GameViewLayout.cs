@@ -38,7 +38,12 @@ namespace MarbleOrchestra.Grid
         {
             get
             {
-                if (mode == null) mode = (ViewLayoutMode)PlayerPrefs.GetInt(PrefKey, (int)ViewLayoutMode.Desktop);
+                // Phones/tablets (incl. a WebGL build opened in a mobile
+                // browser) always start in the portrait layout - a saved
+                // Desktop choice from the editor must never leak onto them.
+                if (mode == null) mode = Application.isMobilePlatform
+                    ? ViewLayoutMode.Mobile
+                    : (ViewLayoutMode)PlayerPrefs.GetInt(PrefKey, (int)ViewLayoutMode.Desktop);
                 return mode.Value;
             }
             set

@@ -144,8 +144,7 @@ namespace MarbleOrchestra.Grid
         {
             if (clumpMaterial != null) return clumpMaterial;
 
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-            if (shader == null) shader = Shader.Find("Standard");
+            Shader shader = RuntimeShaders.Lit; // not Shader.Find - see RuntimeShaders (shader stripping in builds)
 
             clumpMaterial = new Material(shader) { enableInstancing = true }; // required for per-renderer MaterialPropertyBlock colors to work with the SRP batcher
             if (clumpMaterial.HasProperty("_Smoothness")) clumpMaterial.SetFloat("_Smoothness", 0.1f);

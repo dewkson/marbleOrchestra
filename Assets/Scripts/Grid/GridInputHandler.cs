@@ -72,12 +72,12 @@ namespace MarbleOrchestra.Grid
 
         private void Update()
         {
-            if (marbleController != null && marbleController.IsPlaying)
+            if (marbleController != null && (marbleController.IsPlaying || marbleController.IsSwitchingSubLevel))
             {
                 ClearSlidePreview();
                 return;
             }
-            if (Mouse.current == null) return;
+            if (Pointer.current == null) return;
 
             if (IsFifteenPuzzle)
             {
@@ -85,15 +85,15 @@ namespace MarbleOrchestra.Grid
                 return;
             }
 
-            if (Mouse.current.leftButton.wasPressedThisFrame)
+            if (Pointer.current.press.wasPressedThisFrame)
             {
                 BeginPress();
             }
-            else if (pressedPipe != null && Mouse.current.leftButton.isPressed)
+            else if (pressedPipe != null && Pointer.current.press.isPressed)
             {
                 ContinuePress();
             }
-            else if (pressedPipe != null && Mouse.current.leftButton.wasReleasedThisFrame)
+            else if (pressedPipe != null && Pointer.current.press.wasReleasedThisFrame)
             {
                 EndPress();
             }
@@ -104,15 +104,15 @@ namespace MarbleOrchestra.Grid
         /// (click) or swipe along one axis - never a free drag.
         private void UpdateSlideInput()
         {
-            if (Mouse.current.leftButton.wasPressedThisFrame)
+            if (Pointer.current.press.wasPressedThisFrame)
             {
                 BeginSlidePress();
             }
-            else if (pressedPipe != null && Mouse.current.leftButton.isPressed)
+            else if (pressedPipe != null && Pointer.current.press.isPressed)
             {
                 ContinueSlidePress();
             }
-            else if (pressedPipe != null && Mouse.current.leftButton.wasReleasedThisFrame)
+            else if (pressedPipe != null && Pointer.current.press.wasReleasedThisFrame)
             {
                 EndSlidePress();
             }
@@ -131,7 +131,7 @@ namespace MarbleOrchestra.Grid
             // the way) - neither a click nor a swipe could move it.
             if (!grid.CanSlideAny(clicked.Coord)) return;
 
-            Vector2 screenPos = Mouse.current.position.ReadValue();
+            Vector2 screenPos = Pointer.current.position.ReadValue();
             if (!RaycastGridPlane(screenPos, out Vector3 worldPos)) return;
 
             pressedPipe = clicked;
@@ -150,7 +150,7 @@ namespace MarbleOrchestra.Grid
         {
             if (swipeDone) return;
 
-            Vector2 screenPos = Mouse.current.position.ReadValue();
+            Vector2 screenPos = Pointer.current.position.ReadValue();
             if (!swipeMoved && (screenPos - pressScreenPos).sqrMagnitude >= dragThresholdPixels * dragThresholdPixels)
                 swipeMoved = true;
 
@@ -204,13 +204,13 @@ namespace MarbleOrchestra.Grid
             if (clicked == null || clicked.IsLocked) return;
 
             pressedPipe = clicked;
-            pressScreenPos = Mouse.current.position.ReadValue();
+            pressScreenPos = Pointer.current.position.ReadValue();
             isDragging = false;
         }
 
         private void ContinuePress()
         {
-            Vector2 currentScreenPos = Mouse.current.position.ReadValue();
+            Vector2 currentScreenPos = Pointer.current.position.ReadValue();
 
             if (!isDragging)
             {
@@ -354,7 +354,7 @@ namespace MarbleOrchestra.Grid
 
         private PathPipe RaycastPipe()
         {
-            Vector2 screenPos = Mouse.current.position.ReadValue();
+            Vector2 screenPos = Pointer.current.position.ReadValue();
             Ray ray = targetCamera.ScreenPointToRay(screenPos);
 
             return Physics.Raycast(ray, out RaycastHit hit) ? hit.collider.GetComponent<PathPipe>() : null;

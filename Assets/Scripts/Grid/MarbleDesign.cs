@@ -75,8 +75,7 @@ namespace MarbleOrchestra.Grid
 
         private Material BuildMaterial()
         {
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-            if (shader == null) shader = Shader.Find("Standard");
+            Shader shader = RuntimeShaders.Lit; // not Shader.Find - see RuntimeShaders (shader stripping in builds)
 
             Material material = new Material(shader) { name = name };
 
