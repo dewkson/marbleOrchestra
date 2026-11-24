@@ -17,8 +17,11 @@ namespace MarbleOrchestra.Grid
         [SerializeField] private float hubSize = 0.2f;
         [SerializeField] private Color highlightColor = new Color(1f, 0.85f, 0.1f); // frame color while selected/dragged/hovered
         [SerializeField] private Color roleLabelColor = Color.white;
-        [SerializeField] private float roleLabelCharacterSize = 0.05f;
-        [SerializeField] private int roleLabelFontSize = 32;
+        // Rasterized at a high font size and scaled down via characterSize
+        // (same on-card size as the former 32 / 0.05): a 32px glyph texture
+        // got magnified on high-DPI phone screens and looked blurry.
+        [SerializeField] private float roleLabelCharacterSize = 0.05f * 32f / 128f;
+        [SerializeField] private int roleLabelFontSize = 128;
         [SerializeField] private float roleLabelTopOffset = 0.38f; // distance from card center to the label, so it sits above the pipe arms instead of on top of them
         [SerializeField] private int dragSortingBoost = 100; // added to every renderer's sortingOrder while dragged, so the card draws over every other pipe regardless of layout
         [SerializeField] private Color freeSlotColor = new Color(0f, 0f, 0f, 0.35f); // face of an empty 15-Puzzle slot (see 0067)
@@ -42,6 +45,16 @@ namespace MarbleOrchestra.Grid
         private bool dragElevated;
         private bool isBlockedVisual;
         private bool isFreeSlotVisual;
+        private float frameAlpha = 1f; // pipe cards only (see 0071), so an instrument outline under the frame stays visible
+
+        /// Opacity of this card's frame (see 0071) - set by PathGrid for
+        /// pipe cards; blocked cells and free slots ignore it. The
+        /// selection highlight always stays opaque.
+        public void SetFrameAlpha(float alpha)
+        {
+            frameAlpha = Mathf.Clamp01(alpha);
+            UpdateFrameColor();
+        }
 
         public void Refresh(PipeDefinition definition, LevelData levelStyle)
         {
@@ -177,6 +190,13 @@ namespace MarbleOrchestra.Grid
             else if (connectivity == CellConnectivity.PathComplete) frameRenderer.color = style.PathCompleteBorderColor;
             else if (locked) frameRenderer.color = style.LockedBorderColor;
             else frameRenderer.color = style.CardBorderColor;
+
+            if (!isFreeSlotVisual && !highlighted && !isBlockedVisual)
+            {
+                Color color = frameRenderer.color;
+                color.a *= frameAlpha;
+                frameRenderer.color = color;
+            }
         }
 
         /// The Start/Ziel label normally sits above the pipe arms - but an
@@ -278,7 +298,8 @@ namespace MarbleOrchestra.Grid
             roleLabelRenderer.sortingOrder = 5;
         }
 
-        private static Sprite GetPixelSprite()
+        /// Shared 1x1 white sprite every procedural card part is drawn with.
+        public static Sprite GetPixelSprite()
         {
             if (pixelSprite != null) return pixelSprite;
 

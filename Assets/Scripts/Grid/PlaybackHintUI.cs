@@ -39,6 +39,8 @@ namespace MarbleOrchestra.Grid
             if (marbleController == null) marbleController = FindAnyObjectByType<MarbleController>();
             EnsureEventSystem();
             BuildUI();
+            // "Nice Beat" winning indicator (see 0070) rides along with the play button, so the scene needs no extra setup.
+            if (FindAnyObjectByType<LevelCompleteUI>() == null) gameObject.AddComponent<LevelCompleteUI>();
         }
 
         /// Play triangle / pause bars at the left of the button; hidden (and

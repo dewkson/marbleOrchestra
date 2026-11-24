@@ -72,9 +72,10 @@
         companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
         productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
         productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
-        // Native 3x phone resolutions are expensive to render - 2x still
-        // looks sharp and keeps the frame rate up.
-        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+        // Render at the phone's native pixel density: a capped ratio (e.g.
+        // 2 on a 3x screen) makes the browser upscale the whole canvas,
+        // which visibly blurs text. Cap at 3 only for exotic >3x devices.
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 3),
         matchWebGLToCanvasSize: true,
       };
 

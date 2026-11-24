@@ -137,6 +137,7 @@ namespace MarbleOrchestra.Grid
         private Vector2 mousePressScreenPos;
         private Vector2 mouseLastScreenPos;
         private bool touchDragging;
+        private bool touchTapPending; // single finger went down in the main view - a release without drag counts as a tap (enters free camera)
         private bool touchInMainView;
         private Vector2 touchPressScreenPos;
         private Vector2 touchLastScreenPos;
@@ -292,6 +293,7 @@ namespace MarbleOrchestra.Grid
             mousePressed = false;
             mouseDragging = false;
             touchDragging = false;
+            touchTapPending = false;
             pinchLastDistance = -1f;
             followVelocity = Vector3.zero;
             followSizeVelocity = 0f;
@@ -429,6 +431,7 @@ namespace MarbleOrchestra.Grid
 
             if (Mouse.current.leftButton.wasReleasedThisFrame)
             {
+                if (!mouseDragging) isFreeCamera = true; // a plain click on the 3D view also stops the guided follow
                 mousePressed = false;
                 mouseDragging = false;
                 return;
@@ -456,8 +459,13 @@ namespace MarbleOrchestra.Grid
             if (Touchscreen.current == null) return;
 
             TouchControl primary = Touchscreen.current.primaryTouch;
-            if (ActiveTouchCount() != 1 || !primary.press.isPressed)
+            int touchCount = ActiveTouchCount();
+            if (touchCount != 1 || !primary.press.isPressed)
             {
+                // A plain tap on the 3D view (released without dragging,
+                // no second finger involved) also stops the guided follow.
+                if (touchCount == 0 && touchTapPending && !touchDragging) isFreeCamera = true;
+                if (touchCount != 1) touchTapPending = false;
                 touchDragging = false;
                 return;
             }
@@ -469,6 +477,7 @@ namespace MarbleOrchestra.Grid
                 touchDragging = false;
                 touchPressScreenPos = currentScreenPos;
                 touchInMainView = GameViewLayout.IsInMainView(currentScreenPos);
+                touchTapPending = touchInMainView;
                 return;
             }
 

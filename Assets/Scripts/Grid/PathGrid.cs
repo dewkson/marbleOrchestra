@@ -26,6 +26,13 @@ namespace MarbleOrchestra.Grid
         [SerializeField, Range(0f, 1f)] private float coveredContentIconAlpha = 0.85f;
         [Tooltip("Über allen Karten-Renderern (max. 5), aber unter einer gezogenen Karte (+100).")]
         [SerializeField] private int contentIconSortingOrder = 10;
+        [Header("Instrument Outline (see 0071)")]
+        [Tooltip("Wie weit die Färbung des Instrumentenfelds über die Kartenkante hinaus in die Fuge zwischen den Zellen ragt (in Kartengrößen) - dieser Teil ist immer voll sichtbar.")]
+        [SerializeField, Range(0f, 0.2f)] private float instrumentOutlineOutset = 0.05f;
+        [Tooltip("Unter allen Karten-Renderern (min. -1), über dem freien 15-Puzzle-Slot (-21): eine darüberliegende Karte zeigt sie durch ihren transparenten Rahmen.")]
+        [SerializeField] private int instrumentOutlineSortingOrder = -5;
+        [Tooltip("Deckkraft der Pipekarten-Rahmen, damit die Umrandung darunter erkennbar bleibt (1 = deckend).")]
+        [SerializeField, Range(0f, 1f)] private float cardFrameAlpha = 0.55f;
 
         private PathPipe[,] pipes;
         private CellContentDefinition[,] contents;
@@ -33,6 +40,7 @@ namespace MarbleOrchestra.Grid
         private PipeVisual[,] blockedVisuals; // one per blocked cell, with or without a picture (see 0030/0054) - purely decorative, no collider
         private PipeVisual[,] slotVisuals; // 15-Puzzle only (see 0067): an empty slot under every buildable cell, drawn below the cards so it only shows where a cell is free - no collider
         private SpriteRenderer[,] contentIcons; // instrument icon per content cell (see 0069) - bound to the cell like the content itself, so it stays put while cards swap/slide underneath; no collider
+        private GameObject[,] instrumentOutlines; // flash-colored rim per instrument cell (see 0071) - bound to the cell, drawn below the cards; no collider
         private int activeSubLevelIndex;
         private int highestReachedSubLevelIndex; // stays put when stepping back, so SubLevels already reached keep validating/playing (see IsInUnlockedSubLevel)
 
@@ -200,6 +208,7 @@ namespace MarbleOrchestra.Grid
                     if (blockedVisuals != null && blockedVisuals[x, y] != null) into.Add(new KeyValuePair<Vector2Int, Transform>(coord, blockedVisuals[x, y].transform));
                     if (slotVisuals != null && slotVisuals[x, y] != null) into.Add(new KeyValuePair<Vector2Int, Transform>(coord, slotVisuals[x, y].transform));
                     if (contentIcons != null && contentIcons[x, y] != null) into.Add(new KeyValuePair<Vector2Int, Transform>(coord, contentIcons[x, y].transform));
+                    if (instrumentOutlines != null && instrumentOutlines[x, y] != null) into.Add(new KeyValuePair<Vector2Int, Transform>(coord, instrumentOutlines[x, y].transform));
                     if (pipes[x, y] != null) into.Add(new KeyValuePair<Vector2Int, Transform>(coord, pipes[x, y].transform));
                 }
             }
@@ -241,6 +250,9 @@ namespace MarbleOrchestra.Grid
                     SpriteRenderer contentIcon = contentIcons != null ? contentIcons[x, y] : null;
                     if (contentIcon != null) contentIcon.gameObject.SetActive(active);
 
+                    GameObject outline = instrumentOutlines != null ? instrumentOutlines[x, y] : null;
+                    if (outline != null) outline.SetActive(active);
+
                     PathPipe pipe = pipes[x, y];
                     if (pipe == null) continue;
                     pipe.gameObject.SetActive(active);
@@ -269,6 +281,7 @@ namespace MarbleOrchestra.Grid
             blockedVisuals = new PipeVisual[Width, Height];
             slotVisuals = new PipeVisual[Width, Height];
             contentIcons = new SpriteRenderer[Width, Height];
+            instrumentOutlines = new GameObject[Width, Height];
             bool fifteenPuzzle = IsFifteenPuzzle;
 
             for (int y = 0; y < Height; y++)
@@ -288,6 +301,12 @@ namespace MarbleOrchestra.Grid
                     if (contents[x, y] != null && contents[x, y].Icon != null)
                     {
                         contentIcons[x, y] = CreateContentIcon(new Vector2Int(x, y), contents[x, y].Icon);
+                    }
+
+                    CellVisualEffect effect = levelData.GetVisualEffectAt(index);
+                    if (contents[x, y] != null && effect != null && CellVisualEffect.IsColorFlash(effect.Type))
+                    {
+                        instrumentOutlines[x, y] = CreateInstrumentOutline(new Vector2Int(x, y), effect.FlashColor);
                     }
                     PipeDefinition definition = index < levelData.Pipes.Count ? levelData.Pipes[index] : null;
 
@@ -638,6 +657,33 @@ namespace MarbleOrchestra.Grid
             return renderer;
         }
 
+        /// The flash-colored instrument cell (see 0071): one solid square
+        /// in the flash color, bound to the cell like the content icon. It
+        /// reaches a bit past the card edge into the gap between cells, so
+        /// that rim always shows; a free cell shows fully colored, and a
+        /// covering card lets it show through its transparent frame
+        /// (cardFrameAlpha). Drawn below every card renderer, so a dragged
+        /// or covering card never gets painted over.
+        private GameObject CreateInstrumentOutline(Vector2Int coord, Color flashColor)
+        {
+            GameObject go = new GameObject($"InstrumentOutline_{coord.x}_{coord.y}");
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = CellToLocalPosition(coord);
+
+            // Keep the square inside its own cell, never overlapping a neighbour's.
+            float maxOutset = Mathf.Max(0f, (cellSize / cardScale - 1f) * 0.5f);
+            float size = 1f + 2f * Mathf.Min(instrumentOutlineOutset, maxOutset);
+            Color color = flashColor;
+            color.a = 1f;
+
+            SpriteRenderer renderer = go.AddComponent<SpriteRenderer>();
+            renderer.sprite = PipeVisual.GetPixelSprite();
+            renderer.color = color;
+            renderer.sortingOrder = instrumentOutlineSortingOrder;
+            go.transform.localScale = new Vector3(size * cardScale, size * cardScale, 1f);
+            return go;
+        }
+
         private PathPipe CreatePipe(Vector2Int coord, PipeDefinition definition)
         {
             GameObject go = new GameObject($"Pipe_{coord.x}_{coord.y}");
@@ -656,6 +702,7 @@ namespace MarbleOrchestra.Grid
             collider.size = new Vector3(1f, 1f, 0.1f);
 
             PathPipe pipe = go.AddComponent<PathPipe>();
+            pipe.GetComponent<PipeVisual>().SetFrameAlpha(cardFrameAlpha); // see 0071 - lets an instrument outline show through
             pipe.Initialize(definition, coord, level);
             return pipe;
         }

@@ -6,9 +6,11 @@ using UnityEngine.UI;
 namespace MarbleOrchestra.Grid
 {
     /// <summary>
-    /// Screenspace button shown while playing (see 0044): switches between
-    /// the guided isometric follow camera and the free pan/zoom camera. Builds
-    /// its own Canvas/Button at runtime, matching PlaybackHintUI's
+    /// Screenspace side-column UI. There is no guided/free camera toggle
+    /// button (anymore, see 0044): a click/drag/zoom on the 3D view enters
+    /// free camera (CameraModeTransition), and the track / SubLevel skip
+    /// buttons below lead back to the guided camera. Builds its own
+    /// Canvas/Buttons at runtime, matching PlaybackHintUI's
     /// procedural-UI pattern - no scene/prefab setup needed.
     /// A clickable uGUI Button needs an EventSystem with an input module to
     /// receive pointer events; since this project's Active Input Handling
@@ -34,8 +36,6 @@ namespace MarbleOrchestra.Grid
     {
         [SerializeField] private CameraModeTransition cameraModeTransition;
         [SerializeField] private MarbleController marbleController;
-        [SerializeField] private string guidedLabel = "Geführte Kamera";
-        [SerializeField] private string freeLabel = "Freie Kamera";
         [SerializeField] private int levelTitleFontSize = 48;
         [Tooltip("Abstand (Referenzpixel) zwischen Überschrift und dem Trenner zwischen Spielbereich und UI.")]
         [SerializeField] private float levelTitleGapAboveBorder = 20f;
@@ -49,12 +49,14 @@ namespace MarbleOrchestra.Grid
 
         private MinimapCamera minimap;
         private CanvasScaler canvasScaler;
-        private RectTransform buttonRect;
         private RectTransform prevRect, nextRect, autoRect;
         private RectTransform trackPanelRect;
-        private GameObject buttonGO;
-        private Text cameraButtonText;
         private GameObject trackPanelGO;
+        private RectTransform prevSubLevelIcon, nextSubLevelIcon;
+
+        private const float SkipIconMaxSize = 64f;
+        private const float SkipIconMargin = 24f; // icon distance from the button edge (planning)
+        private const float TrackIconSize = 40f;
         private Text autoCycleText;
 
         private PathGrid grid;
@@ -86,27 +88,29 @@ namespace MarbleOrchestra.Grid
             float top = GameViewLayout.IsMobile
                 ? GameViewLayout.SideContentTopRef
                 : (minimap != null ? minimap.BottomRef : M) + GapBelowMinimap;
-            buttonRect.anchoredPosition = new Vector2(-M, -top);
-            buttonRect.sizeDelta = new Vector2(W, 56f);
             trackPanelRect.anchoredPosition = new Vector2(0f, -top);
-            SetRect(prevRect, new Vector2(-M - W / 2f - 10f, -66f), new Vector2(W / 2f - 10f, 56f));
-            SetRect(nextRect, new Vector2(-M, -66f), new Vector2(W / 2f - 10f, 56f));
-            SetRect(autoRect, new Vector2(-M, -132f), new Vector2(W, 56f));
+            SetRect(prevRect, new Vector2(-M - W / 2f - 10f, 0f), new Vector2(W / 2f - 10f, 56f));
+            SetRect(nextRect, new Vector2(-M, 0f), new Vector2(W / 2f - 10f, 56f));
+            SetRect(autoRect, new Vector2(-M, -66f), new Vector2(W, 56f));
 
-            bool visible = cameraModeTransition != null && marbleController != null && marbleController.IsPlaying;
-
-            if (buttonGO.activeSelf != visible) buttonGO.SetActive(visible);
-            // Shows the mode a click switches TO: "Freie Kamera" while guided, "Geführte Kamera" while free.
-            if (visible) cameraButtonText.text = cameraModeTransition.IsFreeCamera ? guidedLabel : freeLabel;
-
-            bool tracksVisible = cameraModeTransition != null && marbleController != null
-                && marbleController.IsPlaying && !cameraModeTransition.IsFreeCamera && cameraModeTransition.TrackCount > 1;
+            bool tracksVisible = IsTrackPanelVisible(cameraModeTransition, marbleController);
             if (trackPanelGO.activeSelf != tracksVisible) trackPanelGO.SetActive(tracksVisible);
             if (tracksVisible) autoCycleText.text = AutoLabel(cameraModeTransition.AutoCycleTracks);
 
             UpdateSubLevelPanel(top);
             UpdateLevelTitle();
         }
+
+        /// Track switching (see 0057) while playing with more than one
+        /// track - also in free camera: a click on a track button is the way
+        /// back to the guided camera (CameraModeTransition.SwitchTrack).
+        /// Shared with LevelCompleteUI, which lays itself out below it.
+        public static bool IsTrackPanelVisible(CameraModeTransition cameraModeTransition, MarbleController marbleController) =>
+            cameraModeTransition != null && marbleController != null
+            && marbleController.IsPlaying && cameraModeTransition.TrackCount > 1;
+
+        /// Height of the track panel (two rows of 56, 10 apart).
+        public const float TrackPanelHeightRef = 122f;
 
         /// Name of the SubLevel in focus (the edited one, while playing the
         /// one the camera follows) as named in the level editor, as plain
@@ -168,9 +172,38 @@ namespace MarbleOrchestra.Grid
             SetActiveIfChanged(prevSubLevelGO, marbleController.PreviousSubLevelTarget >= 0);
             SetActiveIfChanged(nextSubLevelGO, marbleController.NextSubLevelTarget >= 0);
 
-            // Labelled with the name (from the level editor) of the SubLevel each button leads to.
-            if (prevSubLevelGO.activeSelf) SetLabel(prevSubLevelText, marbleController.PreviousSubLevelTarget);
-            if (nextSubLevelGO.activeSelf) SetLabel(nextSubLevelText, marbleController.NextSubLevelTarget);
+            // Planning: skip icon at the outer edge (prev left, next right)
+            // plus the name (from the level editor) of the SubLevel the
+            // button leads to. Playing: just the icon, centered.
+            if (prevSubLevelGO.activeSelf) LayoutSubLevelButton(prevSubLevelText, prevSubLevelIcon, marbleController.PreviousSubLevelTarget, playing, false);
+            if (nextSubLevelGO.activeSelf) LayoutSubLevelButton(nextSubLevelText, nextSubLevelIcon, marbleController.NextSubLevelTarget, playing, true);
+        }
+
+        private void LayoutSubLevelButton(Text label, RectTransform icon, int subLevelIndex, bool playing, bool next)
+        {
+            float size = Mathf.Min(SkipIconMaxSize, GameViewLayout.SubLevelNavRowHeight * 0.45f);
+            icon.sizeDelta = new Vector2(size, size);
+
+            if (playing)
+            {
+                icon.anchorMin = icon.anchorMax = icon.pivot = new Vector2(0.5f, 0.5f);
+                icon.anchoredPosition = Vector2.zero;
+                SetActiveIfChanged(label.gameObject, false);
+                return;
+            }
+
+            float side = next ? 1f : 0f;
+            icon.anchorMin = icon.anchorMax = icon.pivot = new Vector2(side, 0.5f);
+            icon.anchoredPosition = new Vector2(next ? -SkipIconMargin : SkipIconMargin, 0f);
+
+            // Keep the name clear of the icon.
+            RectTransform labelRect = (RectTransform)label.transform;
+            float inset = SkipIconMargin + size + SkipIconMargin / 2f;
+            labelRect.offsetMin = new Vector2(next ? SkipIconMargin : inset, 0f);
+            labelRect.offsetMax = new Vector2(next ? -inset : -SkipIconMargin, 0f);
+
+            SetActiveIfChanged(label.gameObject, true);
+            SetLabel(label, subLevelIndex);
         }
 
         private void SetLabel(Text label, int subLevelIndex)
@@ -219,11 +252,10 @@ namespace MarbleOrchestra.Grid
 
             canvasGO.AddComponent<GraphicRaycaster>();
 
-            buttonGO = CreateButton(canvasGO.transform, "CameraModeButton", freeLabel, new Vector2(-M, 0f), new Vector2(W, 56f), HandleCameraButtonClicked, out cameraButtonText);
-            buttonRect = (RectTransform)buttonGO.transform;
-            buttonGO.SetActive(false);
+            Sprite prevSprite = CreateSkipIconSprite(false);
+            Sprite nextSprite = CreateSkipIconSprite(true);
 
-            // Track switching for guided camera (see 0057), below the return button.
+            // Track switching for guided camera (see 0057), below the minimap.
             trackPanelGO = new GameObject("TrackSwitchPanel", typeof(RectTransform));
             trackPanelGO.transform.SetParent(canvasGO.transform, false);
             trackPanelRect = (RectTransform)trackPanelGO.transform;
@@ -232,9 +264,16 @@ namespace MarbleOrchestra.Grid
             panelRect.anchoredPosition = Vector2.zero;
             panelRect.sizeDelta = Vector2.zero;
 
-            prevRect = (RectTransform)CreateButton(trackPanelGO.transform, "PrevTrackButton", "< Bahn", new Vector2(-M - W / 2f - 10f, -66f), new Vector2(W / 2f - 10f, 56f), () => cameraModeTransition?.PreviousTrack(), out _).transform;
-            nextRect = (RectTransform)CreateButton(trackPanelGO.transform, "NextTrackButton", "Bahn >", new Vector2(-M, -66f), new Vector2(W / 2f - 10f, 56f), () => cameraModeTransition?.NextTrack(), out _).transform;
-            autoRect = (RectTransform)CreateButton(trackPanelGO.transform, "AutoCycleButton", AutoLabel(false), new Vector2(-M, -132f), new Vector2(W, 56f), () => cameraModeTransition?.ToggleAutoCycleTracks(), out autoCycleText).transform;
+            // Previous/next track: just the skip icon, centered, no text.
+            GameObject prevTrackGO = CreateButton(trackPanelGO.transform, "PrevTrackButton", "", Vector2.zero, new Vector2(W / 2f - 10f, 56f), () => cameraModeTransition?.PreviousTrack(), out Text prevTrackText);
+            prevTrackText.gameObject.SetActive(false);
+            AddIcon(prevTrackGO.transform, prevSprite, TrackIconSize);
+            prevRect = (RectTransform)prevTrackGO.transform;
+            GameObject nextTrackGO = CreateButton(trackPanelGO.transform, "NextTrackButton", "", Vector2.zero, new Vector2(W / 2f - 10f, 56f), () => cameraModeTransition?.NextTrack(), out Text nextTrackText);
+            nextTrackText.gameObject.SetActive(false);
+            AddIcon(nextTrackGO.transform, nextSprite, TrackIconSize);
+            nextRect = (RectTransform)nextTrackGO.transform;
+            autoRect = (RectTransform)CreateButton(trackPanelGO.transform, "AutoCycleButton", AutoLabel(false), Vector2.zero, new Vector2(W, 56f), () => cameraModeTransition?.ToggleAutoCycleTracks(), out autoCycleText).transform;
             trackPanelGO.SetActive(false);
 
             // SubLevel navigation: while planning in the camera button's slot, while playing above the play button.
@@ -247,9 +286,11 @@ namespace MarbleOrchestra.Grid
             prevSubLevelGO = CreateButton(subLevelPanelGO.transform, "PrevSubLevelButton", "", Vector2.zero, Vector2.zero, HandlePrevSubLevelClicked, out prevSubLevelText);
             prevSubLevelText.fontSize = GameViewLayout.SubLevelNavFontSize;
             prevSubLevelRect = (RectTransform)prevSubLevelGO.transform;
+            prevSubLevelIcon = AddIcon(prevSubLevelGO.transform, prevSprite, SkipIconMaxSize);
             nextSubLevelGO = CreateButton(subLevelPanelGO.transform, "NextSubLevelButton", "", Vector2.zero, Vector2.zero, HandleNextSubLevelClicked, out nextSubLevelText);
             nextSubLevelText.fontSize = GameViewLayout.SubLevelNavFontSize;
             nextSubLevelRect = (RectTransform)nextSubLevelGO.transform;
+            nextSubLevelIcon = AddIcon(nextSubLevelGO.transform, nextSprite, SkipIconMaxSize);
             subLevelPanelGO.SetActive(false);
 
             // Level title as plain text near the main view / UI border.
@@ -317,12 +358,56 @@ namespace MarbleOrchestra.Grid
             return go;
         }
 
-        private void HandleCameraButtonClicked()
+        /// Centered white icon inside a button (no raycast, the button takes the click).
+        private static RectTransform AddIcon(Transform button, Sprite sprite, float size)
         {
-            if (cameraModeTransition == null) return;
+            GameObject go = new GameObject("Icon", typeof(RectTransform));
+            go.transform.SetParent(button, false);
+            Image image = go.AddComponent<Image>();
+            image.sprite = sprite;
+            image.color = Color.white;
+            image.raycastTarget = false;
+            image.preserveAspect = true;
 
-            if (cameraModeTransition.IsFreeCamera) cameraModeTransition.ReturnToGuidedCamera();
-            else cameraModeTransition.EnterFreeCamera();
+            RectTransform rect = (RectTransform)go.transform;
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(size, size);
+            return rect;
+        }
+
+        /// Music-player "skip" icon: a triangle with a bar at its tip -
+        /// next (|>| pointing right) or previous (mirrored). Built
+        /// procedurally like PlaybackHintUI's play/pause icons, with a
+        /// soft 1px edge.
+        private static Sprite CreateSkipIconSprite(bool next)
+        {
+            const int size = 128;
+            const float slope = 0.35f / 0.48f; // triangle half-height over its length
+            float slopeNorm = Mathf.Sqrt(1f + slope * slope);
+
+            Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+            Color32[] pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float u = (x + 0.5f) / size, v = (y + 0.5f) / size;
+                if (!next) u = 1f - u; // mirror for "previous"
+
+                // Triangle (0.2,0.15) (0.2,0.85) (0.68,0.5).
+                float dEdge = u - 0.2f;
+                float dSlant = (slope * (0.68f - u) - Mathf.Abs(v - 0.5f)) / slopeNorm;
+                float triangle = Mathf.Min(dEdge, dSlant);
+
+                // Bar at the tip.
+                float bar = Mathf.Min(Mathf.Min(u - 0.7f, 0.82f - u), Mathf.Min(v - 0.15f, 0.85f - v));
+
+                float a = Mathf.Clamp01(Mathf.Max(triangle, bar) * size + 0.5f);
+                pixels[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+            }
+            tex.SetPixels32(pixels);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
         }
     }
 }

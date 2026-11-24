@@ -207,6 +207,19 @@ namespace MarbleOrchestra.Grid
 
         private bool IsSubLevelValid(int index) => GetValidSubLevelIndices().Contains(index);
 
+        /// The whole level is solved (see 0070): every SubLevel has a valid
+        /// Start-to-Goal track at the same time - or, without SubLevels,
+        /// the single implicit one does.
+        public bool IsLevelComplete
+        {
+            get
+            {
+                if (grid == null) return false;
+                if (grid.SubLevelCount == 0) return HasCompletedTrackInActiveSubLevel();
+                return GetValidSubLevelIndices().Count == grid.SubLevelCount;
+            }
+        }
+
         /// Whether the player may switch the planning view to this SubLevel:
         /// any SubLevel reached so far, plus the first not-yet-reached one
         /// once the last reached SubLevel has a valid track.

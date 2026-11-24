@@ -80,10 +80,10 @@ namespace MarbleOrchestra.Grid
         public static float SubLevelNavRowHeight => IsMobile ? 112f : PlayButtonHeight;
         public const int SubLevelNavFontSize = 36; // same as the play button's label
 
-        /// Desktop, play mode: the camera button plus the track-switch panel
-        /// below the minimap (see FreeCameraReturnButtonUI), incl. the gap
-        /// above them - reserved so a tall minimap never covers them.
-        public const float CameraButtonsBlockRef = 24f + 188f;
+        /// Desktop, play mode: the track-switch panel below the minimap (see
+        /// FreeCameraReturnButtonUI.TrackPanelHeightRef), incl. the gap
+        /// above it - reserved so a tall minimap never covers it.
+        public const float CameraButtonsBlockRef = 24f + 122f;
 
         /// Canvas height in reference pixels (match-width scaling).
         public static float ScreenHeightRef => Screen.height / CanvasScale;
