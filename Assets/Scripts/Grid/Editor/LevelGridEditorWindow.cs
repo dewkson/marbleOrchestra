@@ -80,6 +80,10 @@ namespace MarbleOrchestra.Grid.Editor
         private int pendingWidth;
         private int pendingHeight;
         private Vector2 paletteScroll;
+        private Vector2 sidePanelScroll;
+        private Vector2 gridScroll;
+
+        private const float SidePanelWidth = 300f; // fixed left column width, identical for all tabs
 
         private Color customBackgroundColor = new Color(0.15f, 0.15f, 0.15f);
 
@@ -217,9 +221,20 @@ namespace MarbleOrchestra.Grid.Editor
 
             EditorGUILayout.Space();
 
-            EditorGUILayout.BeginHorizontal();
+            // Left column: fixed width for every tab, scrolls vertically on its
+            // own. Right side: the grid in a scroll view filling the rest.
+            EditorGUILayout.BeginHorizontal(GUILayout.ExpandHeight(true));
+
+            sidePanelScroll = EditorGUILayout.BeginScrollView(sidePanelScroll, false, false,
+                GUIStyle.none, GUI.skin.verticalScrollbar, GUIStyle.none,
+                GUILayout.Width(SidePanelWidth), GUILayout.ExpandHeight(true));
             DrawPalette();
+            EditorGUILayout.EndScrollView();
+
+            gridScroll = EditorGUILayout.BeginScrollView(gridScroll, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
             DrawGrid();
+            EditorGUILayout.EndScrollView();
+
             EditorGUILayout.EndHorizontal();
         }
 
@@ -516,7 +531,8 @@ namespace MarbleOrchestra.Grid.Editor
 
         private void DrawPalette()
         {
-            EditorGUILayout.BeginVertical(GUILayout.Width(190));
+            // Leave room for the side panel's vertical scrollbar.
+            EditorGUILayout.BeginVertical(GUILayout.Width(SidePanelWidth - 16f));
 
             if (activeLayer == PaintLayer.Pipe)
             {
