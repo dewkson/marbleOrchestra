@@ -129,6 +129,10 @@ MonoBehaviour:
   - {fileID: 11400000, guid: c19e2fd77dda78c4e9ad3765c8cafe7a, type: 2}
   - {fileID: 0}
   - {fileID: 0}
+  - {fileID: 11400000, guid: 06138dfe9d2e7e24d975b8c250c45273, type: 2}
+  - {fileID: 11400000, guid: 27cfed944490f9c4fa1dea891414e54c, type: 2}
+  - {fileID: 11400000, guid: f4ae79fc787b4ea46af142b5dfedfe62, type: 2}
+  - {fileID: 11400000, guid: 27cfed944490f9c4fa1dea891414e54c, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -138,6 +142,10 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
+  - {fileID: 11400000, guid: c19e2fd77dda78c4e9ad3765c8cafe7a, type: 2}
+  - {fileID: 11400000, guid: ae93e6e983db0d241be6dc3f170d9fed, type: 2}
+  - {fileID: 11400000, guid: ae93e6e983db0d241be6dc3f170d9fed, type: 2}
+  - {fileID: 11400000, guid: 06138dfe9d2e7e24d975b8c250c45273, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -147,18 +155,10 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: ae93e6e983db0d241be6dc3f170d9fed, type: 2}
+  - {fileID: 11400000, guid: 08776b09c982e5848bcb41d861b160c0, type: 2}
+  - {fileID: 11400000, guid: c19e2fd77dda78c4e9ad3765c8cafe7a, type: 2}
+  - {fileID: 11400000, guid: f998b56ef0e6c0f40a9425bf404ff078, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -168,10 +168,10 @@ MonoBehaviour:
   - {fileID: 11400000, guid: f66cb0683f663844f9e1c081bc0d3306, type: 2}
   - {fileID: 0}
   - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: ae93e6e983db0d241be6dc3f170d9fed, type: 2}
+  - {fileID: 11400000, guid: 06138dfe9d2e7e24d975b8c250c45273, type: 2}
+  - {fileID: 11400000, guid: 27cfed944490f9c4fa1dea891414e54c, type: 2}
+  - {fileID: 11400000, guid: f998b56ef0e6c0f40a9425bf404ff078, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 11400000, guid: b6d8844e0d2c69844807e92e8733fe89, type: 2}
@@ -181,8 +181,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 9e795f7fa45d65a45a242705bdc714ff, type: 2}
   - {fileID: 0}
   - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: f998b56ef0e6c0f40a9425bf404ff078, type: 2}
+  - {fileID: 11400000, guid: c19e2fd77dda78c4e9ad3765c8cafe7a, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -229,8 +229,8 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
-  - {fileID: 11400000, guid: da10a7fb57850034dbd4283e15206392, type: 2}
-  - {fileID: 11400000, guid: da10a7fb57850034dbd4283e15206392, type: 2}
+  - {fileID: 11400000, guid: 64ac79fd28b01df4d8ae7f3c364c7956, type: 2}
+  - {fileID: 11400000, guid: 64ac79fd28b01df4d8ae7f3c364c7956, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -241,7 +241,7 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
-  - {fileID: 11400000, guid: da10a7fb57850034dbd4283e15206392, type: 2}
+  - {fileID: 11400000, guid: 64ac79fd28b01df4d8ae7f3c364c7956, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -275,7 +275,7 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
-  - {fileID: 11400000, guid: 94731b7b40b2a5a42955cbb8a42a67b6, type: 2}
+  - {fileID: 11400000, guid: 24e343fc418867748b37f852e875aa53, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -306,9 +306,9 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
-  - {fileID: 11400000, guid: 968e65dc0d16e774baaa5ca1559c2098, type: 2}
+  - {fileID: 11400000, guid: c78e125091836ac48b175d0592c17945, type: 2}
   - {fileID: 0}
-  - {fileID: 11400000, guid: 968e65dc0d16e774baaa5ca1559c2098, type: 2}
+  - {fileID: 11400000, guid: c78e125091836ac48b175d0592c17945, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -326,6 +326,8 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
+  - {fileID: 11400000, guid: f69d9986827711c41868227f59dbbb65, type: 2}
+  - {fileID: 11400000, guid: 9eea133fc40cb154bb9401311f69b12f, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -345,9 +347,9 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
+  - {fileID: 11400000, guid: 6556ab740c28f6247860cdc970a82b21, type: 2}
   - {fileID: 0}
   - {fileID: 0}
-  - {fileID: 11400000, guid: dd11a77990b1a8c4f9de66589b4bd84c, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -357,16 +359,14 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
+  - {fileID: 11400000, guid: 6556ab740c28f6247860cdc970a82b21, type: 2}
   - {fileID: 0}
   - {fileID: 0}
-  - {fileID: 11400000, guid: dd11a77990b1a8c4f9de66589b4bd84c, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 6489a9e6eacbe8c4c900894736815b68, type: 2}
+  - {fileID: 11400000, guid: c5864e5158850b7499e6409dd48ea700, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -763,12 +763,13 @@ MonoBehaviour:
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
-  - color: {r: 0, g: 0, b: 0, a: 0}
-  - color: {r: 0, g: 0, b: 0, a: 0}
-  - color: {r: 0, g: 0, b: 0, a: 0}
-  - color: {r: 0, g: 0, b: 0, a: 0}
-  - color: {r: 0, g: 0, b: 0, a: 0}
-  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
@@ -780,8 +781,6 @@ MonoBehaviour:
   - color: {r: 0, g: 0, b: 0, a: 0}
   - color: {r: 0, g: 0, b: 0, a: 0}
   - color: {r: 0, g: 0, b: 0, a: 0}
-  - color: {r: 0, g: 0, b: 0, a: 0}
-  - color: {r: 0, g: 0, b: 0, a: 0}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
@@ -789,12 +788,13 @@ MonoBehaviour:
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0, g: 0, b: 0, a: 0}
   - color: {r: 0, g: 0, b: 0, a: 0}
   - color: {r: 0, g: 0, b: 0, a: 0}
   - color: {r: 0, g: 0, b: 0, a: 0}
-  - color: {r: 0, g: 0, b: 0, a: 0}
-  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
@@ -802,8 +802,7 @@ MonoBehaviour:
   - color: {r: 0.09327163, g: 0.106673606, b: 0.1509434, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
-  - color: {r: 0, g: 0, b: 0, a: 0}
-  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0, g: 0, b: 0, a: 0}
   - color: {r: 0, g: 0, b: 0, a: 0}
   - color: {r: 0, g: 0, b: 0, a: 0}
@@ -815,8 +814,8 @@ MonoBehaviour:
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
-  - color: {r: 0, g: 0, b: 0, a: 0}
-  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0, g: 0, b: 0, a: 0}
   - color: {r: 0, g: 0, b: 0, a: 0}
   - color: {r: 0, g: 0, b: 0, a: 0}
@@ -828,8 +827,8 @@ MonoBehaviour:
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
-  - color: {r: 0, g: 0, b: 0, a: 0}
-  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0, g: 0, b: 0, a: 0}
   - color: {r: 0, g: 0, b: 0, a: 0}
   - color: {r: 0, g: 0, b: 0, a: 0}
@@ -841,12 +840,13 @@ MonoBehaviour:
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
-  - color: {r: 0, g: 0, b: 0, a: 0}
-  - color: {r: 0, g: 0, b: 0, a: 0}
-  - color: {r: 0, g: 0, b: 0, a: 0}
-  - color: {r: 0, g: 0, b: 0, a: 0}
-  - color: {r: 0, g: 0, b: 0, a: 0}
-  - color: {r: 0, g: 0, b: 0, a: 0}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
+  - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
   - color: {r: 0.11372549, g: 0.11372549, b: 0.11372549, a: 1}
@@ -1317,12 +1317,12 @@ MonoBehaviour:
   - type: 0
     flashColor: {r: 0, g: 0, b: 0, a: 0}
     duration: 0
-  - type: 0
-    flashColor: {r: 0, g: 0, b: 0, a: 0}
-    duration: 0
-  - type: 0
-    flashColor: {r: 0, g: 0, b: 0, a: 0}
-    duration: 0
+  - type: 1
+    flashColor: {r: 0.18129228, g: 0.3690206, b: 0.3962264, a: 1}
+    duration: 0.4
+  - type: 1
+    flashColor: {r: 0.18129228, g: 0.3690206, b: 0.3962264, a: 1}
+    duration: 0.4
   - type: 0
     flashColor: {r: 0, g: 0, b: 0, a: 0}
     duration: 0
@@ -1434,12 +1434,12 @@ MonoBehaviour:
   - type: 0
     flashColor: {r: 0, g: 0, b: 0, a: 0}
     duration: 0
-  - type: 0
-    flashColor: {r: 0, g: 0, b: 0, a: 0}
-    duration: 0
-  - type: 0
-    flashColor: {r: 0, g: 0, b: 0, a: 0}
-    duration: 0
+  - type: 1
+    flashColor: {r: 0.18129228, g: 0.3690206, b: 0.3962264, a: 1}
+    duration: 0.4
+  - type: 1
+    flashColor: {r: 0.18129228, g: 0.3690206, b: 0.3962264, a: 1}
+    duration: 0.4
   - type: 0
     flashColor: {r: 0, g: 0, b: 0, a: 0}
     duration: 0
@@ -1496,7 +1496,7 @@ MonoBehaviour:
       y: 10
       width: 7
       height: 4
-    startHeight: 1
+    startHeight: 6
     loopLengthSteps: 4
     blockColors:
       useBaseColor: 1
@@ -1507,7 +1507,7 @@ MonoBehaviour:
       y: 5
       width: 7
       height: 5
-    startHeight: 1
+    startHeight: 5
     loopLengthSteps: 8
     blockColors:
       useBaseColor: 1
@@ -1518,7 +1518,7 @@ MonoBehaviour:
       y: 0
       width: 7
       height: 5
-    startHeight: 1
+    startHeight: 4
     loopLengthSteps: 8
     blockColors:
       useBaseColor: 1
@@ -1529,8 +1529,19 @@ MonoBehaviour:
       y: 0
       width: 6
       height: 7
-    startHeight: 1
+    startHeight: 3
     loopLengthSteps: 16
     blockColors:
       useBaseColor: 1
       baseColor: {r: 0.47058827, g: 0.47058827, b: 0.47058827, a: 1}
+  - subLevelName: Level 1-5
+    area:
+      x: 7
+      y: 7
+      width: 6
+      height: 7
+    startHeight: 4
+    loopLengthSteps: 16
+    blockColors:
+      useBaseColor: 1
+      baseColor: {r: 0.4666667, g: 0.4666667, b: 0.4666667, a: 1}
